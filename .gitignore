@@ -1,0 +1,71 @@
+# Lokālā konfigurācija un sensitīvie dati visās projekta mapēs
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+auth.json
+/backend/storage/*.key
+
+# Node.js un PHP atkarības
+node_modules/
+vendor/
+
+# Frontend būvējumi un rīku kešatmiņa
+dist/
+.vite/
+.cache/
+.npm/
+.eslintcache
+*.tsbuildinfo
+/frontend/coverage/
+
+# Laravel ģenerētie faili un saites
+/backend/public/build/
+/backend/public/hot
+/backend/public/storage
+/backend/bootstrap/cache/*
+!/backend/bootstrap/cache/.gitignore
+/backend/storage/framework/cache/**
+/backend/storage/framework/sessions/**
+/backend/storage/framework/testing/**
+/backend/storage/framework/views/**
+!/backend/storage/framework/**/
+!/backend/storage/framework/**/.gitignore
+/backend/storage/logs/**
+!/backend/storage/logs/.gitignore
+/backend/.phpunit.cache/
+/backend/.phpunit.result.cache
+/backend/coverage/
+
+# Lietotāju fotoattēli un citas augšupielādes
+/backend/storage/app/**
+!/backend/storage/app/**/
+!/backend/storage/app/**/.gitignore
+/backend/public/uploads/
+/frontend/public/uploads/
+
+# Žurnāli, pagaidu faili un lokālās datubāzes
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# IDE lokālie iestatījumi
+.idea/
+.vscode/
+*.sublime-workspace
+*.code-workspace
+
+# Operētājsistēmu ģenerētie faili
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
