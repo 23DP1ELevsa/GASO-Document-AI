@@ -19,6 +19,8 @@ dist/
 .eslintcache
 *.tsbuildinfo
 /frontend/coverage/
+/frontend/test-results/
+/frontend/playwright-report/
 
 # Laravel ģenerētie faili un saites
 /backend/public/build/
