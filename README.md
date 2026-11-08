@@ -1,163 +1,86 @@
-# GASO Meter AI
+# GASO Document AI
 
-GASO Meter AI ir plānota progresīvā tīmekļa lietotne (PWA) gāzes skaitītāju rādījumu nolasīšanai no fotogrāfijām, izmantojot mākslīgo intelektu. Lietotājs varēs pārbaudīt atpazīto rādījumu veselos kubikmetros (m³), vajadzības gadījumā to izlabot un apstiprināt.
+## Projekta apraksts
 
-Projekts sākotnēji paredzēts kā demonstrācijas prototips ar savu datubāzi, bez tiešas integrācijas ar GASO informācijas sistēmām.
+GASO Document AI ir plānota progresīvā tīmekļa lietotne (PWA) drukātu dokumentu fotografēšanai, digitalizēšanai, automātiskai klasificēšanai, datu iegūšanai un arhivēšanai. Ar telefona kameru lietotājs vienā sesijā varēs secīgi fotografēt dažādu dokumentu lapas, piemēram, rēķinus, līgumus un iesniegumus.
+
+Projekta uzdevumi tiek pārvaldīti [GASO Document AI Trello dēlī](https://trello.com/b/J6ecDlQE/gaso-document-ai-projekta-izstrade).
 
 ## Projekta mērķis
 
-Vienkāršot gāzes skaitītāju rādījumu ievadi un uzskaiti, samazinot manuālas pārrakstīšanas nepieciešamību un saglabājot lietotājam iespēju pārbaudīt un apstiprināt mākslīgā intelekta noteikto vērtību.
+Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglojot drukātu dokumentu digitalizāciju. Lietotājam būs iespēja pārbaudīt un labot gan dokumentu grupējumu, gan iegūtos datus pirms reģistrēšanas un arhivēšanas.
 
-## Plānotās lietotāja funkcijas
+## Galvenās funkcijas
 
-- Reģistrācija, pieslēgšanās un piekļuve saviem datiem.
-- Viena vai vairāku gāzes skaitītāju pievienošana un pārvaldība.
-- Individuāla QR koda ģenerēšana katram skaitītājam un koda skenēšana skaitītāja identificēšanai.
-- Skaitītāja fotografēšana un fotoattēla iesniegšana analīzei.
-- Rādījuma automātiska atpazīšana veselos kubikmetros (m³).
-- Atpazītās vērtības pārbaude, manuāla labošana un apstiprināšana.
-- Iesniegto rādījumu vēstures apskate.
-- Lietotnes izmantošana mobilajās ierīcēs kā PWA.
+Visas turpmāk aprakstītās funkcijas ir plānotas.
 
-## Plānotās administratora funkcijas
+1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
+2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
+3. Ar mākslīgā intelekta (MI) palīdzību noteikt dokumentu sākumu un beigas un automātiski grupēt lapas atsevišķos dokumentos.
+4. Ļaut lietotājam manuāli labot grupējumu: pārvietot lapas starp dokumentiem, apvienot un sadalīt grupas, mainīt lapu secību.
+5. Katram dokumentam ģenerēt atsevišķu vairāku lapu PDF failu pareizajā lapu secībā. PDF jāsaglabā fotografēto lapu vizuālais saturs; to nedrīkst aizstāt tikai ar MI ģenerētu tekstu.
+6. Automātiski noteikt dokumenta veidu, piemēram, rēķinu, līgumu vai iesniegumu.
+7. Izvilkt galvenos atribūtus: dokumenta numuru, datumu, summu, valūtu, nosūtītāju un saņēmēju, kā arī dokumenta tipam raksturīgos laukus.
+8. Normalizēt atribūtu nosaukumus un vērtības: vienādas nozīmes atribūtiem izmantot vienotus nosaukumus, saglabājot elastīgu datu struktūru dažādiem dokumentu tipiem.
+9. Ļaut lietotājam pārbaudīt, labot un apstiprināt dokumenta tipu, atribūtus un sagatavoto PDF pirms reģistrēšanas.
+10. Reģistrēt dokumentu MongoDB datubāzē, piešķirt unikālu identifikatoru un saglabāt PDF failu, sasaistot to ar datubāzes ierakstu.
 
-- Piekļuve administratora panelim atbilstoši piešķirtajām tiesībām.
-- Lietotāju un reģistrēto skaitītāju pārskatīšana un pārvaldība.
-- Iesniegto rādījumu un to vēstures pārskatīšana.
+## Mākslīgā intelekta izmantošana
 
-Administratora darbību detalizētais apjoms tiks precizēts projekta prasībās.
+Dokumentu grupēšanai, klasificēšanai un atribūtu iegūšanai paredzēts izmantot GASO saskaņoto korporatīvo MI API. API vēl nav integrēts. Pakalpojuma tehniskās detaļas, piekļuves nosacījumi un autentifikācijas parametri tiks precizēti ar uzņēmuma atbildīgo speciālistu.
+
+API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Personīgo OpenAI API nav paredzēts izmantot reālu GASO dokumentu apstrādei.
 
 ## Plānotās tehnoloģijas
 
-| Joma | Tehnoloģijas |
+| Joma | Tehnoloģija vai risinājums |
 | --- | --- |
 | Lietotāja saskarne | Vue 3, JavaScript, Vuetify |
-| Servera puse un REST API | PHP, Laravel 12 |
-| Datubāze | MySQL |
-| Autentifikācija un API piekļuve | Laravel Sanctum |
-| Mākslīgais intelekts | OpenAI API |
-| Attēlu apstrāde | PHP attēlu apstrādes rīki; nepieciešamības gadījumā OpenCV |
-| QR kodi | Ģenerēšanas un skenēšanas bibliotēkas; izvēle tiks precizēta izstrādes laikā |
-| Mobilā pieredze | PWA (Progressive Web App) |
-| Izvietošana | Railway |
-| Versiju kontrole | Git, GitHub |
-
-Frontend un backend atradīsies atsevišķās mapēs un sazināsies ar REST API, lai tos varētu izstrādāt un izvietot neatkarīgi.
+| Servera puse | PHP, Laravel 12 |
+| Datubāze | MongoDB |
+| Mākslīgais intelekts | GASO saskaņotais korporatīvais MI API; detaļas tiks precizētas |
+| Attēlu apstrāde | PHP bibliotēkas; nepieciešamības gadījumā OpenCV |
+| PDF ģenerēšana | Piemērota PDF izveides bibliotēka; izvēle vēl jāveic |
+| Mobilā lietotne | Progresīvā tīmekļa lietotne (PWA) |
+| Autorizācija | Laravel Sanctum |
+| Izvietošana | Railway, ja izvietojums tiks saskaņots |
+| Versiju kontrole | Git un GitHub |
 
 ## Projekta struktūra
 
 ```text
-GASO-Meter-AI/
+GASO-Document-AI/
 ├── backend/
-│   ├── app/                  # Attēlu apstrāde, atpazīšana, API
-│   ├── bootstrap/
-│   ├── config/
-│   ├── public/
-│   ├── routes/
-│   ├── storage/              # Tikai īslaicīga infrastruktūra un lokāli testa paraugi
-│   ├── tests/
-│   ├── tools/
-│   ├── .env.example
-│   ├── composer.json
-│   ├── composer.lock
-│   └── serve.ps1
+│   └── .gitkeep
 ├── frontend/
-│   ├── src/                  # Vue testēšanas saskarne
-│   ├── e2e/
-│   ├── tests/
-│   ├── package.json
-│   ├── package-lock.json
-│   └── vite.config.js
+│   └── .gitkeep
 ├── docs/
 │   ├── requirements/
 │   │   └── .gitkeep
 │   ├── diagrams/
 │   │   └── .gitkeep
 │   └── testing/
-│       └── prototype-report.lv.md
+│       └── .gitkeep
 ├── .gitignore
 ├── .editorconfig
+├── LICENSE
 └── README.md
 ```
 
-- [backend/](backend/) — paredzēta Laravel lietotnei, REST API, autentifikācijai un piekļuves tiesību pārbaudei, datubāzes migrācijām, fotoattēlu apstrādei, OpenAI integrācijai, QR kodu ģenerēšanai un administratora funkciju servera loģikai.
-- [frontend/](frontend/) — paredzēta Vue 3, Vuetify un PWA lietotnei, kas nodrošinās lietotāja un administratora saskarni un sazināsies ar backend REST API.
-- [docs/requirements/](docs/requirements/) — funkcionālās un nefunkcionālās prasības, tehniskā specifikācija un pieņemšanas kritēriji.
-- [docs/diagrams/](docs/diagrams/) — datubāzes ER diagrammas, lietojuma gadījumu diagrammas un sistēmas arhitektūra.
-- [docs/testing/](docs/testing/) — testēšanas plāni, scenāriji un izpildes rezultāti.
-- `.gitignore` — sensitīvo datu, atkarību, ģenerēto failu un augšupielāžu izslēgšana no versiju kontroles.
-- `.editorconfig` — kopīgi failu kodējuma, atkāpju un rindu beigu iestatījumi.
+- `backend/` — vieta servera puses lietotnei un datu apstrādei.
+- `frontend/` — vieta lietotāja saskarnei un PWA funkcionalitātei.
+- `docs/requirements/` — projekta prasības un lietošanas scenāriji.
+- `docs/diagrams/` — arhitektūras, datu un procesu diagrammas.
+- `docs/testing/` — testēšanas plāni, scenāriji un rezultāti.
 
-Tukšajās mapēs sākotnēji ievietoti `.gitkeep` faili, lai saglabātu struktūru versiju kontrolē. Kopīgā projekta informācija un uzstādīšanas un palaišanas instrukcijas uzturētas šajā `README.md`; detalizētais prototipa izstrādes un testēšanas pārskats atrodas `docs/testing/`.
+Tukšās mapes saglabā `.gitkeep` faili. `.gitignore` nosaka izslēdzamos lokālos un ģenerētos failus, bet `.editorconfig` — vienotu teksta failu formatējumu.
 
-## Uzstādīšana un palaišana
+## Datu drošība
 
-Realizēts lokāls Trello #07 un #08 prototips: Laravel 12 API un minimāla Vue 3 testēšanas saskarne. MySQL, autorizācija, Vuetify un PWA šajā posmā nav nepieciešami.
+Reāli GASO dokumenti var saturēt personas datus un komercnoslēpumus. Tos drīkst apstrādāt tikai uzņēmumā saskaņotā vidē un atbilstoši noteiktajām datu aizsardzības un piekļuves prasībām. Izstrādes pārbaudēm jāizmanto sintētiski vai izmantošanai atļauti testa dokumenti.
 
-Prasības: PHP 8.3+ ar GD (JPEG/PNG/WebP atbalsts), EXIF, cURL, mbstring, XML un Composer 2; Node.js 22.14+ un npm. Attēlu apstrādei paredzēti 512 MB PHP atmiņas. Pārbaudīts Windows ar PHP 8.5.2, Node 22.14.0 un Chrome.
+Piekļuves datus, API atslēgas, lietotāju augšupielādes, privātos PDF un datubāzes kopijas nedrīkst pievienot repozitorijam. `.gitignore` paredzēti atbilstoši izņēmumi, taču pirms failu publicēšanas to saturs jāpārbauda. Lietotnes drošības mehānismi vēl nav ieviesti.
 
-PowerShell, no repozitorija saknes:
+## Licence
 
-```powershell
-cd backend
-# Ja gd/exif jau ieslēgti php.ini, izlaidiet atbilstošos -d argumentus.
-$env:COMPOSER_ROOT_VERSION = '1.0.0'
-php -d extension=gd -d extension=exif C:\ProgramData\ComposerSetup\bin\composer.phar install --no-interaction --prefer-dist
-Copy-Item .env.example .env
-php artisan key:generate
-```
-
-Composer ceļš piemērā atbilst šai Windows videi. Ja moduļi ieslēgti `php.ini`, citās vidēs var izmantot parasto `composer install`. `COMPOSER_ROOT_VERSION` ļauj Composer noteikt projekta versiju bez Git pārbaudes. Esošu `.env` nepārrakstiet.
-
-Atveriet **tikai** `backend/.env` un ierakstiet savu `OPENAI_API_KEY`. `OPENAI_MODEL` maina modeli bez koda izmaiņām; noklusējums ir `gpt-4.1-mini`. Izvēlieties modeli, kas atbalsta attēlu ievadi un strukturētu JSON izvadi Responses API. Nepievienojiet API atslēgu frontend konfigurācijai. Bez atslēgas darbojas augšupielāde, apgriešana, optimizācija un visi automatizētie testi; atpazīšana atgriež saprotamu konfigurācijas kļūdu.
-
-Ja vēlaties aprēķināt izmaksas, iestatiet `OPENAI_INPUT_PRICE`, `OPENAI_CACHED_INPUT_PRICE` un `OPENAI_OUTPUT_PRICE`: USD par miljonu tokenu **izvēlētajam modelim**. Pēc modeļa maiņas pārbaudiet un nomainiet arī cenas. Tukšas cenas nozīmē nezināmas izmaksas, nevis bezmaksas pieprasījumu. `OPENAI_TIMEOUT` nosaka API gaidīšanas laiku sekundēs. Pēc `.env` maiņas pārstartējiet backend; neizmantojiet novecojušu konfigurācijas kešu.
-
-Pirmajā terminālī:
-
-```powershell
-cd backend
-.\serve.ps1
-```
-
-Skripts ieslēdz trūkstošos GD/EXIF moduļus tikai servera procesam un nosaka 20 MB faila, 24 MB pieprasījuma un 512 MB atmiņas limitus. Tas nemaina sistēmas PHP konfigurāciju. Ja PowerShell skriptu izpilde nav atļauta, izmantojiet ekvivalentu komandu no `backend` mapes:
-
-```powershell
-php -d extension=gd -d extension=exif -d memory_limit=512M -d upload_max_filesize=20M -d post_max_size=24M -d max_execution_time=90 -S 127.0.0.1:8000 -t public public/index.php
-```
-
-Otrajā terminālī:
-
-```powershell
-cd frontend
-npm.cmd ci
-npm.cmd run dev
-```
-
-Atveriet `http://127.0.0.1:5173`. Vite pārsūta `/api` pieprasījumus uz `127.0.0.1:8000`; API atslēga paliek Laravel pusē. Izmantojiet tikai savus vai izmantošanai atļautus attēlus. Pirms atpazīšanas sagatavojiet fragmentu un apstipriniet, ka tajā nav personas datu vai nevajadzīgas informācijas. Katrs atpazīšanas pogas spiediens veic vienu maksas API pieprasījumu; sešu optimizācijas variantu salīdzināšana OpenAI neizmanto.
-
-### Automatizētie testi
-
-No `backend` mapes:
-
-```powershell
-php -d extension=gd -d extension=exif -d memory_limit=512M vendor/phpunit/phpunit/phpunit
-php -d extension=gd -d memory_limit=512M tools/generate-fixtures.php
-php -d extension=gd tools/compare-variants.php
-```
-
-No `frontend` mapes:
-
-```powershell
-npm.cmd test
-npm.cmd run build
-npm.cmd run test:e2e
-```
-
-Pārlūka testiem jābūt instalētam Chrome; portiem 8000 un 5173 jābūt brīviem. Playwright pats palaiž un aptur abus serverus. Ja lietojat citu pārlūku vai PHP konfigurāciju ar jau ieslēgtiem moduļiem, pielāgojiet `frontend/playwright.config.js`. Testi neizsauc īsto OpenAI API: backend izmanto `Http::fake()` un aizliedz neimitētus pieprasījumus, pārlūka testi pārtver atpazīšanas maršrutu.
-
-Ģenerētie sintētiskie paraugi un sešu variantu attēli/CSV atrodas `backend/storage/app/test-fixtures/`, ko ignorē Git. Tie ir paredzēti tikai lokāliem eksperimentiem, netiek ģenerēti augšupielādes laikā un nepierāda precizitāti īstām skaitītāju fotogrāfijām. Testēšanas scenāriji, arhitektūra, failu saraksts, rezultāti un ierobežojumi: [izstrādes pārskats](docs/testing/prototype-report.lv.md).
-
-## Pašreizējais izstrādes statuss
-
-**Darbojas tikai rādījumu atpazīšanas un attēlu optimizācijas prototips.** Iepriekš aprakstītā reģistrācija, klientu datubāze, QR kodi, administrators, vēsture, Railway un pilna PWA paliek nākamajiem uzdevumiem.
+Projektam ir spēkā [MIT licence](LICENSE). Autortiesību norāde: Copyright (c) 2026 Eduards Levša.

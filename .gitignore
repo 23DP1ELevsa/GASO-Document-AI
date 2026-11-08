@@ -6,6 +6,12 @@
 *.local
 auth.json
 /backend/storage/*.key
+secrets/
+credentials/
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Node.js un PHP atkarības
 node_modules/
@@ -46,6 +52,28 @@ dist/
 !/backend/storage/app/**/.gitignore
 /backend/public/uploads/
 /frontend/public/uploads/
+
+# Privātie dokumenti, PDF, pagaidu attēli un apstrādes rezultāti
+uploads/
+private/
+private-documents/
+generated-pdfs/
+temp-images/
+tmp/
+temp/
+
+# Lokālie MongoDB dati un rezerves kopijas
+mongodb-data/
+mongo-data/
+mongodump/
+dump/
+backups/
+*.bson
+*.bson.gz
+*.archive
+*.archive.gz
+mongod.lock
+WiredTiger*
 
 # Žurnāli, pagaidu faili un lokālās datubāzes
 *.log
