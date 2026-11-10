@@ -12,7 +12,7 @@ Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglo
 
 ## Galvenās funkcijas
 
-Turpmāk aprakstīta plānotā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts mobilās lietotnes 1. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA pamats un Capacitor Android projekts. Kameras, OCR, PDF un arhivēšanas biznesa funkcijas vēl nav realizētas. Atsevišķi saglabāts lokāls OCR komandrindas prototips un tehniskās sagatavošanas dokumentācija; tas nav pieslēgts mobilajai lietotnei.
+Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1. un 2. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA pamats, Capacitor Android projekts un funkcionējošas pārlūka skenēšanas sesijas. Var pievienot attēlus, pārvaldīt lapas un saglabāt melnrakstus IndexedDB. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija nav ieviesta. OCR, PDF un reģistrēšana vēl nav realizēta. Atsevišķi saglabātais OCR komandrindas prototips nav pieslēgts mobilajai lietotnei.
 
 1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
 2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
@@ -74,7 +74,8 @@ GASO-Document-AI/
 │       ├── test-dataset-plan.md
 │       ├── ocr-comparison.md
 │       ├── preparation-summary.md
-│       └── mobile-foundation.md
+│       ├── mobile-foundation.md
+│       └── scanning-sessions.md
 ├── tools/
 │   └── ocr-evaluation/
 │       ├── README.md
@@ -146,6 +147,8 @@ npm.cmd run dev
 
 Atveriet `http://localhost:5173`. `npm.cmd` darbojas arī PowerShell vidē, kur skriptu politika bloķē `npm.ps1`. Izstrādes serveris klausās arī lokālajā tīklā; tālrunī izmantojiet datora LAN adresi. PWA instalēšanai ārpus `localhost` nepieciešams HTTPS. Parasts LAN HTTP savienojums ir piemērots saskarnes apskatei, bet ne PWA instalēšanas pārbaudei.
 
+Pirms atkārtotas `npm.cmd ci` izpildes apturiet šī projekta Vite izstrādes/priekšskatījuma serveri ar **Ctrl+C** tā terminālī. Windows vidē darbojošs Vite process var bloķēt Rolldown `.node` failu un izraisīt `EPERM: operation not permitted, unlink`. Pēc servera apturēšanas atkārtojiet `npm.cmd ci`; administratora režīms šāda faila bloķējuma novēršanai nav nepieciešams.
+
 Produkcijas tīmekļa būvējums un lokāls priekšskatījums:
 
 ```powershell
@@ -193,7 +196,9 @@ Capacitor konfigurācija: nosaukums `GASO Document AI`, `webDir: dist`, pagaidu 
 - Četri latviski ekrāni: **Sākums**, **Skenēt**, **Dokumenti**, **Iestatījumi**; Vue Router navigācija bez lapas pārlādes.
 - Apakšējā navigācija tālrunī un sānu navigācija darbvirsmā; izkārtojums arī 360 px platumā.
 - Gaišais un tumšais režīms ar ierīcē saglabātu izvēli. Ja pārlūks liedz lokālo glabāšanu, saskarne turpina darboties un paskaidro ierobežojumu.
-- Īsti tukšie dokumentu/lapu stāvokļi; kameras un galerijas darbības ir atspējotas un atzīmētas ar “Drīzumā pieejams”.
+- Pārlūka fotografēšanas/failu izvēle, vienlaicīgs vairāku attēlu imports un mazi lapu priekšskatījumi.
+- Lapu pārvietošanas pogas, lielais priekšskatījums, aizstāšana un dzēšana; jaunas sesijas izveide un apstiprināta sesiju dzēšana.
+- Lokāli saglabājami IndexedDB melnraksti ar atjaunošanu pēc pārlādes un turpināšanu dokumentu sadaļā. Melnraksti netiek attēloti kā reģistrēti MongoDB dokumenti.
 - Android atpakaļpogas apstrāde: iepriekšējais lietotnes maršruts; tieši atvērtā sadaļā — sākums; sākumā — lietotnes aizvēršana. Drošās zonas un sistēmas joslu stils pielāgoti Capacitor.
 - Lietotnes versija, lokālā režīma un plānotā MI skaidrojums, GitHub saite.
 - Atsevišķa latviešu tulkojumu vārdnīca; angļu un krievu valoda vēl nav tulkota.
@@ -204,7 +209,56 @@ Capacitor konfigurācija: nosaukums `GASO Document AI`, `webDir: dist`, pagaidu 
 
 Pēc sākotnējās tiešsaistes ielādes un service worker aktivizācijas interfeiss ir atverams bez interneta. Chrome/Edge piedāvā instalēšanu no pārlūka izvēlnes; ja pārlūks dod instalēšanas notikumu, poga parādās arī iestatījumos. Šis piedāvājums atkarīgs no pārlūka un ierīces. Atjauninājumiem ir apstiprināma poga, nevis automātiska lapas pārlāde darba laikā. Izstrādes režīmā service worker nav ieslēgts. Android native būvējumā tas ir izslēgts, jo interfeiss jau tiek piegādāts APK.
 
-PWA interfeisa kešs nav dokumentu krātuve. Pievienojot dokumentu saglabāšanu, jāparedz atsevišķa privāta krātuve, datu dzēšana, glabāšanas termiņi un piekļuves kontrole.
+PWA interfeisa kešs nav dokumentu krātuve. 2. posma melnraksti un attēlu Blob tiek glabāti atsevišķā IndexedDB datubāzē; tie netiek ievietoti service worker kešā. Privātuma, glabāšanas termiņu un piekļuves kontroles prasības reāliem uzņēmuma dokumentiem joprojām jāprecizē pirms produkcijas lietošanas.
+
+### 2. posms: attēli un skenēšanas sesijas pārlūkā
+
+Atveriet projekta mapi VS Code un **Terminal → New Terminal**. Ja atkarības jau instalētas, pietiek ar:
+
+```powershell
+cd frontend
+npm.cmd run dev
+```
+
+Atveriet `http://localhost:5173` un sadaļu **Skenēt**. Android Studio šīm darbībām nav vajadzīga.
+
+1. **Fotografēt** izmanto `input type="file"`, `accept="image/*"` un `capture="environment"`. Mobilais pārlūks var piedāvāt aizmugurējo kameru; konkrēto izvēli nosaka pārlūks un ierīce. Datorā vai bez kameras atbalsta var izvēlēties failu. Ja tālrunis izveido HEIC attēlu, to vispirms jāeksportē JPEG/PNG formātā.
+2. **Pievienot no galerijas** ļauj izvēlēties vienu vai vairākus JPEG, PNG vai WebP attēlus. Atkārtota pievienošana saglabā iepriekšējās lapas. Atcelta failu izvēle nemaina sesiju; to pašu failu drīkst pievienot atkārtoti.
+3. Zem katra numurēta priekšskatījuma ir pārvietošanas pogas. Nospiežot attēlu, atveras lielais oriģināla priekšskatījums. Trīs punktu izvēlnē var aizstāt attēlu vai dzēst lapu. Aizstāšana saglabā lapas pozīciju.
+4. **Saglabāt melnrakstu** ieraksta visu sesiju lokālajā krātuvē. Veiksmes paziņojums parādās tikai pēc IndexedDB transakcijas pabeigšanas. Lapu secība, aizstāšana un dzēšana jāsaglabā ar šo pogu. Līdz tam saglabātā versija paliek neskarta.
+5. **Dokumenti** rāda melnrakstu pirmās lapas priekšskatījumu, izveidošanas/rediģēšanas laiku un lapu skaitu. **Turpināt** atver sesiju. Dzēšana prasa apstiprinājumu un izdzēš arī sesijas attēlus.
+6. **Jauna sesija** sāk tukšu sesiju; ja ir nesaglabātas izmaiņas, tās pirms atmešanas jāapstiprina. Esošais saglabātais melnraksts netiek dzēsts. Atvērta sesija saglabājas atmiņā, pārejot starp lietotnes sadaļām.
+
+Ja sesija saglabāta, tās adrese satur melnraksta ID; pēc pārlādes melnraksts atjaunojas. Pēdējā saglabātā melnraksta ID tiek glabāts arī cilnes `sessionStorage`, lai to atvērtu, atgriežoties skenēšanas sadaļā pēc pārlādes. **Nesaglabātas izmaiņas pēc pārlādes zūd**; pārlūks, ja atbalsta, brīdina par aiziešanu no lapas. Automātiska saglabāšana nav ieslēgta. No jauna tukšu sesiju nevar saglabāt; jau saglabātā melnrakstā drīkst izdzēst visas lapas un saglabāt tukšo sesiju turpmākai papildināšanai.
+
+#### Failu un sesijas ierobežojumi
+
+| Ierobežojums | Vērtība |
+| --- | --- |
+| Formāti | JPEG, PNG, WebP, kuru saturs un deklarētais MIME tips atbilst un kurus pārlūks spēj dekodēt |
+| Faila izmērs | 1 baits līdz 25 MiB katram attēlam |
+| Izšķirtspēja | Līdz 40 megapikseļiem un 16 000 px jebkurā malā |
+| Sesijas apjoms | Līdz 20 lapām un 200 MiB oriģinālu kopā |
+| Mazais priekšskatījums | Līdz 480 px garākajā malā, JPEG; oriģināla kvalitāti tas nemaina |
+| Neatbalstīts | PDF, HEIC/HEIF, SVG, GIF, bojāti un pārlūkā neatverami attēli |
+
+Faila saturs un attēla galvenes izmēri tiek pārbaudīti pirms rastra dekodēšanas. Attēli tiek apstrādāti secīgi; vienlaikus netiek dekodēti visi oriģināli. Saglabājas sākotnējie attēla baiti bez pārkodēšanas, samazināšanas vai EXIF metadatu noņemšanas. Priekšskatījumu orientācijai izmanto pārlūka EXIF atbalstu; liels priekšskatījums ielādē tikai izvēlēto oriģinālu. Animētu attēlu plūsma nav paredzēta skenēšanas funkcija.
+
+#### Lokālās krātuves darbība un robežas
+
+`frontend/src/features/scanning/draftRepository.js` veido atsevišķu glabāšanas moduli. IndexedDB datubāzē `gaso-document-ai` ir trīs krātuves:
+
+- `drafts` — ID, izveidošanas/rediģēšanas laiks, statuss `draft`, revīzija, sakārtots lapu ID saraksts un mazs vāka priekšskatījums;
+- `pages` — lapu ID, attēla nosaukums, tips, izmēri un priekšskatījuma Blob/metadati;
+- `images` — oriģinālu Blob pēc lapas ID.
+
+Saglabāšana un dzēšana ir atomāras transakcijas visās trīs krātuvēs. Dzēstas vai aizstātas lapas pēc saglabāšanas vairs neatstāj neizmantotus attēlus. Ja trūkst vietas vai IndexedDB nav pieejama, lietotne parāda kļūdu, saglabā pašreizējās izmaiņas atmiņā un ļauj mēģināt vēlreiz. Vecāka citā cilnē atvērta versija nevar klusām pārrakstīt jaunāku saglabājumu. Pārskatīšanai izveidotie Object URL tiek atbrīvoti pēc attēla maiņas vai komponentes aizvēršanas.
+
+Melnraksti ir pieejami **tikai tajā pašā pārlūka profilā un origin**: `localhost:5173`, `127.0.0.1:5173` un `localhost:4173` ir atšķirīgas krātuves. Tie nav sinhronizēti vai automātiski dublēti. Pārlūka datu dzēšana, privātā režīma aizvēršana vai pārlūka veikta krātuves atbrīvošana var izdzēst melnrakstus. Krātuve nav atsevišķi šifrēta vai aizsargāta ar lietotnes autentifikāciju. Attēlu saturs un failu nosaukumi netiek sūtīti uz serveri vai rakstīti konsolē. Neizmantojiet šo prototipu kā vienīgo svarīgu dokumentu kopiju.
+
+Failu izvēle, attēlu sagatavošana, sesijas stāvoklis un glabāšana ir nodalīti. Vēlāk Capacitor Camera/Filesystem adapteri varēs pievienot, saglabājot lapu datu struktūru un lietotāja saskarni. Šajā posmā Android atļaujas, spraudņi un projekta struktūra nav mainīti; native kamera un APK nav pārbaudīti.
+
+Pamatā izmantotas pārlūka API: [IndexedDB transakcijas](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB), [attēlu dekodēšana un orientācija](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap), [kameras capture atribūts](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture) un [Object URL atbrīvošana](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static).
 
 ### Pārbaudes un nākamais posms
 
@@ -216,9 +270,9 @@ npm.cmd run format:check
 npm.cmd run android:check
 ```
 
-Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē produkcijas priekšskatījumu portā 4173; tam jābūt brīvam. Vispirms jāizpilda tīmekļa `build`, jo `android:sync` tajā pašā `dist/` mapē sagatavo native versiju bez PWA. Rezultāti un ekrānattēli ir lokālajās `frontend/test-results/` un `frontend/playwright-report/` mapēs. [Faktiski izpildīto pārbaužu pārskats un ierobežojumi](docs/testing/mobile-foundation.md).
+Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē produkcijas priekšskatījumu portā 4173; tam jābūt brīvam. Vispirms jāizpilda tīmekļa `build`, jo `android:sync` tajā pašā `dist/` mapē sagatavo native versiju bez PWA. Rezultāti un ekrānattēli ir lokālajās `frontend/test-results/` un `frontend/playwright-report/` mapēs. [2. posma testu pārskats](docs/testing/scanning-sessions.md); [1. posma vēsturiskais pārskats](docs/testing/mobile-foundation.md). Testi izmanto tikai atmiņā ģenerētus sintētiskus attēlus un izolētus pārlūka profilus.
 
-Nākamajā posmā jārealizē kamera un galerija, vairāku lapu uzņemšana, priekšskatījumi, apgriešana un perspektīvas korekcija. Vēlāk atsevišķi jāpievieno lokāls OCR, lapu grupēšana, PDF ģenerēšana, lokālā dokumentu krātuve, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
+Nākamajos posmos jārealizē attēlu apgriešana, dokumenta robežu noteikšana un perspektīvas korekcija, pēc tam lokāls OCR, dokumentu grupēšana un PDF ģenerēšana. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
 
 [Mobilās lietotnes arhitektūra un paplašināšanas robežas](docs/diagrams/mobile-architecture.md). Iepriekšējā dokumentācija un `tools/ocr-evaluation/` saglabāta; OCR CLI netiek automātiski palaists pārlūkā vai Android lietotnē.
 

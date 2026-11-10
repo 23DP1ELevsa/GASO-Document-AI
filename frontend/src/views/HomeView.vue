@@ -3,6 +3,8 @@ import AppIcon from '../components/AppIcon.vue'
 import EmptyState from '../components/EmptyState.vue'
 import LocalNotice from '../components/LocalNotice.vue'
 import { t } from '../locales'
+import { useDraftList } from '../features/scanning/useDraftList'
+const { drafts, loading, error, refresh } = useDraftList()
 const steps = [
   { icon: 'camera', title: 'capture', text: 'captureText' },
   { icon: 'ocr', title: 'recognize', text: 'recognizeText' },
@@ -56,7 +58,23 @@ const steps = [
         /></v-btn>
       </div>
       <v-card class="bordered-card"
-        ><EmptyState compact :title="t('home.emptyTitle')" :description="t('home.emptyDescription')"
+        ><div v-if="error" class="draft-home-summary">
+          <p role="alert">{{ t(`scan.errors.${error}`) }}</p>
+          <v-btn variant="text" @click="refresh">{{ t('scan.retry') }}</v-btn>
+        </div>
+        <p v-else-if="loading" class="draft-home-summary" role="status">{{ t('scan.loading') }}</p>
+        <div v-else-if="drafts.length" class="draft-home-summary">
+          <span class="step-icon"><AppIcon name="documents" /></span>
+          <h3>{{ t('home.draftSummary', { count: drafts.length }) }}</h3>
+          <v-btn to="/documents" variant="tonal" color="primary"
+            >{{ t('common.allDocuments') }}<AppIcon name="arrow" :size="18"
+          /></v-btn>
+        </div>
+        <EmptyState
+          v-else
+          compact
+          :title="t('home.emptyTitle')"
+          :description="t('home.emptyDescription')"
           ><v-btn to="/scan" variant="tonal" color="primary"
             ><AppIcon name="scan" :size="18" />{{ t('nav.scan') }}</v-btn
           ></EmptyState

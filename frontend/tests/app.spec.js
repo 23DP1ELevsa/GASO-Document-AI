@@ -92,14 +92,15 @@ test('appearance persists and applies to every screen', async ({ page }, testInf
   await expect(page.locator('.v-application')).toHaveClass(/v-theme--light/)
 })
 
-test('unavailable capture is explicit and document archive is empty', async ({ page }) => {
+test('browser capture inputs are available and new archive is empty', async ({ page }) => {
   await page.goto('/#/scan')
-  await expect(page.getByText('Drīzumā pieejams', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Fotografēt dokumentu' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Izvēlēties no galerijas' })).toBeDisabled()
-  await expect(page.locator('input[type=file], video')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Fotografēt', exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Pievienot no galerijas' })).toBeEnabled()
+  await expect(page.getByTestId('camera-input')).toHaveAttribute('capture', 'environment')
+  await expect(page.getByTestId('gallery-input')).toHaveAttribute('multiple', '')
+  await expect(page.getByRole('button', { name: 'Saglabāt melnrakstu' })).toBeDisabled()
   await page.goto('/#/documents')
-  await expect(page.getByRole('heading', { name: 'Jūsu arhīvs vēl ir tukšs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vēl nav saglabātu melnrakstu' })).toBeVisible()
   await expect(page.locator('.count-badge')).toHaveText('0')
 })
 

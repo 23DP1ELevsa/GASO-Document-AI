@@ -10,6 +10,8 @@ import {
   VSnackbar,
   VAlert,
   VProgressCircular,
+  VDialog,
+  VMenu,
 } from 'vuetify/components'
 
 export const THEME_KEY = 'gaso-document-ai:theme'
@@ -22,7 +24,19 @@ export function readTheme() {
 }
 
 export default createVuetify({
-  components: { VApp, VMain, VBtn, VCard, VChip, VSwitch, VSnackbar, VAlert, VProgressCircular },
+  components: {
+    VApp,
+    VMain,
+    VBtn,
+    VCard,
+    VChip,
+    VSwitch,
+    VSnackbar,
+    VAlert,
+    VProgressCircular,
+    VDialog,
+    VMenu,
+  },
   defaults: {
     VBtn: { rounded: 'lg', elevation: 0, style: 'text-transform: none; letter-spacing: 0;' },
     VCard: { rounded: 'xl', elevation: 0 },

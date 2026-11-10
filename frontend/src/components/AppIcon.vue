@@ -24,6 +24,15 @@ import {
   ScanText,
   FolderOpen,
   LockKeyhole,
+  ArrowUp,
+  ArrowDown,
+  Ellipsis,
+  Trash2,
+  Save,
+  Plus,
+  Replace,
+  Expand,
+  X,
 } from '@lucide/vue'
 defineProps({
   name: { type: String, required: true },
@@ -54,6 +63,15 @@ const icons = {
   ocr: ScanText,
   folder: FolderOpen,
   lock: LockKeyhole,
+  up: ArrowUp,
+  down: ArrowDown,
+  more: Ellipsis,
+  trash: Trash2,
+  save: Save,
+  plus: Plus,
+  replace: Replace,
+  expand: Expand,
+  close: X,
 }
 </script>
 

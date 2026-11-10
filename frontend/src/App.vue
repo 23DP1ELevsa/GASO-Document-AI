@@ -5,10 +5,21 @@ import AppIcon from './components/AppIcon.vue'
 import { t } from './locales'
 import { useAppearance } from './composables/useAppearance'
 import { usePwa } from './composables/usePwa'
+import { useScanSession } from './features/scanning/useScanSession'
 
 const route = useRoute()
 const { isDark, setTheme, storageUnavailable } = useAppearance()
 const { updateAvailable, offlineError, update } = usePwa()
+const { hasUnsavedChanges } = useScanSession()
+const protectChanges = (event) => {
+  if (hasUnsavedChanges.value) {
+    event.preventDefault()
+    event.returnValue = ''
+  }
+}
+const updateSafely = () => {
+  if (!hasUnsavedChanges.value || window.confirm(t('scan.confirmDiscard'))) update()
+}
 const online = ref(navigator.onLine)
 const connectionChanged = () => {
   online.value = navigator.onLine
@@ -18,10 +29,12 @@ const focusHeading = () => document.querySelector('main h1')?.focus({ preventScr
 onMounted(() => {
   window.addEventListener('online', connectionChanged)
   window.addEventListener('offline', connectionChanged)
+  window.addEventListener('beforeunload', protectChanges)
 })
 onUnmounted(() => {
   window.removeEventListener('online', connectionChanged)
   window.removeEventListener('offline', connectionChanged)
+  window.removeEventListener('beforeunload', protectChanges)
 })
 const navigation = [
   { name: 'home', path: '/' },
@@ -86,7 +99,7 @@ const navigation = [
       <v-main id="main-content" class="main-content" tabindex="-1">
         <div v-if="updateAvailable" class="update-banner" role="status">
           <span>{{ t('pwa.update') }}</span
-          ><v-btn size="small" color="primary" @click="update">{{ t('pwa.reload') }}</v-btn>
+          ><v-btn size="small" color="primary" @click="updateSafely">{{ t('pwa.reload') }}</v-btn>
         </div>
         <v-alert v-if="storageUnavailable" type="warning" variant="tonal" class="mb-4">{{
           t('app.storageWarning')

@@ -22,7 +22,7 @@ export default {
     allDocuments: 'Visi dokumenti',
     localTitle: 'Jūsu ierīcē. Jūsu pārziņā.',
     localDescription:
-      'Šajā versijā saskarne darbojas bez servera. Dokumentu ievade un apstrāde vēl nav pieejama; dokumenti netiek nosūtīti ārējiem pakalpojumiem.',
+      'Attēli un melnraksti tiek glabāti šīs pārlūkprogrammas IndexedDB krātuvē. Tie netiek nosūtīti ārējiem pakalpojumiem. Pārlūka datu dzēšana izdzēsīs arī melnrakstus; tā nav rezerves kopija.',
     localShort: 'Saskarne darbojas neatkarīgi no servera.',
     next: 'Nākamajos posmos',
     learnMore: 'Par lokālo režīmu',
@@ -32,12 +32,13 @@ export default {
     title: 'Dokumentu kārtība sākas šeit.',
     description:
       'Viena vieta dokumentu digitalizācijai. No pirmā attēla līdz pārskatāmam dokumentu arhīvam.',
-    scanHint: 'Atvērt skenēšanas sadaļu · kameras funkcija top',
-    recent: 'Jūsu dokumenti',
-    recentSubtitle: 'Vieta jūsu nākamajiem digitalizētajiem dokumentiem.',
+    scanHint: 'Fotografējiet vai pievienojiet attēlus no ierīces',
+    recent: 'Jūsu melnraksti',
+    recentSubtitle: 'Lokāli saglabātās skenēšanas sesijas.',
+    draftSummary: 'Saglabātie melnraksti: {count}',
     emptyTitle: 'Viss sākas ar pirmo dokumentu',
     emptyDescription:
-      'Šeit būs pieejami jūsu saglabātie dokumenti. Iepazīstiet skenēšanas sadaļu, kamēr gatavojam pirmās funkcijas.',
+      'Pievienojiet dokumenta attēlus un saglabājiet pirmo skenēšanas sesiju kā melnrakstu.',
     workflow: 'No papīra līdz digitālam dokumentam',
     workflowSubtitle: 'Iecerētā dokumenta apstrāde — soli pa solim.',
     capture: 'Uzņemiet',
@@ -51,32 +52,94 @@ export default {
   scan: {
     eyebrow: 'JAUNS DOKUMENTS',
     title: 'Dodiet papīram digitālu dzīvi.',
-    description: 'Šeit sāksies dokumentu fotografēšana un lapu sagatavošana.',
-    cameraTitle: 'Vieta jūsu dokumentam',
-    cameraDescription:
-      'Kameras uzņemšana un attēlu pievienošana būs pieejama nākamajā izstrādes posmā.',
-    camera: 'Fotografēt dokumentu',
-    gallery: 'Izvēlēties no galerijas',
+    description:
+      'Pievienojiet lapas, sakārtojiet tās un saglabājiet skenēšanas sesiju savā ierīcē.',
+    camera: 'Fotografēt',
+    gallery: 'Pievienot no galerijas',
     preview: 'Lapu priekšskatījums',
     noPages: 'Pagaidām nav pievienotu lapu',
-    noPagesText: 'Pēc uzņemšanas šeit varēsiet pārskatīt un sakārtot dokumenta lapas.',
-    multipage: 'Vairākas lapas',
-    multipageText: 'Secīga lapu uzņemšana vienā sesijā.',
-    crop: 'Precīzas robežas',
-    cropText: 'Attēla apgriešana un perspektīvas korekcija.',
-    note: 'Šis ir skenēšanas ekrāna pamats. Kamera netiek ieslēgta un attēli netiek pievienoti.',
+    noPagesText: 'Fotografējiet dokumentu vai pievienojiet vienu vai vairākus attēlus no ierīces.',
+    importTitle: 'Pievienojiet dokumenta lapas',
+    cameraHint:
+      'Tālrunī pārlūks var piedāvāt aizmugurējo kameru. Ja tā nav pieejama, izvēlieties attēlu no ierīces. Datorā atvērsies failu izvēle.',
+    limits: 'JPEG, PNG vai WebP · līdz 25 MiB un 40 MP attēlam · līdz 20 lapām un 200 MiB sesijā.',
+    pageCount: 'Lapas: {count}',
+    pageNumber: '{number}. lapa',
+    pageActions: '{number}. lapas darbības',
+    moveUp: 'Pārvietot {number}. lapu uz augšu',
+    moveDown: 'Pārvietot {number}. lapu uz leju',
+    openPreview: 'Atvērt {number}. lapas priekšskatījumu',
+    closePreview: 'Aizvērt priekšskatījumu',
+    originalPreview: 'Oriģinālā attēla priekšskatījums',
+    originalUnchanged:
+      'Oriģinālais attēls tiek saglabāts bez pārkodēšanas. Priekšskatījumam tiek izmantota attēlā norādītā orientācija.',
+    replace: 'Aizstāt attēlu',
+    removePage: 'Dzēst lapu',
+    newSession: 'Jauna sesija',
+    deleteSession: 'Dzēst sesiju',
+    save: 'Saglabāt melnrakstu',
+    unsaved: 'Ir nesaglabātas izmaiņas',
+    savedState: 'Melnraksts saglabāts',
+    newState: 'Jauna skenēšanas sesija',
+    saved: 'Melnraksts sekmīgi saglabāts šajā pārlūkprogrammā.',
+    added: 'Pievienotās lapas: {count}. Saglabājiet izmaiņas, lai tās būtu pieejamas pēc pārlādes.',
+    replaced: 'Attēls aizstāts. Saglabājiet melnraksta izmaiņas.',
+    deleted: 'Sesija izdzēsta.',
+    confirmDiscard:
+      'Sesijā ir nesaglabātas izmaiņas. Vai atmest tās un atvērt citu sesiju? Saglabātais melnraksts netiks dzēsts.',
+    confirmDelete: 'Vai dzēst visu sesiju un tās saglabātos attēlus? Šo darbību nevar atsaukt.',
+    localTitle: 'Melnraksti paliek šajā pārlūkprogrammā',
+    localInfo:
+      'Saglabāšana ir lokāla, bez servera un MI. Pārlūka datu dzēšana izdzēsīs melnrakstus. Citā pārlūkā vai adresē tie nebūs pieejami.',
+    unsavedHint:
+      'Izmaiņas, arī lapu dzēšana un secība, tiek ierakstītas krātuvē, nospiežot “Saglabāt melnrakstu”. Nesaglabātas izmaiņas pēc pārlādes zudīs.',
+    loading: 'Ielādē…',
+    working: 'Apstrādā…',
+    retry: 'Mēģināt vēlreiz',
+    errors: {
+      fileType:
+        'Neatbalstīts faila formāts vai saturam neatbilstošs faila tips. Izvēlieties JPEG, PNG vai WebP. HEIC, SVG, GIF un PDF netiek atbalstīti.',
+      fileSize: 'Attēls ir tukšs vai pārsniedz 25 MiB. Izvēlieties mazāku failu.',
+      dimensions: 'Attēls pārsniedz 40 megapikseļus vai 16 000 pikseļus vienā malā.',
+      decode: 'Attēlu nevar atvērt. Fails var būt bojāts vai šis attēla variants nav atbalstīts.',
+      pageLimit:
+        'Sesijā var būt ne vairāk kā 20 lapas. Saglabājiet šo sesiju un izveidojiet jaunu.',
+      sessionSize: 'Sesijas attēlu kopējais izmērs nedrīkst pārsniegt 200 MiB.',
+      storage:
+        'Lokālā krātuve nav pieejama vai darbība neizdevās. Izmaiņas nav saglabātas. Pārbaudiet pārlūka datu glabāšanas iestatījumus un mēģiniet vēlreiz.',
+      storageBlocked:
+        'Lokālās krātuves atvēršana ir bloķēta. Aizveriet citas šīs lietotnes cilnes un mēģiniet vēlreiz.',
+      quota:
+        'Ierīcē nepietiek vietas melnrakstam. Izmaiņas nav saglabātas; atbrīvojiet vietu vai samaziniet lapu skaitu un mēģiniet vēlreiz.',
+      conflict:
+        'Melnraksts ir mainīts vai dzēsts citā cilnē. Izmaiņas nav saglabātas. Saglabāto versiju atveriet no dokumentu sadaļas pēc pašreizējo izmaiņu atmešanas.',
+      missingDraft:
+        'Melnraksts nav atrasts. Tas, iespējams, ir dzēsts. Izveidojiet jaunu sesiju vai atveriet citu melnrakstu.',
+      missingImage: 'Melnraksta attēls nav pieejams. Mēģiniet atvērt melnrakstu vēlreiz.',
+      empty: 'Pirms saglabāšanas pievienojiet vismaz vienu lapu.',
+      busy: 'Sagaidiet pašreizējās darbības pabeigšanu.',
+    },
   },
   documents: {
-    eyebrow: 'JŪSU ARHĪVS',
+    eyebrow: 'LOKĀLIE MELNRAKSTI',
     title: 'Vieta visiem svarīgajiem dokumentiem.',
-    description: 'Pārskatāmi un vienuviet — jūsu ierīcē saglabātie dokumenti.',
-    count: 'Saglabāti dokumenti',
-    emptyTitle: 'Jūsu arhīvs vēl ir tukšs',
+    description:
+      'Turpiniet skenēšanas sesijas, kas saglabātas šajā pārlūkprogrammā. Tie ir melnraksti, nevis reģistrēti dokumenti.',
+    count: 'Saglabātie melnraksti',
+    emptyTitle: 'Vēl nav saglabātu melnrakstu',
     emptyDescription:
-      'Kad būs pieejama skenēšana un saglabāšana, šeit atradīsiet savus dokumentus, to veidus un saglabāšanas datumus.',
+      'Pievienojiet dokumentu attēlus skenēšanas sadaļā un saglabājiet sesiju. Pēc tam to varēsiet atvērt un turpināt šeit.',
     future: 'Arhīvs augs kopā ar jums',
     futureText:
-      'Dokumentu priekšskatījumi, PDF atvēršana, meklēšana un filtri būs pieejami turpmākajos posmos.',
+      'OCR, PDF ģenerēšana, automātiska grupēšana, meklēšana un reģistrēšana vēl nav pieejama.',
+    draft: 'Melnraksts',
+    created: 'Izveidots',
+    updated: 'Rediģēts',
+    continue: 'Turpināt',
+    openDraft: 'Atvērt melnrakstu',
+    cover: 'Melnraksta pirmās lapas priekšskatījums',
+    deleteDraft: 'Dzēst melnrakstu',
+    confirmDelete: 'Vai dzēst melnrakstu un visus tā saglabātos attēlus? Šo darbību nevar atsaukt.',
   },
   settings: {
     eyebrow: 'JŪSU PREFERENCES',
@@ -99,7 +162,7 @@ export default {
     languageNote: 'Angļu un krievu valodas atbalsts paredzēts nākotnē.',
     github: 'Projekts GitHub',
     githubHint: 'Atveras jaunā cilnē',
-    prototype: '1. posms · mobilās lietotnes pamats',
+    prototype: '2. posms · skenēšanas sesijas',
   },
   pwa: {
     install: 'Instalēt lietotni',

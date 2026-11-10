@@ -1,0 +1,454 @@
+.file-input {
+  display: none;
+}
+.scan-import-card {
+  padding: 25px;
+}
+.scan-import-heading {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+.scan-import-heading .step-icon {
+  margin-top: 2px;
+}
+.scan-import-heading h2 {
+  font-size: 1.1rem;
+}
+.scan-import-heading p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin-top: 8px;
+  max-width: 700px;
+}
+.scan-import-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 23px 0 17px;
+}
+.scan-import-actions .v-btn {
+  padding: 0 23px;
+}
+.scan-error,
+.scan-success {
+  padding: 17px 20px;
+  border-radius: 12px;
+  line-height: 1.65;
+  font-size: 0.83rem;
+  overflow-wrap: anywhere;
+}
+.scan-error {
+  background: rgba(var(--v-theme-error), 0.1);
+  color: rgb(var(--v-theme-error));
+  border: 1px solid rgba(var(--v-theme-error), 0.25);
+}
+.scan-success {
+  background: var(--green-soft);
+  color: var(--green-text);
+  border: 1px solid var(--green-border);
+}
+.scan-working {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.session-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 19px;
+}
+.session-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.session-heading p {
+  font-size: 0.73rem;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.session-tools {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 4px;
+}
+.session-tools .v-btn {
+  padding: 0 10px;
+  font-size: 0.78rem;
+}
+.session-tools .v-btn:last-child:not(:first-child) {
+  min-width: 44px;
+}
+.scan-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 45px 25px;
+}
+.scan-empty > svg {
+  color: var(--icon-muted);
+  margin-bottom: 20px;
+}
+.scan-empty p {
+  color: var(--muted);
+  font-size: 0.83rem;
+  max-width: 450px;
+  margin-top: 9px;
+}
+.scan-pages-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 18px;
+}
+.scan-page-card {
+  min-width: 0;
+  background: rgb(var(--v-theme-surface));
+  border-radius: 17px;
+  overflow: hidden;
+}
+.page-image-button {
+  display: block;
+  width: 100%;
+  height: 220px;
+  background: var(--soft);
+  position: relative;
+  cursor: zoom-in;
+  padding: 12px;
+}
+.page-image-button img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.page-number {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-primary));
+  box-shadow: 0 2px 6px #0001;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.page-expand {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-primary));
+  border-radius: 8px;
+}
+.page-card-info {
+  padding: 15px 15px 6px;
+}
+.page-card-info h3 {
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.page-card-info p {
+  color: var(--muted);
+  font-size: 0.7rem;
+  margin-top: 5px;
+}
+.page-card-actions {
+  display: flex;
+  padding: 4px 8px 8px;
+  gap: 4px;
+}
+.page-card-actions .v-btn {
+  min-width: 44px;
+  padding: 0;
+}
+.page-card-actions > .v-btn:last-child {
+  margin-left: auto;
+}
+.page-action-menu {
+  padding: 7px;
+  border: 1px solid var(--border);
+  background: rgb(var(--v-theme-surface));
+  color: rgb(var(--v-theme-on-surface));
+  border-radius: 12px;
+  min-width: 190px;
+  box-shadow: 0 8px 25px #0002;
+}
+.page-action-menu .v-btn__content {
+  justify-content: flex-start;
+  width: 100%;
+}
+.session-savebar {
+  padding: 21px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.session-savebar h3 {
+  font-size: 0.86rem;
+}
+.session-savebar p {
+  color: var(--muted);
+  font-size: 0.73rem;
+  margin-top: 5px;
+}
+.scan-local-info {
+  display: flex;
+  gap: 14px;
+  color: var(--muted);
+  padding: 0 3px;
+}
+.scan-local-info > svg {
+  flex-shrink: 0;
+  color: var(--green);
+  margin-top: 3px;
+}
+.scan-local-info h3 {
+  font-size: 0.83rem;
+}
+.scan-local-info p {
+  font-size: 0.75rem;
+  margin-top: 7px;
+}
+.image-dialog {
+  padding: 20px;
+}
+.image-dialog header {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.image-dialog header h2 {
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.image-dialog header .v-btn {
+  min-width: 44px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.image-dialog > img {
+  display: block;
+  max-width: 100%;
+  width: auto;
+  max-height: 70dvh;
+  height: auto;
+  object-fit: contain;
+  margin: 0 auto;
+  background: var(--soft);
+}
+.preview-caption {
+  margin-top: 17px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.preview-loading {
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--muted);
+}
+.draft-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.draft-card {
+  background: rgb(var(--v-theme-surface));
+  border-radius: 18px;
+  overflow: hidden;
+  min-width: 0;
+}
+.draft-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 180px;
+  padding: 14px;
+  background: var(--soft);
+  cursor: pointer;
+  color: var(--icon-muted);
+}
+.draft-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.draft-card-content {
+  padding: 21px;
+}
+.draft-card-content h2 {
+  font-size: 0.95rem;
+  margin-top: 13px;
+  overflow-wrap: anywhere;
+}
+.draft-card-content p {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 8px;
+}
+.draft-card-content .draft-updated {
+  font-size: 0.74rem;
+  margin-top: 4px;
+}
+.draft-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+}
+.draft-actions > .v-btn:last-child {
+  min-width: 44px;
+  padding: 0;
+}
+.draft-home-summary {
+  padding: 30px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.draft-home-summary h3 {
+  flex: 1;
+}
+.draft-home-summary p {
+  font-size: 0.8rem;
+}
+@media (max-width: 1000px) {
+  .draft-grid {
+    grid-template-columns: 1fr;
+  }
+  .session-savebar {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 700px) {
+  .scan-import-card {
+    padding: 21px;
+  }
+  .scan-import-heading {
+    gap: 12px;
+  }
+  .scan-import-heading h2 {
+    font-size: 1rem;
+  }
+  .scan-import-heading p {
+    font-size: 0.78rem;
+  }
+  .scan-import-heading .step-icon {
+    width: 34px;
+    height: 36px;
+  }
+  .scan-import-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    margin: 20px 0 14px;
+  }
+  .scan-import-actions .v-btn {
+    font-size: 0.88rem;
+    padding: 0 15px;
+  }
+  .scan-import-card .small-muted {
+    font-size: 0.7rem;
+  }
+  .session-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .session-tools {
+    align-self: flex-end;
+  }
+  .session-heading h2 {
+    font-size: 1.08rem;
+  }
+  .scan-pages-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .page-image-button {
+    height: 170px;
+    padding: 8px;
+  }
+  .page-card-info {
+    padding: 12px 10px 4px;
+  }
+  .page-card-info h3 {
+    font-size: 0.76rem;
+  }
+  .page-card-info p {
+    font-size: 0.63rem;
+  }
+  .page-card-actions {
+    gap: 0;
+    padding: 4px 3px;
+    justify-content: space-between;
+  }
+  .page-card-actions .v-btn {
+    min-width: 44px;
+    width: 44px;
+  }
+  .page-card-actions > .v-btn:last-child {
+    margin-left: 0;
+  }
+  .page-number {
+    top: 8px;
+    left: 8px;
+  }
+  .page-expand {
+    right: 8px;
+    bottom: 8px;
+    width: 28px;
+    height: 28px;
+  }
+  .session-savebar {
+    padding: 19px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .session-savebar .v-btn {
+    min-height: 48px;
+  }
+  .image-dialog {
+    padding: 16px;
+  }
+  .draft-card-content {
+    padding: 20px;
+  }
+  .draft-home-summary {
+    padding: 25px;
+  }
+  .draft-home-summary .v-btn {
+    width: 100%;
+  }
+  .scan-error,
+  .scan-success {
+    padding: 15px 17px;
+    font-size: 0.78rem;
+  }
+}
