@@ -1,5 +1,6 @@
 @import url('./tokens.css');
 @import url('./scanning.css');
+@import url('./editor.css');
 
 * {
   box-sizing: border-box;

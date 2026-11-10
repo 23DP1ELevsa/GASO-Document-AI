@@ -1,12 +1,15 @@
 <script setup>
 import AppIcon from './AppIcon.vue'
+import { ref } from 'vue'
 import BlobImage from './BlobImage.vue'
 import { t } from '../locales'
 defineProps({ page: Object, index: Number, count: Number, busy: Boolean })
-defineEmits(['preview', 'move', 'replace', 'remove'])
+const card = ref(null)
+defineEmits(['preview', 'move', 'replace', 'remove', 'edit'])
 </script>
 <template>
   <article
+    ref="card"
     class="scan-page-card bordered-card"
     data-testid="page-card"
     :aria-label="t('scan.pageNumber', { number: index + 1 })"
@@ -24,8 +27,10 @@ defineEmits(['preview', 'move', 'replace', 'remove'])
     <div class="page-card-info">
       <h3 :title="page.name">{{ page.name }}</h3>
       <p>
-        {{ page.width }} × {{ page.height }} px · {{ (page.size / 1024 / 1024).toFixed(1) }} MiB
+        {{ page.processedWidth || page.width }} × {{ page.processedHeight || page.height }} px ·
+        {{ (page.size / 1024 / 1024).toFixed(1) }} MiB
       </p>
+      <span v-if="page.processing" class="processed-label">{{ t('editor.processed') }}</span>
     </div>
     <div class="page-card-actions">
       <v-btn
@@ -52,6 +57,12 @@ defineEmits(['preview', 'move', 'replace', 'remove'])
             ><AppIcon name="more" :size="20" /></v-btn
         ></template>
         <div class="page-action-menu">
+          <v-btn
+            variant="text"
+            block
+            @click="$emit('edit', page, card.querySelector('.page-image-button'))"
+            ><AppIcon name="crop" :size="18" />{{ t('editor.edit') }}</v-btn
+          >
           <v-btn variant="text" block @click="$emit('replace', page.id)"
             ><AppIcon name="replace" :size="18" />{{ t('scan.replace') }}</v-btn
           ><v-btn variant="text" block color="error" @click="$emit('remove', page.id)"

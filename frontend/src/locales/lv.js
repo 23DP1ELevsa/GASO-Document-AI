@@ -118,7 +118,66 @@ export default {
       missingImage: 'Melnraksta attēls nav pieejams. Mēģiniet atvērt melnrakstu vēlreiz.',
       empty: 'Pirms saglabāšanas pievienojiet vismaz vienu lapu.',
       busy: 'Sagaidiet pašreizējās darbības pabeigšanu.',
+      invalidQuad:
+        'Stūriem jāveido izliekts, nepārkrustojošs četrstūris attēla robežās. Koriģējiet koordinātas vai atiestatiet stūrus.',
+      processingUnavailable:
+        'Šajā pārlūkā nevar palaist lokālo attēlu apstrādi. Izmantojiet aktuālu Chrome vai Edge un pārbaudiet Worker atļaujas.',
+      processingFailed:
+        'Attēla apstrāde neizdevās. Oriģināls un sesija nav mainīti. Mēģiniet vēlreiz vai atceliet rediģēšanu.',
+      processingTimeout:
+        'Attēla apstrāde aizņēma pārāk ilgu laiku un tika apturēta. Oriģināls nav mainīts.',
+      resultTooLarge:
+        'Apstrādātais attēls pārsniedz 48 MiB. Samaziniet atlasīto apgabalu vai izmantojiet mazāku attēlu.',
     },
+  },
+  editor: {
+    eyebrow: 'LOKĀLA ATTĒLA APSTRĀDE',
+    edit: 'Rediģēt skenējumu',
+    original: 'Oriģināls un stūri',
+    result: 'Apstrādātais skenējums',
+    resultCaption:
+      'Redzama apstiprinātā apstrādātā versija. Sākotnējā fotogrāfija ir saglabāta un pieejama redaktorā.',
+    processed: 'Apstrādāts',
+    zoom: 'Pietuvinājums',
+    dragHint:
+      'Velciet stūrus ar peli vai pirkstu. Atlasītam stūrim darbojas bulttaustiņi; Shift palielina soli. Pietuvinātu attēlu var ritināt.',
+    corner: '{number}. stūris',
+    axis: '{number}. stūra {axis} (%)',
+    coordinates: 'Precīzas koordinātas (%)',
+    detect: 'Noteikt robežas',
+    resetCorners: 'Atiestatīt stūrus',
+    detected:
+      'Atrasts iespējams dokumenta četrstūris. Pārbaudiet un, ja vajag, izlabojiet visus četrus stūrus.',
+    uncertain:
+      'Dokumenta robežas nevar droši noteikt. Izvēlieties tās manuāli; pilna attēla rāmis ir tikai sākuma atlase.',
+    manual: 'Atlase atiestatīta uz pilna attēla robežām. Pārvietojiet stūrus uz dokumenta malām.',
+    previewHint: 'Sagatavojiet priekšskatījumu, lai redzētu rezultātu.',
+    stale: 'Atlase ir mainīta. Atjauniniet priekšskatījumu pirms apstiprināšanas.',
+    filters: 'Attēla režīms',
+    filter: {
+      original: 'Oriģinālās krāsas',
+      enhanced: 'Uzlabots',
+      grayscale: 'Pelēktoņi',
+      bw: 'Melnbalts',
+    },
+    rotation: 'Pagriešana',
+    left: '90° pa kreisi',
+    right: '90° pa labi',
+    resetRotation: 'Atiestatīt pagriezienu',
+    rotationValue: 'Pagrieziens: {value}°',
+    restore: 'Atjaunot oriģinālu',
+    restored:
+      'Atjaunota pilna fotogrāfija, sākotnējā orientācija un krāsas. Apstipriniet, lai piemērotu šo izvēli.',
+    cancel: 'Atcelt rediģēšanu',
+    preview: 'Priekšskatīt',
+    apply: 'Apstiprināt izmaiņas',
+    applied:
+      'Skenējums atjaunināts sesijā. Nospiediet “Saglabāt melnrakstu”, lai saglabātu izmaiņas pēc pārlādes.',
+    working: 'Apstrādā attēlu…',
+    saveHint:
+      'Apstiprināšana maina tikai atvērto sesiju. Lai saglabātu pēc pārlādes, izmantojiet “Saglabāt melnrakstu”. Atcelšana saglabā iepriekšējo stāvokli.',
+    limits:
+      'Rezultāts: līdz 8 MP / 5000 px vienā malā, PNG bez JPEG pārkodēšanas. Lielu fotoattēlu darba kopija tiek samazināta līdz 16 MP; oriģināls paliek neskarts. Sīkas līnijas un vāji simboli jāpārbauda priekšskatījumā.',
   },
   documents: {
     eyebrow: 'LOKĀLIE MELNRAKSTI',
@@ -162,7 +221,7 @@ export default {
     languageNote: 'Angļu un krievu valodas atbalsts paredzēts nākotnē.',
     github: 'Projekts GitHub',
     githubHint: 'Atveras jaunā cilnē',
-    prototype: '2. posms · skenēšanas sesijas',
+    prototype: '3. posms · attēlu apstrāde',
   },
   pwa: {
     install: 'Instalēt lietotni',

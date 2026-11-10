@@ -1,10 +1,11 @@
 <script setup>
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import PageHeading from '../components/PageHeading.vue'
 import ScanPageCard from '../components/ScanPageCard.vue'
 import ImagePreviewDialog from '../components/ImagePreviewDialog.vue'
+import ScanEditorDialog from '../components/ScanEditorDialog.vue'
 import { useScanSession } from '../features/scanning/useScanSession'
 import { errorCode } from '../features/scanning/errors'
 import { t, dateTime } from '../locales'
@@ -21,6 +22,27 @@ const selectedPage = shallowRef(null),
   success = ref('')
 let replacementId = null
 const previewTrigger = shallowRef(null)
+const editingPage = shallowRef(null),
+  editorTrigger = shallowRef(null)
+function openEditor(page, trigger) {
+  editorTrigger.value = trigger
+  editingPage.value = page
+}
+async function closeEditor() {
+  editingPage.value = null
+  await nextTick()
+  if (editorTrigger.value?.isConnected) editorTrigger.value.focus({ preventScroll: true })
+}
+function applyEditing(changes) {
+  try {
+    session.applyEdit(editingPage.value.id, changes)
+    clearMessages()
+    success.value = t('editor.applied')
+    closeEditor()
+  } catch (reason) {
+    error.value = t(`scan.errors.${errorCode(reason)}`)
+  }
+}
 function openPreview(page, trigger) {
   previewTrigger.value = trigger
   selectedPage.value = page
@@ -218,6 +240,7 @@ async function deleteSession() {
           :count="pages.length"
           :busy="busy"
           @preview="openPreview"
+          @edit="openEditor"
           @move="move"
           @replace="replace"
           @remove="remove"
@@ -253,6 +276,12 @@ async function deleteSession() {
       :page="selectedPage"
       :return-focus="previewTrigger"
       @close="selectedPage = null"
+    />
+    <ScanEditorDialog
+      v-if="editingPage"
+      :page="editingPage"
+      @close="closeEditor"
+      @apply="applyEditing"
     />
   </div>
 </template>

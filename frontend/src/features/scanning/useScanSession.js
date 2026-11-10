@@ -123,13 +123,25 @@ export function useScanSession() {
   function remove(id) {
     if (!busy.value) mutate(active.value.pages.filter((page) => page.id !== id))
   }
+  function applyEdit(id, changes) {
+    if (busy.value || !active.value?.pages.some((page) => page.id === id))
+      throw new ScanError('busy')
+    mutate(
+      active.value.pages.map((page) =>
+        page.id === id ? { ...page, ...changes, modifiedAt: Date.now() } : page,
+      ),
+    )
+  }
   async function save() {
     if (busy.value || !active.value || (!active.value.pages.length && !active.value.revision))
       throw new ScanError('empty')
     busy.value = true
     try {
       const metadata = await repository.saveDraft(active.value)
-      active.value = { ...metadata, pages: active.value.pages.map(({ original, ...page }) => page) }
+      active.value = {
+        ...metadata,
+        pages: active.value.pages.map(({ original, processed, ...page }) => page),
+      }
       dirty.value = false
       remember(metadata.id)
       announce()
@@ -164,6 +176,7 @@ export function useScanSession() {
     addFiles,
     move,
     remove,
+    applyEdit,
     save,
     discard,
     hasUnsavedChanges: computed(() => dirty.value || busy.value),

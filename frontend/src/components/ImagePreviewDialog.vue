@@ -2,7 +2,7 @@
 import { shallowRef, ref, watch, onScopeDispose } from 'vue'
 import AppIcon from './AppIcon.vue'
 import { useBlobUrl } from '../composables/useBlobUrl'
-import { readOriginal } from '../features/scanning/draftRepository'
+import { readOriginal, readDisplay } from '../features/scanning/draftRepository'
 import { errorCode } from '../features/scanning/errors'
 import { t } from '../locales'
 const props = defineProps({ page: Object, returnFocus: Object })
@@ -24,8 +24,12 @@ watch(
     loading.value = Boolean(page)
     if (!page) return
     try {
-      const original = page.original || (await readOriginal(page.id))
-      if (generation === current) blob.value = original
+      const image =
+        page.processed ||
+        (page.processing
+          ? await readDisplay(page.id)
+          : page.original || (await readOriginal(page.id)))
+      if (generation === current) blob.value = image
     } catch (reason) {
       if (generation === current) error.value = errorCode(reason)
     } finally {
@@ -58,8 +62,14 @@ onScopeDispose(() => {
         <p>{{ t('scan.loading') }}</p>
       </div>
       <p v-else-if="error" class="scan-error" role="alert">{{ t(`scan.errors.${error}`) }}</p>
-      <img v-else-if="url" :src="url" :alt="t('scan.originalPreview')" />
-      <p class="preview-caption">{{ t('scan.originalUnchanged') }}</p></v-card
+      <img
+        v-else-if="url"
+        :src="url"
+        :alt="t(page?.processing ? 'editor.result' : 'scan.originalPreview')"
+      />
+      <p class="preview-caption">
+        {{ t(page?.processing ? 'editor.resultCaption' : 'scan.originalUnchanged') }}
+      </p></v-card
     >
   </v-dialog>
 </template>

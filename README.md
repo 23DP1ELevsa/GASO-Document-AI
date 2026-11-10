@@ -12,7 +12,7 @@ Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglo
 
 ## Galvenās funkcijas
 
-Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1. un 2. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA pamats, Capacitor Android projekts un funkcionējošas pārlūka skenēšanas sesijas. Var pievienot attēlus, pārvaldīt lapas un saglabāt melnrakstus IndexedDB. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija nav ieviesta. OCR, PDF un reģistrēšana vēl nav realizēta. Atsevišķi saglabātais OCR komandrindas prototips nav pieslēgts mobilajai lietotnei.
+Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1.–3. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas un lokāls attēlu redaktors. Var pievienot attēlus, meklēt vai manuāli izvēlēties dokumenta stūrus, iztaisnot perspektīvu, pagriezt attēlu, piemērot filtrus un saglabāt melnrakstus IndexedDB, saglabājot oriģinālus. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija nav ieviesta. OCR, PDF un reģistrēšana vēl nav realizēta. Atsevišķi saglabātais OCR komandrindas prototips nav pieslēgts mobilajai lietotnei.
 
 1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
 2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
@@ -39,7 +39,7 @@ API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Perso
 | Servera puse | PHP, Laravel 12 |
 | Datubāze | MongoDB |
 | Mākslīgais intelekts | GASO saskaņotais korporatīvais MI API; detaļas tiks precizētas |
-| Attēlu apstrāde | PHP bibliotēkas; nepieciešamības gadījumā OpenCV |
+| Attēlu apstrāde | Pārlūkā: Web Worker, OffscreenCanvas, robežu kandidātu analīze un homogrāfija JavaScript; OpenCV.js izvērtēts, bet nav pievienots |
 | PDF ģenerēšana | Piemērota PDF izveides bibliotēka; izvēle vēl jāveic |
 | Mobilā lietotne | Capacitor 8 Android un PWA ar kopīgu Vue koda bāzi |
 | Autorizācija | Laravel Sanctum |
@@ -75,7 +75,8 @@ GASO-Document-AI/
 │       ├── ocr-comparison.md
 │       ├── preparation-summary.md
 │       ├── mobile-foundation.md
-│       └── scanning-sessions.md
+│       ├── scanning-sessions.md
+│       └── image-processing.md
 ├── tools/
 │   └── ocr-evaluation/
 │       ├── README.md
@@ -199,6 +200,7 @@ Capacitor konfigurācija: nosaukums `GASO Document AI`, `webDir: dist`, pagaidu 
 - Pārlūka fotografēšanas/failu izvēle, vienlaicīgs vairāku attēlu imports un mazi lapu priekšskatījumi.
 - Lapu pārvietošanas pogas, lielais priekšskatījums, aizstāšana un dzēšana; jaunas sesijas izveide un apstiprināta sesiju dzēšana.
 - Lokāli saglabājami IndexedDB melnraksti ar atjaunošanu pēc pārlādes un turpināšanu dokumentu sadaļā. Melnraksti netiek attēloti kā reģistrēti MongoDB dokumenti.
+- Lokāls skenējuma redaktors: automātisku robežu kandidātu meklēšana ar manuālu izvēli neskaidrībā, četru stūru pārvietošana, perspektīva, pagriešana un četri filtri. Oriģināls saglabājas atsevišķi no apstrādātā PNG.
 - Android atpakaļpogas apstrāde: iepriekšējais lietotnes maršruts; tieši atvērtā sadaļā — sākums; sākumā — lietotnes aizvēršana. Drošās zonas un sistēmas joslu stils pielāgoti Capacitor.
 - Lietotnes versija, lokālā režīma un plānotā MI skaidrojums, GitHub saite.
 - Atsevišķa latviešu tulkojumu vārdnīca; angļu un krievu valoda vēl nav tulkota.
@@ -209,7 +211,7 @@ Capacitor konfigurācija: nosaukums `GASO Document AI`, `webDir: dist`, pagaidu 
 
 Pēc sākotnējās tiešsaistes ielādes un service worker aktivizācijas interfeiss ir atverams bez interneta. Chrome/Edge piedāvā instalēšanu no pārlūka izvēlnes; ja pārlūks dod instalēšanas notikumu, poga parādās arī iestatījumos. Šis piedāvājums atkarīgs no pārlūka un ierīces. Atjauninājumiem ir apstiprināma poga, nevis automātiska lapas pārlāde darba laikā. Izstrādes režīmā service worker nav ieslēgts. Android native būvējumā tas ir izslēgts, jo interfeiss jau tiek piegādāts APK.
 
-PWA interfeisa kešs nav dokumentu krātuve. 2. posma melnraksti un attēlu Blob tiek glabāti atsevišķā IndexedDB datubāzē; tie netiek ievietoti service worker kešā. Privātuma, glabāšanas termiņu un piekļuves kontroles prasības reāliem uzņēmuma dokumentiem joprojām jāprecizē pirms produkcijas lietošanas.
+PWA interfeisa kešs nav dokumentu krātuve. Melnraksti, oriģināli un apstrādāto attēlu Blob tiek glabāti atsevišķā IndexedDB datubāzē; tie netiek ievietoti service worker kešā. Lokālā Worker koda fails ietilpst interfeisa kešā, tādēļ arī redaktors darbojas bezsaistē pēc sākotnējās ielādes. Privātuma, glabāšanas termiņu un piekļuves kontroles prasības reāliem uzņēmuma dokumentiem joprojām jāprecizē pirms produkcijas lietošanas.
 
 ### 2. posms: attēli un skenēšanas sesijas pārlūkā
 
@@ -224,7 +226,7 @@ Atveriet `http://localhost:5173` un sadaļu **Skenēt**. Android Studio šīm da
 
 1. **Fotografēt** izmanto `input type="file"`, `accept="image/*"` un `capture="environment"`. Mobilais pārlūks var piedāvāt aizmugurējo kameru; konkrēto izvēli nosaka pārlūks un ierīce. Datorā vai bez kameras atbalsta var izvēlēties failu. Ja tālrunis izveido HEIC attēlu, to vispirms jāeksportē JPEG/PNG formātā.
 2. **Pievienot no galerijas** ļauj izvēlēties vienu vai vairākus JPEG, PNG vai WebP attēlus. Atkārtota pievienošana saglabā iepriekšējās lapas. Atcelta failu izvēle nemaina sesiju; to pašu failu drīkst pievienot atkārtoti.
-3. Zem katra numurēta priekšskatījuma ir pārvietošanas pogas. Nospiežot attēlu, atveras lielais oriģināla priekšskatījums. Trīs punktu izvēlnē var aizstāt attēlu vai dzēst lapu. Aizstāšana saglabā lapas pozīciju.
+3. Zem katra numurēta priekšskatījuma ir pārvietošanas pogas. Nospiežot attēlu, atveras apstiprinātās attēla versijas lielais priekšskatījums; oriģināls vienmēr pieejams redaktorā. Trīs punktu izvēlnē ir rediģēšana, aizstāšana un lapas dzēšana. Aizstāšana saglabā lapas pozīciju, bet jaunajam attēlam nav iepriekšējās fotogrāfijas apstrādes parametru.
 4. **Saglabāt melnrakstu** ieraksta visu sesiju lokālajā krātuvē. Veiksmes paziņojums parādās tikai pēc IndexedDB transakcijas pabeigšanas. Lapu secība, aizstāšana un dzēšana jāsaglabā ar šo pogu. Līdz tam saglabātā versija paliek neskarta.
 5. **Dokumenti** rāda melnrakstu pirmās lapas priekšskatījumu, izveidošanas/rediģēšanas laiku un lapu skaitu. **Turpināt** atver sesiju. Dzēšana prasa apstiprinājumu un izdzēš arī sesijas attēlus.
 6. **Jauna sesija** sāk tukšu sesiju; ja ir nesaglabātas izmaiņas, tās pirms atmešanas jāapstiprina. Esošais saglabātais melnraksts netiek dzēsts. Atvērta sesija saglabājas atmiņā, pārejot starp lietotnes sadaļām.
@@ -249,8 +251,8 @@ Faila saturs un attēla galvenes izmēri tiek pārbaudīti pirms rastra dekodē�
 `frontend/src/features/scanning/draftRepository.js` veido atsevišķu glabāšanas moduli. IndexedDB datubāzē `gaso-document-ai` ir trīs krātuves:
 
 - `drafts` — ID, izveidošanas/rediģēšanas laiks, statuss `draft`, revīzija, sakārtots lapu ID saraksts un mazs vāka priekšskatījums;
-- `pages` — lapu ID, attēla nosaukums, tips, izmēri un priekšskatījuma Blob/metadati;
-- `images` — oriģinālu Blob pēc lapas ID.
+- `pages` — lapu ID, attēla nosaukums, sākotnējie izmēri un priekšskatījuma Blob/metadati; apstrādātām lapām arī `processing`, rezultāta izmēri un `modifiedAt`;
+- `images` — oriģinālais `blob` pēc lapas ID un neobligāts apstrādātais `processed` Blob tajā pašā ierakstā.
 
 Saglabāšana un dzēšana ir atomāras transakcijas visās trīs krātuvēs. Dzēstas vai aizstātas lapas pēc saglabāšanas vairs neatstāj neizmantotus attēlus. Ja trūkst vietas vai IndexedDB nav pieejama, lietotne parāda kļūdu, saglabā pašreizējās izmaiņas atmiņā un ļauj mēģināt vēlreiz. Vecāka citā cilnē atvērta versija nevar klusām pārrakstīt jaunāku saglabājumu. Pārskatīšanai izveidotie Object URL tiek atbrīvoti pēc attēla maiņas vai komponentes aizvēršanas.
 
@@ -260,19 +262,72 @@ Failu izvēle, attēlu sagatavošana, sesijas stāvoklis un glabāšana ir nodal
 
 Pamatā izmantotas pārlūka API: [IndexedDB transakcijas](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB), [attēlu dekodēšana un orientācija](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap), [kameras capture atribūts](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture) un [Object URL atbrīvošana](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static).
 
+### 3. posms: dokumenta attēla redaktors
+
+Palaidiet `npm.cmd run dev` mapē `frontend/`, atveriet `http://localhost:5173`, pievienojiet attēlu vai atveriet melnrakstu. Lapas trīs punktu izvēlnē izvēlieties **Rediģēt skenējumu**. Atkarības nav papildinātas; aktuālā Chrome/Edge pārlūkā izmanto vietējos Worker, ImageBitmap un OffscreenCanvas API. Android Studio nav vajadzīga.
+
+1. Redaktors parāda oriģinālu ar četriem numurētiem stūriem un atsevišķu rezultāta priekšskatījumu. Vecai, vēl neapstrādātai lapai automātiski tiek meklēts robežu kandidāts. Jau apstrādāta lapa atveras ar saglabātajiem parametriem, tos automātiski nemainot.
+2. **Noteikt robežas** atkārto meklēšanu. Ja kandidāts nav pietiekami skaidrs, parādās manuālas izvēles paziņojums. Pilna fotoattēla rāmis ir sākotnējā atlase, nevis atpazīts dokuments.
+3. Velciet katru stūri ar peli vai pirkstu. **Pietuvinājums** palielina darba attēlu līdz 300%; palielināto attēlu var ritināt. Koordinātas tiek aprēķinātas no faktiskā attēla novietojuma, arī pietuvinājumā.
+4. Ar Tab atlasītam stūrim izmantojiet bulttaustiņus; Shift palielina soli. **Precīzas koordinātas (%)** ļauj ievadīt katra stūra X/Y procentus. Paškrustojoša, apgriezti sakārtota, pārāk maza vai ārpus attēla esoša atlase netiek apstrādāta. **Atiestatīt stūrus** atgriež pilna attēla atlasi.
+5. **Priekšskatīt** piemēro īstu četrpunktu perspektīvas pārveidi. Mainot stūrus, iepriekšējais rezultāts ir atzīmēts kā neatjaunināts. Pirms apstiprināšanas tas jāatjauno.
+6. Pagriešanas pogas darbojas par 90° pa kreisi/pa labi un par 180°. **Atiestatīt pagriezienu** atgriež sākotnējo importētā attēla orientāciju, saglabājot izvēlēto apgabalu un filtru.
+7. Izvēlieties filtru un salīdziniet rezultātu ar oriģinālu. **Atjaunot oriģinālu** atiestata apgriešanu, filtru un pagriezienu. Tas vēl ir tikai redaktora priekšskatījums, līdz izmaiņas apstiprinātas.
+8. **Apstiprināt izmaiņas** sagatavo rezultātu no oriģināla pietiekamā izšķirtspējā un nomaina lapas priekšskatījumu aktīvajā sesijā. Pēc tam nospiediet **Saglabāt melnrakstu**, lai dati būtu pieejami pēc pārlādes. **Atcelt rediģēšanu** atstāj lapas iepriekšējo stāvokli; darbojas arī procesa laikā, apturot Worker.
+
+#### Robežu noteikšana un perspektīva
+
+Robežu meklēšana strādā uz kopijas ar ne vairāk kā 900 px garajā malā: pelēktoņi, 3 × 3 Gausa izlīdzināšana, Sobel gradients un gaišu apgabalu maskas vairākos sliekšņos. Saistīto komponentu robežām veido izliektus apvalkus, meklē četrus stūrus un precizē malas ar līniju pielāgošanu. Kandidātus vērtē pēc izliekuma, laukuma, attāluma no attēla malas, katras malas atbalsta un gaišuma atšķirības abās robežas pusēs. Laukums ir tikai viena vērtējuma daļa; lielākais četrstūris netiek automātiski uzskatīts par dokumentu. Līdzīgi ticami kandidāti nozīmē manuālu izvēli.
+
+**Tas ir heiristisks kandidātu meklētājs, nevis garantēta dokumenta atpazīšana.** Spēcīgas ēnas, mazs kontrasts uz gaiša fona, fona faktūra, atspīdumi, vairāki dokumenti, salocīta lapa, neliels dokuments vai malas pie paša kadra var prasīt manuālu izvēli. Pat piedāvātam kandidātam jāpārbauda visi četri stūri. Vērtējums nav statistiska atpazīšanas varbūtība.
+
+Perspektīvai aprēķina homogrāfiju no taisnstūra uz izvēlēto četrstūri un izmanto apgriezto pikseļu kartēšanu ar bilineāru interpolāciju. Rezultāta malu garumus nosaka izvēlētā četrstūra pretējās malas; **A4 proporcija netiek uzspiesta**. Koordinātas glabā `[0, 1]` diapazonā pret EXIF orientācijai pielāgoto oriģinālu. Reālā lapas izmēra/proporciju atjaunošana no viena foto bez kameras kalibrācijas nav garantēta.
+
+OpenCV.js tika izvērtēts pēc [oficiālās ģeometrisko transformāciju dokumentācijas](https://docs.opencv.org/4.x/dd/d52/tutorial_js_geometric_transformations.html). Šim ierobežotajam darbību kopumam izvēlēts neliels lokāls JavaScript modulis bez papildu WASM izpildvides un asinhronas OpenCV inicializācijas. Tas nav apgalvojums par OpenCV.js nesaderību; bibliotēka nav instalēta vai salīdzinoši mērīta. Esošo algoritmu vēlāk var aizstāt, saglabājot normalizēto stūru un filtru parametru formātu.
+
+#### Filtri
+
+| Režīms | Darbība |
+| --- | --- |
+| Oriģinālās krāsas | Bez krāsu filtra; izvēlētā perspektīva un pagrieziens joprojām ir spēkā |
+| Uzlabots | Mērena histogrammā balstīta gaišuma/kontrasta korekcija ar ierobežotu pastiprinājumu, saglabājot krāsas |
+| Pelēktoņi | Svērts RGB gaišuma pārveidojums |
+| Melnbalts | Adaptīvs lokāls slieksnis, kas seko lēnām apgaismojuma izmaiņām |
+
+Sīkas tabulu līnijas, bāli zīmogi un vāji simboli jāpārbauda priekšskatījumā; īpaši melnbaltais režīms var mainīt to salasāmību. Vienmēr var mainīt filtru vai atjaunot oriģinālu.
+
+#### Oriģināli, saderība un resursi
+
+Redaktors vienmēr sāk ar **oriģinālo Blob**, nevis iepriekš saglabāto rezultātu. Apstiprināto rezultātu glabā PNG, bet oriģināla baiti un EXIF netiek pārrakstīti. JPEG tiek izmantots tikai maziem ekrāna priekšskatījumiem. Saglabājas stūri, algoritma parametru `version: 1`, filtrs, pagrieziens, rezultāta izmēri un pēdējo izmaiņu laiks. Atjaunojot oriģinālu un saglabājot melnrakstu, apstrādātais Blob tiek izņemts.
+
+IndexedDB krātuvju struktūra un datubāzes **versija 1 paliek spēkā**: pievienoti neobligāti ierakstu lauki, neveidojot jaunas krātuves vai indeksus. Nav vajadzīga destruktīva migrācija vai veco attēlu pārrakstīšana. Veciem ierakstiem bez `processing` redaktors izmanto pilnu attēlu, 0° pagriezienu un sākotnējās krāsas. Lapas secības maiņa saglabā parametrus, aizstāšana sāk jaunu neapstrādātu attēlu, dzēšana izņem abus attēlus. Apstiprināta apstrāde un oriģināls tiek saglabāti vienā melnraksta transakcijā; kļūmes gadījumā paliek iepriekšējais saglabājums.
+
+| Apstrādes resurss | Ierobežojums |
+| --- | --- |
+| Importa oriģināls | Iepriekšējie 25 MiB / 40 MP / 16 000 px ierobežojumi |
+| Darba rastrs | Līdz 16 MP un 6000 px vienā malā; lielāks oriģināls paliek neskarts |
+| Robežu analīze | Līdz 900 px garākajā malā |
+| Rezultāta priekšskatījums | Līdz 1200 px garākajā malā |
+| Saglabājamais rezultāts | Līdz 8 MP un 5000 px vienā malā; PNG, bez mākslīgas palielināšanas |
+| Rezultāta Blob | Līdz 48 MiB; pārlūka faktiskā IndexedDB kvota var būt mazāka |
+| Viens Worker darbs | Līdz 45 sekundēm, atceļams; vienai redaktora instancei vienlaikus ir viena operācija |
+
+Aprēķini notiek [Web Worker ar OffscreenCanvas](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas). Katrā darbā rastri un Blob URL tiek atbrīvoti, Worker pēc darba tiek [apturēts](https://developer.mozilla.org/en-US/docs/Web/API/Worker/terminate). Kļūme vai atcelšana nemaina oriģinālu. Lielākā apjoma attēlu veiktspēja fiziskos mazatmiņas tālruņos vēl jāpārbauda.
+
 ### Pārbaudes un nākamais posms
 
 ```powershell
 npm.cmd run build
+npm.cmd run test:unit
 npm.cmd run test:e2e
 npm.cmd run format:check
 # Pēc android:sync — atsevišķa native konfigurācijas pārbaude:
 npm.cmd run android:check
 ```
 
-Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē produkcijas priekšskatījumu portā 4173; tam jābūt brīvam. Vispirms jāizpilda tīmekļa `build`, jo `android:sync` tajā pašā `dist/` mapē sagatavo native versiju bez PWA. Rezultāti un ekrānattēli ir lokālajās `frontend/test-results/` un `frontend/playwright-report/` mapēs. [2. posma testu pārskats](docs/testing/scanning-sessions.md); [1. posma vēsturiskais pārskats](docs/testing/mobile-foundation.md). Testi izmanto tikai atmiņā ģenerētus sintētiskus attēlus un izolētus pārlūka profilus.
+Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē produkcijas priekšskatījumu portā 4173; tam jābūt brīvam. Vispirms jāizpilda tīmekļa `build`, jo `android:sync` tajā pašā `dist/` mapē sagatavo native versiju bez PWA. Rezultāti un ekrānattēli ir lokālajās `frontend/test-results/` un `frontend/playwright-report/` mapēs. [3. posma testu pārskats](docs/testing/image-processing.md), [2. posma pārskats](docs/testing/scanning-sessions.md) un [1. posma pārskats](docs/testing/mobile-foundation.md). Testi izmanto tikai atmiņā ģenerētus sintētiskus attēlus un izolētus pārlūka profilus.
 
-Nākamajos posmos jārealizē attēlu apgriešana, dokumenta robežu noteikšana un perspektīvas korekcija, pēc tam lokāls OCR, dokumentu grupēšana un PDF ģenerēšana. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
+Nākamajos posmos jārealizē lokāls OCR, dokumentu grupēšana un PDF ģenerēšana un jāpaplašina reālu, izmantošanai atļautu fotogrāfiju kvalitātes novērtēšana. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
 
 [Mobilās lietotnes arhitektūra un paplašināšanas robežas](docs/diagrams/mobile-architecture.md). Iepriekšējā dokumentācija un `tools/ocr-evaluation/` saglabāta; OCR CLI netiek automātiski palaists pārlūkā vai Android lietotnē.
 

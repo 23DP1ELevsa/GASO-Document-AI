@@ -131,13 +131,25 @@ export function loadDraft(id) {
   })
 }
 
-export function readOriginal(id) {
+function readImage(id, display) {
   return transaction(['images'], 'readonly', (tx, result, fail) => {
     tx.objectStore('images').get(id).onsuccess = (event) => {
       if (!event.target.result) fail(new ScanError('missingImage'))
-      else result(event.target.result.blob)
+      else
+        result(
+          display
+            ? event.target.result.processed || event.target.result.blob
+            : event.target.result.blob,
+        )
     }
   })
+}
+
+export function readOriginal(id) {
+  return readImage(id, false)
+}
+export function readDisplay(id) {
+  return readImage(id, true)
 }
 
 export function saveDraft(session) {
@@ -167,9 +179,10 @@ export function saveDraft(session) {
           images.delete(id)
         }
       for (const page of session.pages) {
-        const { original, ...metadata } = page
+        const { original, processed, ...metadata } = page
         pages.put(metadata)
-        if (original) images.put({ id: page.id, blob: original })
+        if (original)
+          images.put({ id: page.id, blob: original, ...(processed ? { processed } : {}) })
         else if (!previous?.pageIds.includes(page.id)) {
           fail(new ScanError('missingImage'))
           return

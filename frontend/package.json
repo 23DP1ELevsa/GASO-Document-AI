@@ -16,6 +16,7 @@
     "android:build": "npm run android:sync && node scripts/build-android.mjs",
     "assets": "node scripts/generate-icons.mjs",
     "test:e2e": "playwright test",
+    "test:unit": "node --test tests-unit/*.test.js",
     "android:check": "node scripts/verify-android.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
