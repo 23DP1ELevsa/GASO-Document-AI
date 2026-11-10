@@ -12,7 +12,7 @@ Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglo
 
 ## Galvenās funkcijas
 
-Visas turpmāk aprakstītās funkcijas ir plānotas.
+Turpmāk aprakstīta plānotā lietotne. Pašlaik atsevišķi ir pieejams lokāls OCR komandrindas prototips un tehniskās sagatavošanas dokumentācija; PWA un arhivēšana vēl nav realizēta.
 
 1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
 2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
@@ -51,16 +51,32 @@ API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Perso
 ```text
 GASO-Document-AI/
 ├── backend/
-│   └── .gitkeep
+│   └── .env.example
 ├── frontend/
 │   └── .gitkeep
 ├── docs/
 │   ├── requirements/
-│   │   └── .gitkeep
+│   │   ├── corporate-ai-api.md
+│   │   ├── document-types.md
+│   │   ├── document-attributes.md
+│   │   └── document-analysis.schema.json
 │   ├── diagrams/
-│   │   └── .gitkeep
+│   │   └── document-processing-architecture.md
 │   └── testing/
-│       └── .gitkeep
+│       ├── test-dataset-plan.md
+│       ├── ocr-comparison.md
+│       └── preparation-summary.md
+├── tools/
+│   └── ocr-evaluation/
+│       ├── README.md
+│       ├── ocr_demo.py
+│       ├── analysis.py
+│       ├── engines.py
+│       ├── benchmark.py
+│       ├── generate_synthetic.py
+│       ├── evaluate_text.py
+│       ├── requirements.txt
+│       └── tests/
 ├── .gitignore
 ├── .editorconfig
 ├── LICENSE
@@ -80,6 +96,20 @@ Tukšās mapes saglabā `.gitkeep` faili. `.gitignore` nosaka izslēdzamos lokā
 Reāli GASO dokumenti var saturēt personas datus un komercnoslēpumus. Tos drīkst apstrādāt tikai uzņēmumā saskaņotā vidē un atbilstoši noteiktajām datu aizsardzības un piekļuves prasībām. Izstrādes pārbaudēm jāizmanto sintētiski vai izmantošanai atļauti testa dokumenti.
 
 Piekļuves datus, API atslēgas, lietotāju augšupielādes, privātos PDF un datubāzes kopijas nedrīkst pievienot repozitorijam. `.gitignore` paredzēti atbilstoši izņēmumi, taču pirms failu publicēšanas to saturs jāpārbauda. Lietotnes drošības mehānismi vēl nav ieviesti.
+
+## Tehniskā sagatavošana: #04, #05, #06
+
+- [Korporatīvā MI API jautājumi, konfigurācija un saskaņojamie nosacījumi](docs/requirements/corporate-ai-api.md).
+- [Dokumentu tipi](docs/requirements/document-types.md), [atribūtu katalogs](docs/requirements/document-attributes.md) un [paplašināmā rezultāta JSON shēma](docs/requirements/document-analysis.schema.json).
+- [Testdatu plāns un 11 piemēru struktūras izpēte](docs/testing/test-dataset-plan.md).
+- [OCR, attēlu un PDF bibliotēku salīdzinājums un faktiskie mērījumi](docs/testing/ocr-comparison.md).
+- [Dokumentu apstrādes arhitektūra](docs/diagrams/document-processing-architecture.md).
+- [Lokālā OCR prototipa uzstādīšana un palaišana](tools/ocr-evaluation/README.md).
+- [Paveiktā pārskats un atlikušie priekšnoteikumi](docs/testing/preparation-summary.md).
+
+Tesseract lokāli izmēģināts ar 11 atļautajiem PDF (13 lapas) un trim sintētiskiem LV/EN/RU attēliem. OCR teksts un atribūtu semantika ir atsevišķas darbības. Prototips neizmanto uzņēmumu veidnes vai fiksētas lauku koordinātas; tā ierobežotie apzīmējumu noteikumi vēl nenodrošina universālu dokumentu izpratni. Neskaidras vērtības ir `null`, rezultāti vienmēr jāpārbauda lietotājam.
+
+PaddleOCR un Docling atpazīšanas rezultāti vēl nav iegūti; to priekšnoteikumi ir dokumentēti. Korporatīvā API adapteris paliek slēgts līdz specifikācijas un atļaujas saņemšanai. Privātie dokumenti, rastri, rezultāti, modeļi un lokālās izpildvides ir izslēgtas ar `.gitignore`.
 
 ## Licence
 

@@ -99,3 +99,17 @@ WiredTiger*
 Thumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Lokālā OCR izpēte: dokumenti, rezultāti, modeļi un izpildvide
+.local-runtime/
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+models/
+.paddlex/
+.paddleocr/
+/tools/ocr-evaluation/private/
+/tools/ocr-evaluation/results/
+/tools/ocr-evaluation/test-data/

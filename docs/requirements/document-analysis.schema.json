@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GASO dokumentu analīzes rezultāts",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "document_type",
+    "language",
+    "attributes",
+    "evidence",
+    "provider",
+    "requires_review",
+    "warnings",
+    "pages"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "document_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "language": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[a-z]{2,3}(?:-[A-Za-z0-9]+)*$"
+    },
+    "attributes": {
+      "type": "object",
+      "properties": {
+        "document_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "invoice_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sender": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recipient": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "document_title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "currency": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-Z]{3}$"
+        },
+        "issue_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "due_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "subtotal_amount": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "tax_amount": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        },
+        "total_amount": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^-?[0-9]+\\.[0-9]{2}$"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/value"
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "page",
+            "text",
+            "bbox"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "page": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "text": {
+              "type": "string"
+            },
+            "bbox": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          }
+        }
+      }
+    },
+    "provider": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "requires_review": {
+      "const": true
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "number",
+          "width",
+          "height",
+          "text",
+          "lines",
+          "rotation_clockwise",
+          "elapsed_seconds"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "text": {
+            "type": "string"
+          },
+          "rotation_clockwise": {
+            "enum": [
+              0,
+              90,
+              180,
+              270
+            ]
+          },
+          "elapsed_seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "text",
+                "bbox",
+                "words"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "bbox": {
+                  "type": "array",
+                  "items": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "minItems": 4,
+                  "maxItems": 4
+                },
+                "words": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "text",
+                      "bbox",
+                      "confidence"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "text": {
+                        "type": "string"
+                      },
+                      "bbox": {
+                        "type": "array",
+                        "items": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "minItems": 4,
+                        "maxItems": 4
+                      },
+                      "confidence": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 1
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "ocr": {
+      "type": "object",
+      "required": [
+        "engine",
+        "version",
+        "requested_languages",
+        "elapsed_seconds",
+        "coordinate_space"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "requested_languages": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "elapsed_seconds": {
+          "type": "number",
+          "minimum": 0
+        },
+        "coordinate_space": {
+          "const": "processed_image_pixels_top_left_xyxy"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "value": {
+      "anyOf": [
+        {
+          "type": [
+            "string",
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/value"
+          }
+        }
+      ]
+    }
+  }
+}
