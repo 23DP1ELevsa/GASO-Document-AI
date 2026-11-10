@@ -44,7 +44,7 @@ export default {
     capture: 'Uzņemiet',
     captureText: 'Fotografējiet vienu vai vairākas dokumenta lapas.',
     recognize: 'Atpazīstiet',
-    recognizeText: 'Lokāls OCR palīdzēs iegūt tekstu no attēla.',
+    recognizeText: 'Iegūstiet rediģējamu tekstu ar lokālu OCR.',
     organize: 'Saglabājiet',
     organizeText: 'Pārbaudiet rezultātu un izveidojiet PDF dokumentu.',
     illustration: 'Dokumenta ilustrācija',
@@ -179,6 +179,93 @@ export default {
     limits:
       'Rezultāts: līdz 8 MP / 5000 px vienā malā, PNG bez JPEG pārkodēšanas. Lielu fotoattēlu darba kopija tiek samazināta līdz 16 MP; oriģināls paliek neskarts. Sīkas līnijas un vāji simboli jāpārbauda priekšskatījumā.',
   },
+  ocr: {
+    eyebrow: 'LOKĀLA TEKSTA ATPAZĪŠANA',
+    title: 'Lapas teksts',
+    recognize: 'Atpazīt tekstu',
+    recognizeAll: 'Atpazīt visas lapas',
+    rerun: 'Atkārtot OCR',
+    view: 'Skatīt tekstu',
+    close: 'Aizvērt teksta apskati',
+    image: 'OCR ievades attēls',
+    selectPage: 'Izvēlēties lapu',
+    languages: 'Dokumenta OCR valodas',
+    language: { lav: 'Latviešu', eng: 'Angļu', rus: 'Krievu' },
+    languageHint:
+      'Izvēlieties vienu vai vairākas dokumenta valodas. Izvēle saglabājas šajā pārlūkprogrammā; atmiņā ielādē tikai izvēlētos modeļus.',
+    settingsTitle: 'Teksta atpazīšana (OCR)',
+    settingsError: 'OCR valodu izvēli neizdevās saglabāt. Tā darbosies līdz pārlādei.',
+    status: 'Statuss',
+    statuses: {
+      success: 'Teksts atpazīts',
+      empty: 'Teksts nav atrasts',
+      error: 'OCR kļūda',
+      cancelled: 'OCR atcelts',
+    },
+    usedLanguages: 'Izmantotās valodas',
+    confidence: 'Dzinēja ticamības vērtējums',
+    text: 'Atpazītais teksts — varat labot',
+    originalText: 'Sākotnējais OCR teksts',
+    textLimit:
+      'Līdz {count} rakstzīmēm katrā teksta versijā. Sākotnējais rezultāts saglabājas atsevišķi.',
+    save: 'Saglabāt tekstu',
+    saved: 'Teksts un sesija saglabāti šajā pārlūkprogrammā.',
+    copy: 'Kopēt tekstu',
+    copied: 'Teksts nokopēts.',
+    noResult: 'Šai lapai vēl nav OCR rezultāta.',
+    empty:
+      'Teksts nav atpazīts. Pārbaudiet attēlu, dokumenta valodu un filtru; pēc tam mēģiniet vēlreiz.',
+    stale: 'Teksts tika atpazīts no iepriekšējās attēla versijas. Ieteicams atkārtot atpazīšanu.',
+    staleLabel: 'Teksts no iepriekšējās versijas',
+    languageChanged:
+      'Izvēlētais valodu komplekts atšķiras no rezultāta valodām. Lai lietotu jauno izvēli, atkārtojiet OCR.',
+    confirmRerun:
+      'Jaunais OCR rezultāts var atšķirties. Veiksmīga atpazīšana aizstās iepriekšējo OCR tekstu un šīm lapām saglabātos manuālos labojumus. Vai turpināt?',
+    confirmUnsaved: 'Tekstā ir nesaglabāti labojumi. Vai atmest tos?',
+    cancel: 'Apturēt OCR',
+    cancelled: 'Apstrāde apturēta. Iepriekš pabeigto lapu rezultāti saglabājas.',
+    progress: 'OCR progress',
+    phase: { initializing: 'Sagatavo OCR…', recognizing: 'Atpazīst tekstu…' },
+    batchProgress: 'Lapa {current} no {total} · pabeigtas: {completed} · kļūdas: {errors}',
+    sessionTitle: 'Sesijas lapu teksts',
+    sessionHint:
+      'Lapas apstrādā secīgi. Rezultāti tiek saglabāti pēc katras lapas. Sesija var ietvert vairākus dokumentus; automātiska grupēšana netiek veikta.',
+    combined: 'Visu lapu teksts sesijas secībā',
+    combinedHint:
+      'Apvienotais skats ietver arī iepriekšējus rezultātus. Pārbaudiet katras lapas aktualitātes atzīmi.',
+    privacy:
+      'Atpazīšana notiek ierīcē. Attēli un teksts netiek sūtīti ārējiem pakalpojumiem. Ticamības vērtējums nav precizitātes garantija.',
+    offlineHint:
+      'Bezsaistes darbam sagatavojiet izvēlēto valodu modeļus un OCR kodu (aptuveni 14–22 MiB). Tīmekļa versijā vajadzīgs arī aktivizēts produkcijas PWA kešs. Pārlūks var izdzēst lokālos datus.',
+    prepareOffline: 'Sagatavot OCR bezsaistei',
+    preparing: 'Sagatavo OCR resursus…',
+    offlineReady:
+      'Izvēlēto valodu modeļi un OCR kods pārbaudīti un saglabāti šajā pārlūkā. PWA interfeisam jābūt iepriekš ielādētam.',
+    errors: {
+      languages: 'Izvēlieties vismaz vienu no atbalstītajām OCR valodām.',
+      busy: 'Sagaidiet pašreizējās OCR darbības beigas.',
+      modelUnavailable:
+        'OCR valodas modeli nevar ielādēt. Pārbaudiet, vai lietotnes OCR resursi ir sagatavoti un izvēlētā valoda ir pieejama bezsaistē.',
+      initialization:
+        'Neizdevās palaist OCR WebAssembly vai Worker. Izmantojiet aktuālu pārlūku un pārbaudiet, vai ir pieejami lietotnes OCR faili.',
+      recognition:
+        'Teksta atpazīšana neizdevās. Iepriekšējais teksts saglabāts. Pārbaudiet attēlu un mēģiniet vēlreiz.',
+      imageUnavailable:
+        'Pilna izmēra OCR ievades attēls nav pieejams. Atveriet melnrakstu vēlreiz vai pievienojiet attēlu.',
+      memory:
+        'OCR nepietiek ierīces atmiņas. Aizveriet citas cilnes, izvēlieties mazāk valodu vai mazāku attēlu.',
+      timeout:
+        'OCR pārsniedza trīs minūtes un tika apturēts. Mēģiniet ar vienu valodu vai mazāku attēlu.',
+      cancelled: 'Šīs lapas OCR ir atcelts. Iepriekšējais teksts saglabāts.',
+      textTooLarge:
+        'OCR teksts pārsniedz 250 000 rakstzīmes. Iepriekšējais rezultāts nav aizstāts; sadaliet ievadi mazākās lapās.',
+      clipboard: 'Tekstu nevar nokopēt. Atlasiet un kopējiet to manuāli.',
+      offlineUnavailable:
+        'Pārlūks neļauj sagatavot bezsaistes kešu. Atveriet lietotni localhost vai HTTPS un pārbaudiet glabāšanas atļaujas.',
+      integrity:
+        'OCR faila kontrolsumma neatbilst sagatavotajai versijai. Atjauniniet lietotni un mēģiniet vēlreiz.',
+    },
+  },
   documents: {
     eyebrow: 'LOKĀLIE MELNRAKSTI',
     title: 'Vieta visiem svarīgajiem dokumentiem.',
@@ -190,7 +277,7 @@ export default {
       'Pievienojiet dokumentu attēlus skenēšanas sadaļā un saglabājiet sesiju. Pēc tam to varēsiet atvērt un turpināt šeit.',
     future: 'Arhīvs augs kopā ar jums',
     futureText:
-      'OCR, PDF ģenerēšana, automātiska grupēšana, meklēšana un reģistrēšana vēl nav pieejama.',
+      'PDF ģenerēšana, automātiska grupēšana, meklēšana un reģistrēšana vēl nav pieejama.',
     draft: 'Melnraksts',
     created: 'Izveidots',
     updated: 'Rediģēts',
@@ -221,7 +308,7 @@ export default {
     languageNote: 'Angļu un krievu valodas atbalsts paredzēts nākotnē.',
     github: 'Projekts GitHub',
     githubHint: 'Atveras jaunā cilnē',
-    prototype: '3. posms · attēlu apstrāde',
+    prototype: '4. posms · lokāls OCR',
   },
   pwa: {
     install: 'Instalēt lietotni',

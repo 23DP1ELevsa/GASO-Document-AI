@@ -33,11 +33,22 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        // Only the shipped interface is cached. No document or API runtime cache.
+        // Interface precache; public OCR assets are cached only on demand.
         globPatterns: ['index.html', 'assets/*.{js,css,woff2}', 'icons/*.png', 'icon.svg'],
         navigateFallback: 'index.html',
         navigateFallbackAllowlist: [/^\/$/, /\/index\.html$/],
-        runtimeCaching: [],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) =>
+              url.origin === self.location.origin && url.pathname.includes('/ocr/v7-fast-4-1-0/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'gaso-ocr-v7-fast-4-1-0',
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 16 },
+            },
+          },
+        ],
         clientsClaim: true,
         cleanupOutdatedCaches: true,
       },

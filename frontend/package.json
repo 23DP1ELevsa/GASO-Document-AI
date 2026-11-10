@@ -7,10 +7,13 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "ocr:prepare": "node scripts/prepare-ocr.mjs",
+    "predev": "npm run ocr:prepare",
     "dev": "vite --host 0.0.0.0",
+    "prebuild": "npm run ocr:prepare",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "android:sync": "vite build --mode native && cap sync android",
+    "android:sync": "npm run ocr:prepare && vite build --mode native && cap sync android",
     "android:open": "cap open android",
     "android:run": "npm run android:sync && cap run android",
     "android:build": "npm run android:sync && node scripts/build-android.mjs",
@@ -27,6 +30,7 @@
     "@capacitor/core": "^8.6.0",
     "@capacitor/splash-screen": "^8.0.2",
     "@lucide/vue": "^1.71.0",
+    "tesseract.js": "7.0.0",
     "vue": "^3.5.45",
     "vue-router": "^4.6.0",
     "vuetify": "~3.13.7"

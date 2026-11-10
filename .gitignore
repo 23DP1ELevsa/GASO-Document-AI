@@ -27,6 +27,7 @@ dist/
 /frontend/coverage/
 /frontend/test-results/
 /frontend/playwright-report/
+/frontend/public/ocr/
 /frontend/android/local.properties
 *.jks
 *.keystore

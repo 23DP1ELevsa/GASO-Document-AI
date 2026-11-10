@@ -1,4 +1,5 @@
 import { ScanError } from './errors'
+import { validateOcr } from '../ocr/model.js'
 
 export const DATABASE_NAME = 'gaso-document-ai'
 const STORES = ['drafts', 'pages', 'images']
@@ -145,6 +146,15 @@ function readImage(id, display) {
   })
 }
 
+export function readImageRecord(id) {
+  return transaction(['images'], 'readonly', (tx, result, fail) => {
+    tx.objectStore('images').get(id).onsuccess = (event) => {
+      if (!event.target.result) fail(new ScanError('missingImage'))
+      else result(event.target.result)
+    }
+  })
+}
+
 export function readOriginal(id) {
   return readImage(id, false)
 }
@@ -179,6 +189,7 @@ export function saveDraft(session) {
           images.delete(id)
         }
       for (const page of session.pages) {
+        validateOcr(page.ocr)
         const { original, processed, ...metadata } = page
         pages.put(metadata)
         if (original)

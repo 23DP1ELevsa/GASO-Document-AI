@@ -417,6 +417,8 @@ test('many pages, both themes and page menus pass layout and accessibility check
   await save(page)
   await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
   await expect(page.getByTestId('draft-card')).toHaveCount(1)
+  // Contrast must be measured after the route's opacity transition finishes.
+  await expect(page.locator('.page-enter-active')).toHaveCount(0)
   const result = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze()

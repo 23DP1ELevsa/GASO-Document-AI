@@ -2,6 +2,7 @@
 import AppIcon from '../components/AppIcon.vue'
 import PageHeading from '../components/PageHeading.vue'
 import LocalNotice from '../components/LocalNotice.vue'
+import OcrSettingsCard from '../components/OcrSettingsCard.vue'
 import { useAppearance } from '../composables/useAppearance'
 import { usePwa } from '../composables/usePwa'
 import { t } from '../locales'
@@ -42,6 +43,8 @@ const { installEvent, install } = usePwa()
           </div>
           <p class="small-muted">{{ t('settings.themeSaved') }}</p></v-card
         >
+        <h2 class="settings-label">{{ t('ocr.settingsTitle') }}</h2>
+        <OcrSettingsCard />
         <h2 class="settings-label">{{ t('settings.privacy') }}</h2>
         <v-card class="settings-card bordered-card"
           ><LocalNotice expanded />

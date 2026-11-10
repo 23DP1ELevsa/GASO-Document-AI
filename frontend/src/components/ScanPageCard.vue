@@ -3,9 +3,10 @@ import AppIcon from './AppIcon.vue'
 import { ref } from 'vue'
 import BlobImage from './BlobImage.vue'
 import { t } from '../locales'
+import { isOcrStale } from '../features/ocr/model.js'
 defineProps({ page: Object, index: Number, count: Number, busy: Boolean })
 const card = ref(null)
-defineEmits(['preview', 'move', 'replace', 'remove', 'edit'])
+defineEmits(['preview', 'move', 'replace', 'remove', 'edit', 'ocr', 'text'])
 </script>
 <template>
   <article
@@ -32,6 +33,28 @@ defineEmits(['preview', 'move', 'replace', 'remove', 'edit'])
       </p>
       <span v-if="page.processing" class="processed-label">{{ t('editor.processed') }}</span>
     </div>
+    <div class="ocr-card-actions">
+      <v-btn
+        variant="tonal"
+        color="primary"
+        :disabled="busy"
+        @click="$emit('ocr', page, $event.currentTarget)"
+        >{{ t('ocr.recognize') }}</v-btn
+      >
+      <v-btn
+        v-if="page.ocr"
+        variant="text"
+        :disabled="busy"
+        @click="$emit('text', page, $event.currentTarget)"
+        >{{ t('ocr.view') }}</v-btn
+      >
+    </div>
+    <span v-if="page.ocr" class="ocr-card-status">{{
+      t(isOcrStale(page) ? 'ocr.staleLabel' : `ocr.statuses.${page.ocr.status}`)
+    }}</span>
+    <span v-else-if="page.ocrAttempt" class="ocr-card-status">{{
+      t(`ocr.statuses.${page.ocrAttempt.status}`)
+    }}</span>
     <div class="page-card-actions">
       <v-btn
         variant="text"

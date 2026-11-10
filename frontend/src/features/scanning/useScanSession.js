@@ -3,6 +3,7 @@ import * as repository from './draftRepository'
 import { importImage, IMAGE_LIMITS } from './imageImport'
 import { ScanError, errorCode } from './errors'
 import { newId } from './id'
+import { assertTextLength } from '../ocr/model.js'
 
 const active = shallowRef(null)
 const dirty = ref(false)
@@ -132,6 +133,17 @@ export function useScanSession() {
       ),
     )
   }
+  function applyOcr(id, changes) {
+    if (busy.value || !active.value?.pages.some((page) => page.id === id))
+      throw new ScanError('busy')
+    mutate(active.value.pages.map((page) => (page.id === id ? { ...page, ...changes } : page)))
+  }
+  function editOcrText(id, text) {
+    assertTextLength(text)
+    const page = active.value?.pages.find((page) => page.id === id)
+    if (!page?.ocr) throw new ScanError('missingImage')
+    applyOcr(id, { ocr: { ...page.ocr, editedText: text, editedAt: Date.now() } })
+  }
   async function save() {
     if (busy.value || !active.value || (!active.value.pages.length && !active.value.revision))
       throw new ScanError('empty')
@@ -177,6 +189,8 @@ export function useScanSession() {
     move,
     remove,
     applyEdit,
+    applyOcr,
+    editOcrText,
     save,
     discard,
     hasUnsavedChanges: computed(() => dirty.value || busy.value),

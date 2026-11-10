@@ -1,4 +1,4 @@
-# GASO Document AI
+﻿# GASO Document AI
 
 ## Projekta apraksts
 
@@ -12,7 +12,7 @@ Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglo
 
 ## Galvenās funkcijas
 
-Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1.–3. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas un lokāls attēlu redaktors. Var pievienot attēlus, meklēt vai manuāli izvēlēties dokumenta stūrus, iztaisnot perspektīvu, pagriezt attēlu, piemērot filtrus un saglabāt melnrakstus IndexedDB, saglabājot oriģinālus. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija nav ieviesta. OCR, PDF un reģistrēšana vēl nav realizēta. Atsevišķi saglabātais OCR komandrindas prototips nav pieslēgts mobilajai lietotnei.
+Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1.–4. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas, lokāls attēlu redaktors un Tesseract.js OCR. Var pievienot attēlus, meklēt vai manuāli izvēlēties dokumenta stūrus, iztaisnot perspektīvu, pagriezt attēlu, piemērot filtrus, atpazīt latviešu/angļu/krievu tekstu un saglabāt labojamus rezultātus IndexedDB. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija nav ieviesta. PDF un reģistrēšana vēl nav realizēta. Atsevišķais Python OCR komandrindas prototips nav mainīts un nav pieslēgts mobilajai lietotnei.
 
 1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
 2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
@@ -40,6 +40,7 @@ API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Perso
 | Datubāze | MongoDB |
 | Mākslīgais intelekts | GASO saskaņotais korporatīvais MI API; detaļas tiks precizētas |
 | Attēlu apstrāde | Pārlūkā: Web Worker, OffscreenCanvas, robežu kandidātu analīze un homogrāfija JavaScript; OpenCV.js izvērtēts, bet nav pievienots |
+| Lokāls OCR | Tesseract.js 7.0.0, WebAssembly/Web Worker, ar lietotni piegādāti `tessdata_fast` 4.1.0 modeļi `lav`, `eng`, `rus` |
 | PDF ģenerēšana | Piemērota PDF izveides bibliotēka; izvēle vēl jāveic |
 | Mobilā lietotne | Capacitor 8 Android un PWA ar kopīgu Vue koda bāzi |
 | Autorizācija | Laravel Sanctum |
@@ -201,13 +202,14 @@ Capacitor konfigurācija: nosaukums `GASO Document AI`, `webDir: dist`, pagaidu 
 - Lapu pārvietošanas pogas, lielais priekšskatījums, aizstāšana un dzēšana; jaunas sesijas izveide un apstiprināta sesiju dzēšana.
 - Lokāli saglabājami IndexedDB melnraksti ar atjaunošanu pēc pārlādes un turpināšanu dokumentu sadaļā. Melnraksti netiek attēloti kā reģistrēti MongoDB dokumenti.
 - Lokāls skenējuma redaktors: automātisku robežu kandidātu meklēšana ar manuālu izvēli neskaidrībā, četru stūru pārvietošana, perspektīva, pagriešana un četri filtri. Oriģināls saglabājas atsevišķi no apstrādātā PNG.
+- Lokāls OCR vienai vai visām sesijas lapām ar progresu un apturēšanu; vairāku valodu izvēle, sākotnējais un lietotāja labotais teksts, IndexedDB saglabāšana un aktualitātes brīdinājums pēc attēla maiņas.
 - Android atpakaļpogas apstrāde: iepriekšējais lietotnes maršruts; tieši atvērtā sadaļā — sākums; sākumā — lietotnes aizvēršana. Drošās zonas un sistēmas joslu stils pielāgoti Capacitor.
 - Lietotnes versija, lokālā režīma un plānotā MI skaidrojums, GitHub saite.
 - Atsevišķa latviešu tulkojumu vārdnīca; angļu un krievu valoda vēl nav tulkota.
 
 ### PWA
 
-[`vite-plugin-pwa` konfigurācija](https://vite-pwa-org.netlify.app/guide/) ģenerē manifestu, service worker un interfeisa bezsaistes kešu tikai tīmekļa produkcijas būvējumam. Kešā ir būvējumā iekļautie JS/CSS, sākuma HTML, manifests un ikonas, arī vēl neatvērto ekrānu koda faili. Nav dokumentu, attēlu augšupielāžu vai API atbilžu runtime kešošanas. Lietotne neielādē ārējus fontus un neizmanto analītiku.
+[`vite-plugin-pwa` konfigurācija](https://vite-pwa-org.netlify.app/guide/) ģenerē manifestu, service worker un interfeisa bezsaistes kešu tikai tīmekļa produkcijas būvējumam. Kešā ir būvējumā iekļautie JS/CSS, sākuma HTML, manifests un ikonas, arī vēl neatvērto ekrānu koda faili. Publiskie OCR izpildes faili un izvēlēto valodu modeļi tiek kešoti pēc pieprasījuma; tos var iepriekš sagatavot iestatījumos. Nav dokumentu, attēlu augšupielāžu vai API atbilžu runtime kešošanas. Lietotne neielādē ārējus fontus un neizmanto analītiku.
 
 Pēc sākotnējās tiešsaistes ielādes un service worker aktivizācijas interfeiss ir atverams bez interneta. Chrome/Edge piedāvā instalēšanu no pārlūka izvēlnes; ja pārlūks dod instalēšanas notikumu, poga parādās arī iestatījumos. Šis piedāvājums atkarīgs no pārlūka un ierīces. Atjauninājumiem ir apstiprināma poga, nevis automātiska lapas pārlāde darba laikā. Izstrādes režīmā service worker nav ieslēgts. Android native būvējumā tas ir izslēgts, jo interfeiss jau tiek piegādāts APK.
 
@@ -314,6 +316,32 @@ IndexedDB krātuvju struktūra un datubāzes **versija 1 paliek spēkā**: pievi
 
 Aprēķini notiek [Web Worker ar OffscreenCanvas](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas). Katrā darbā rastri un Blob URL tiek atbrīvoti, Worker pēc darba tiek [apturēts](https://developer.mozilla.org/en-US/docs/Web/API/Worker/terminate). Kļūme vai atcelšana nemaina oriģinālu. Lielākā apjoma attēlu veiktspēja fiziskos mazatmiņas tālruņos vēl jāpārbauda.
 
+### 4. posms: lokāls OCR pārlūkā
+
+Tiek izmantots **Tesseract.js 7.0.0** ar **`lav`, `eng`, `rus`** modeļiem no oficiālā `tessdata_fast` 4.1.0 laidiena. Noklusējums ir latviešu valoda; iespējama vairāku valodu izvēle. OCR nav vajadzīgs backend, Python, Android Studio vai API atslēgas.
+
+```powershell
+cd frontend
+npm.cmd ci
+npm.cmd run ocr:prepare
+npm.cmd run dev
+```
+
+`ocr:prepare` kopē worker un sešus WebAssembly kodolus no instalētajām npm pakotnēm, lejupielādē trīs konkrētas versijas valodu modeļus un pārbauda to SHA-256 kontrolsummas. `dev`, `build` un `android:sync` šo sagatavošanu izpilda automātiski. Pirmajai sagatavošanai nepieciešams internets; atkārtoti izmanto jau sagatavotos, pārbaudītos modeļus. Faili `frontend/public/ocr/v7-fast-4-1-0/` un `dist/ocr/` kopā aizņem aptuveni **34,9 MiB**. Tie tiek ģenerēti lokāli; avota kontrolē saglabāts sagatavošanas skripts un versiju/kontrolsummu fails. Licences kopētas `licenses/` apakšmapē.
+
+1. Sadaļā **Skenēt** pievienojiet lapas un vajadzības gadījumā koriģējiet attēlus esošajā redaktorā. OCR izmanto pašreizējo pilna izmēra apstrādāto attēlu; mazais kartītes priekšskatījums netiek izmantots.
+2. Izvēlieties **Dokumenta OCR valodas** sesijas sadaļā vai iestatījumos. Izvēle saglabājas pārlūkā. Nevajadzīgie modeļi netiek ielādēti OCR atmiņā.
+3. Lapas kartītē spiediet **Atpazīt tekstu** vai sesijas sadaļā **Atpazīt visas lapas**. Lapas apstrādā secīgi vienā atkārtoti lietojamā OCR worker. Redzams progress, lapu skaits un kļūdas; procesu var apturēt.
+4. Rezultāta dialogā salīdziniet attēlu un tekstu. Var pārslēgt lapu, rediģēt, kopēt un atkārtot OCR. **Saglabāt tekstu** saglabā laboto tekstu un visu sesiju. Sākotnējais OCR teksts paliek atsevišķi apskatāms.
+5. OCR rezultāti tiek automātiski saglabāti pēc katras lapas. Ja saglabāšana neizdodas, kļūda tiek parādīta un rezultāts paliek atmiņā atkārtotai saglabāšanai. Pēc attēla rediģēšanas agrākajam tekstam parādās aktualitātes brīdinājums. Atkārtotai atpazīšanai ar esošu rezultātu vajadzīgs lietotāja apstiprinājums.
+6. **Visu lapu teksts sesijas secībā** parāda katras lapas saglabāto tekstu ar lapu atdalījumiem. Sesijas lapas netiek automātiski uzskatītas par vienu dokumentu.
+
+OCR izpildes laikā attēli un teksts netiek nosūtīti ārējiem serveriem. `workerPath`, `corePath` un `langPath` norāda tikai uz lietotnes paša failiem. Modelis tiek ielasīts pēc vajadzības un papildus kešots Tesseract IndexedDB krātuvē.
+
+**Bezsaistes darbam:** izveidojiet tīmekļa būvējumu (`npm.cmd run build`), palaidiet `npm.cmd run preview` un atveriet `http://localhost:4173`. Sagaidiet PWA aktivizāciju. Iestatījumos izvēlieties vajadzīgās valodas un spiediet **Sagatavot OCR bezsaistei**. Poga saglabā un pārbauda worker, trīs LSTM kodola variantus un izvēlētos modeļus (aptuveni 14–22 MiB). Pēc sagatavošanas OCR nav vajadzīgs savienojums pat ar lietotnes serveri; izstrādes `dev` režīmam nav PWA interfeisa keša. Pārlūka datu dzēšana var noņemt gan resursus, gan melnrakstus.
+
+[OCR integrācijas pārskats, datu struktūra, licences un faktiskie pārbaužu rezultāti](docs/testing/local-ocr.md). OCR dod tekstu un dzinēja ticamības vērtējumu; tas vēl neizprot rēķinu rekvizītus vai līguma saturu. Rezultāts jāpārbauda lietotājam.
+
 ### Pārbaudes un nākamais posms
 
 ```powershell
@@ -327,7 +355,9 @@ npm.cmd run android:check
 
 Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē produkcijas priekšskatījumu portā 4173; tam jābūt brīvam. Vispirms jāizpilda tīmekļa `build`, jo `android:sync` tajā pašā `dist/` mapē sagatavo native versiju bez PWA. Rezultāti un ekrānattēli ir lokālajās `frontend/test-results/` un `frontend/playwright-report/` mapēs. [3. posma testu pārskats](docs/testing/image-processing.md), [2. posma pārskats](docs/testing/scanning-sessions.md) un [1. posma pārskats](docs/testing/mobile-foundation.md). Testi izmanto tikai atmiņā ģenerētus sintētiskus attēlus un izolētus pārlūka profilus.
 
-Nākamajos posmos jārealizē lokāls OCR, dokumentu grupēšana un PDF ģenerēšana un jāpaplašina reālu, izmantošanai atļautu fotogrāfiju kvalitātes novērtēšana. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
+4. posmā sekmīgi izpildīti **18/18 vienību testi**, **117/117 Playwright testi**, produkcijas būvējums un formatējuma pārbaude. Pēc pēdējā kļūdas paziņojuma labojuma atsevišķi izturēti vēl **3/3** regresijas testi. Ar īsto OCR pārbaudītas visas trīs valodas, perspektīvas/pagrieziena/filtra rezultāts, saglabāšana, atcelšana un bezsaistes darbs pēc pārlādes. [Faktiskie OCR mērījumi un ierobežojumi](docs/testing/local-ocr.md).
+
+Nākamajos posmos jārealizē dokumentu grupēšana un PDF ģenerēšana un jāpaplašina reālu, izmantošanai atļautu fotogrāfiju OCR kvalitātes novērtēšana. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, OCR fiziskās mazatmiņas ierīcēs, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
 
 [Mobilās lietotnes arhitektūra un paplašināšanas robežas](docs/diagrams/mobile-architecture.md). Iepriekšējā dokumentācija un `tools/ocr-evaluation/` saglabāta; OCR CLI netiek automātiski palaists pārlūkā vai Android lietotnē.
 

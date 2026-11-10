@@ -6,6 +6,10 @@ import PageHeading from '../components/PageHeading.vue'
 import ScanPageCard from '../components/ScanPageCard.vue'
 import ImagePreviewDialog from '../components/ImagePreviewDialog.vue'
 import ScanEditorDialog from '../components/ScanEditorDialog.vue'
+import OcrResultDialog from '../components/OcrResultDialog.vue'
+import OcrLanguagePicker from '../components/OcrLanguagePicker.vue'
+import { useOcrSession } from '../features/ocr/useOcrSession.js'
+import { useOcrSettings } from '../features/ocr/useOcrSettings.js'
 import { useScanSession } from '../features/scanning/useScanSession'
 import { errorCode } from '../features/scanning/errors'
 import { t, dateTime } from '../locales'
@@ -14,6 +18,28 @@ const route = useRoute(),
   router = useRouter()
 const session = useScanSession()
 const { active, dirty, busy } = session
+const ocr = useOcrSession(session)
+const { languages, storageError, setLanguages } = useOcrSettings()
+const locked = computed(() => busy.value || ocr.running.value)
+const ocrPageId = ref(null),
+  ocrTrigger = shallowRef(null)
+function openText(page, trigger) {
+  ocrTrigger.value = trigger
+  ocrPageId.value = page.id
+}
+async function closeText() {
+  ocrPageId.value = null
+  await nextTick()
+  if (ocrTrigger.value?.isConnected) ocrTrigger.value.focus({ preventScroll: true })
+}
+function runOcr(pagesToRecognize) {
+  return ocr.run(pagesToRecognize, languages.value, () => window.confirm(t('ocr.confirmRerun')))
+}
+async function recognizePage(page, trigger) {
+  if (locked.value) return
+  openText(page, trigger)
+  await runOcr([page])
+}
 const camera = ref(null),
   gallery = ref(null),
   replacement = ref(null)
@@ -77,6 +103,7 @@ function clearMessages() {
   success.value = ''
 }
 async function selected(event, replacing = false) {
+  if (locked.value) return
   const files = Array.from(event.target.files || [])
   event.target.value = ''
   if (!files.length) {
@@ -114,12 +141,14 @@ async function save() {
   }
 }
 async function startNew() {
+  if (locked.value) return
   if (dirty.value && !window.confirm(t('scan.confirmDiscard'))) return
   clearMessages()
   session.newSession()
   await router.replace({ name: 'scan', query: {} })
 }
 async function deleteSession() {
+  if (locked.value) return
   if (!active.value || !window.confirm(t('scan.confirmDelete'))) return
   clearMessages()
   try {
@@ -179,13 +208,13 @@ async function deleteSession() {
         </div>
       </div>
       <div class="scan-import-actions">
-        <v-btn color="primary" size="large" :disabled="busy" @click="camera.click()"
+        <v-btn color="primary" size="large" :disabled="locked" @click="camera.click()"
           ><AppIcon name="camera" :size="20" />{{ t('scan.camera') }}</v-btn
         ><v-btn
           color="primary"
           variant="tonal"
           size="large"
-          :disabled="busy"
+          :disabled="locked"
           @click="gallery.click()"
           ><AppIcon name="gallery" :size="20" />{{ t('scan.gallery') }}</v-btn
         >
@@ -193,6 +222,9 @@ async function deleteSession() {
       <p class="small-muted">{{ t('scan.limits') }}</p></v-card
     >
     <div v-if="error" class="scan-error" role="alert">{{ error }}</div>
+    <div v-if="ocr.saveError.value" class="scan-error" role="alert">
+      {{ t(`scan.errors.${errorCode(ocr.saveError.value)}`) }}
+    </div>
     <div v-if="success" class="scan-success" role="status">{{ success }}</div>
     <div v-if="busy" class="scan-working" role="status">
       <v-progress-circular
@@ -213,13 +245,13 @@ async function deleteSession() {
           <p v-if="active">{{ t('documents.created') }} {{ dateTime(active.createdAt) }}</p>
         </div>
         <div class="session-tools">
-          <v-btn variant="text" :disabled="busy" @click="startNew"
+          <v-btn variant="text" :disabled="locked" @click="startNew"
             ><AppIcon name="plus" :size="18" />{{ t('scan.newSession') }}</v-btn
           ><v-btn
             v-if="pages.length || active?.revision"
             variant="text"
             color="error"
-            :disabled="busy"
+            :disabled="locked"
             :aria-label="t('scan.deleteSession')"
             @click="deleteSession"
             ><AppIcon name="trash" :size="20"
@@ -238,15 +270,60 @@ async function deleteSession() {
           :page="page"
           :index="index"
           :count="pages.length"
-          :busy="busy"
+          :busy="locked"
           @preview="openPreview"
           @edit="openEditor"
           @move="move"
           @replace="replace"
           @remove="remove"
+          @ocr="recognizePage"
+          @text="openText"
         />
       </div>
     </section>
+    <v-card v-if="pages.length" class="ocr-session bordered-card">
+      <h3>{{ t('ocr.sessionTitle') }}</h3>
+      <p class="small-muted">{{ t('ocr.sessionHint') }}</p>
+      <OcrLanguagePicker
+        :model-value="languages"
+        :disabled="locked"
+        @update:model-value="setLanguages"
+      />
+      <p v-if="storageError" class="scan-error" role="alert">{{ t('ocr.settingsError') }}</p>
+      <v-btn color="primary" variant="tonal" :disabled="locked" @click="runOcr(pages)">{{
+        t('ocr.recognizeAll')
+      }}</v-btn>
+      <div v-if="ocr.total.value" class="ocr-progress" role="status">
+        <p>
+          {{
+            t('ocr.batchProgress', {
+              current: ocr.current.value,
+              total: ocr.total.value,
+              completed: ocr.completed.value,
+              errors: ocr.errors.value,
+            })
+          }}
+        </p>
+        <template v-if="ocr.running.value">
+          <p>{{ t(`ocr.phase.${ocr.phase.value}`) }} {{ ocr.progress.value }}%</p>
+          <v-progress-linear
+            :model-value="ocr.progress.value"
+            :aria-label="t('ocr.progress')"
+            color="primary"
+          />
+          <v-btn variant="text" @click="ocr.cancel">{{ t('ocr.cancel') }}</v-btn>
+        </template>
+        <p v-else-if="ocr.cancelled.value">{{ t('ocr.cancelled') }}</p>
+      </div>
+      <p v-if="ocr.message.value" class="scan-error" role="alert">
+        {{ t(`ocr.errors.${ocr.message.value}`) }}
+      </p>
+      <details v-if="pages.some((page) => page.ocr)">
+        <summary>{{ t('ocr.combined') }}</summary>
+        <p class="small-muted">{{ t('ocr.combinedHint') }}</p>
+        <textarea readonly :value="ocr.combinedText.value" :aria-label="t('ocr.combined')" />
+      </details>
+    </v-card>
     <v-card class="session-savebar bordered-card"
       ><div>
         <h3>
@@ -259,7 +336,7 @@ async function deleteSession() {
       </div>
       <v-btn
         color="primary"
-        :disabled="busy || (!pages.length && !active?.revision) || !dirty"
+        :disabled="locked || (!pages.length && !active?.revision) || !dirty"
         @click="save"
         ><AppIcon name="save" :size="19" />{{ t('scan.save') }}</v-btn
       ></v-card
@@ -282,6 +359,14 @@ async function deleteSession() {
       :page="editingPage"
       @close="closeEditor"
       @apply="applyEditing"
+    />
+    <OcrResultDialog
+      v-if="ocrPageId"
+      :pages="pages"
+      :selected-id="ocrPageId"
+      :ocr="ocr"
+      @close="closeText"
+      @recognize="runOcr([$event])"
     />
   </div>
 </template>
