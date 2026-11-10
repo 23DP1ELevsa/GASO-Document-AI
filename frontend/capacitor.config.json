@@ -1,0 +1,17 @@
+{
+  "appId": "lv.gaso.documentai.prototype",
+  "appName": "GASO Document AI",
+  "webDir": "dist",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover"
+    },
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "backgroundColor": "#F5F7FB",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
+}

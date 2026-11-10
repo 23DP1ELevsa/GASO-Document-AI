@@ -27,6 +27,9 @@ dist/
 /frontend/coverage/
 /frontend/test-results/
 /frontend/playwright-report/
+/frontend/android/local.properties
+*.jks
+*.keystore
 
 # Laravel ģenerētie faili un saites
 /backend/public/build/
