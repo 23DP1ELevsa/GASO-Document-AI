@@ -11,10 +11,14 @@ import {
 import { suggestBoundaries } from '../features/documents/analysis.js'
 import { t } from '../locales'
 
-const props = defineProps({ session: Object, disabled: Boolean })
-const emit = defineEmits(['change', 'analyze', 'pdf'])
+const props = defineProps({ session: Object, disabled: Boolean, inFlow: Boolean })
+const emit = defineEmits(['change', 'analyze', 'pdf', 'review'])
 const groupRoot = ref(null)
 async function showInformation(id) {
+  if (props.inFlow) {
+    emit('review', id)
+    return
+  }
   infoId.value = id
   await nextTick()
   groupRoot.value?.querySelector('[data-testid="document-information"]')?.focus()
@@ -106,48 +110,52 @@ function applyBoundaries(document) {
       </h2>
       <p class="small-muted">{{ t('grouping.hint') }}</p>
     </header>
-    <form class="group-create bordered-card" @submit.prevent="create">
-      <label
-        >{{ t('grouping.newTitle')
-        }}<input v-model="newTitle" maxlength="2000" :disabled="disabled"
-      /></label>
-      <v-btn type="submit" color="primary" :disabled="disabled">{{ t('grouping.create') }}</v-btn>
-      <p class="small-muted">{{ t('grouping.createHint') }}</p>
-    </form>
-    <div class="unassigned-pages bordered-card" data-testid="unassigned-pages">
-      <h3>{{ t('grouping.unassigned') }} ({{ unassigned.length }})</h3>
-      <p v-if="!unassigned.length" class="small-muted">{{ t('grouping.allAssigned') }}</p>
-      <div v-for="page in unassigned" :key="page.id" class="group-page-row">
-        <label class="group-page-choice"
-          ><input
-            type="checkbox"
-            :checked="selected.includes(page.id)"
-            :disabled="disabled"
-            @change="toggle(page.id, $event.target.checked)"
-          /><span
-            >{{ t('scan.pageNumber', { number: session.pages.indexOf(page) + 1 }) }} ·
-            {{ page.name }}</span
-          ></label
-        >
-      </div>
-      <div v-if="unassigned.length && documents.length" class="group-actions">
+    <details class="group-manual-creation" :open="!inFlow">
+      <summary>{{ t('workflow.manualGrouping') }}</summary>
+      <form class="group-create bordered-card" @submit.prevent="create">
         <label
-          >{{ t('grouping.moveTarget')
-          }}<select v-model="targets.unassigned" :disabled="disabled">
-            <option :value="undefined" disabled>{{ t('grouping.choose') }}</option>
-            <option v-for="document in documents" :key="document.id" :value="document.id">
-              {{ title(document) }}
-            </option>
-          </select></label
-        >
-        <v-btn
-          variant="tonal"
-          :disabled="disabled || !targets.unassigned || !selectedFor(unassigned).length"
-          @click="change('assignPages', selectedFor(unassigned), targets.unassigned)"
-          >{{ t('grouping.moveSelected') }}</v-btn
-        >
+          >{{ t('grouping.newTitle')
+          }}<input v-model="newTitle" maxlength="2000" :disabled="disabled"
+        /></label>
+        <v-btn type="submit" color="primary" :disabled="disabled">{{ t('grouping.create') }}</v-btn>
+        <p class="small-muted">{{ t('grouping.createHint') }}</p>
+      </form>
+      <div class="unassigned-pages bordered-card" data-testid="unassigned-pages">
+        <h3>{{ t('grouping.unassigned') }} ({{ unassigned.length }})</h3>
+        <p v-if="!unassigned.length" class="small-muted">{{ t('grouping.allAssigned') }}</p>
+        <div v-for="page in unassigned" :key="page.id" class="group-page-row">
+          <BlobImage :blob="page.thumbnail" :alt="page.name" />
+          <label class="group-page-choice"
+            ><input
+              type="checkbox"
+              :checked="selected.includes(page.id)"
+              :disabled="disabled"
+              @change="toggle(page.id, $event.target.checked)"
+            /><span
+              >{{ t('scan.pageNumber', { number: session.pages.indexOf(page) + 1 }) }} ·
+              {{ page.name }}</span
+            ></label
+          >
+        </div>
+        <div v-if="unassigned.length && documents.length" class="group-actions">
+          <label
+            >{{ t('grouping.moveTarget')
+            }}<select v-model="targets.unassigned" :disabled="disabled">
+              <option :value="undefined" disabled>{{ t('grouping.choose') }}</option>
+              <option v-for="document in documents" :key="document.id" :value="document.id">
+                {{ title(document) }}
+              </option>
+            </select></label
+          >
+          <v-btn
+            variant="tonal"
+            :disabled="disabled || !targets.unassigned || !selectedFor(unassigned).length"
+            @click="change('assignPages', selectedFor(unassigned), targets.unassigned)"
+            >{{ t('grouping.moveSelected') }}</v-btn
+          >
+        </div>
       </div>
-    </div>
+    </details>
     <article
       v-for="document in documents"
       :key="document.id"
@@ -174,6 +182,14 @@ function applyBoundaries(document) {
           </p>
         </div>
       </header>
+      <div v-if="inFlow" class="group-preview-strip">
+        <BlobImage
+          v-for="page in groupPages(document)"
+          :key="page.id"
+          :blob="page.thumbnail"
+          :alt="page.name"
+        />
+      </div>
       <label class="group-name"
         >{{ t('grouping.rename')
         }}<input
@@ -186,6 +202,7 @@ function applyBoundaries(document) {
         <summary>{{ t('grouping.editPages') }}</summary>
         <p v-if="!document.pageIds.length" class="small-muted">{{ t('grouping.empty') }}</p>
         <div v-for="(page, index) in groupPages(document)" :key="page.id" class="group-page-row">
+          <BlobImage :blob="page.thumbnail" :alt="page.name" />
           <label class="group-page-choice"
             ><input
               type="checkbox"
@@ -254,6 +271,7 @@ function applyBoundaries(document) {
       </details>
       <div class="group-actions">
         <v-btn
+          v-if="!inFlow"
           variant="tonal"
           color="primary"
           :disabled="disabled || !document.pageIds.length"
@@ -264,13 +282,15 @@ function applyBoundaries(document) {
           variant="tonal"
           color="primary"
           :aria-expanded="infoId === document.id"
-          @click="infoId = infoId === document.id ? null : document.id"
+          :disabled="disabled || !document.pageIds.length"
+          @click="showInformation(document.id)"
           >{{ t('grouping.information') }}</v-btn
         >
         <v-btn
           variant="text"
           :disabled="disabled || !document.pageIds.length"
           @click="analyze(document.id)"
+          v-if="!inFlow"
           >{{ t('grouping.analyze') }}</v-btn
         >
         <v-btn
@@ -282,7 +302,7 @@ function applyBoundaries(document) {
         >
       </div>
       <details class="group-other-actions">
-        <summary>{{ t('grouping.otherActions') }}</summary>
+        <summary>{{ t('workflow.advanced') }}</summary>
         <div v-if="documents.length > 1" class="group-actions">
           <label
             >{{ t('grouping.mergeTarget')
@@ -314,7 +334,7 @@ function applyBoundaries(document) {
         <p class="small-muted">{{ t('grouping.deleteHint') }}</p>
       </details>
       <DocumentInformation
-        v-if="infoId === document.id"
+        v-if="!inFlow && infoId === document.id"
         :document="document"
         :session="session"
         :disabled="disabled"

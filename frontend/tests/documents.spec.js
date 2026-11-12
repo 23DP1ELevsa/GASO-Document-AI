@@ -1,4 +1,13 @@
 import { test, expect } from '@playwright/test'
+import {
+  groupingTools,
+  reviewDocument,
+  analyzeDocument,
+  analysisDetails,
+  extraFields,
+  pageTools,
+  goStep,
+} from '../test-support/workflowUi.js'
 import AxeBuilder from '@axe-core/playwright'
 import sharp from 'sharp'
 import { processingKey } from '../src/features/processing/geometry.js'
@@ -18,7 +27,13 @@ test.beforeAll(async () => {
 const groups = (page) => page.getByTestId('document-group')
 const info = (page) => page.getByTestId('document-information')
 async function save(page) {
-  await page.getByRole('button', { name: 'Saglabāt melnrakstu', exact: true }).click()
+  if (await page.locator('.workspace-savebar button').isDisabled()) {
+    await expect(page.locator('.workspace-savebar strong')).toHaveText('Saglabāts')
+    return
+  }
+  await page
+    .getByRole('button', { name: /^(Saglabāt melnrakstu|Mēģināt saglabāt vēlreiz)$/, exact: true })
+    .click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Melnraksts sekmīgi saglabāts' }),
   ).toBeVisible()
@@ -103,8 +118,10 @@ async function seed(page, texts = ['', '', ''], legacy = false) {
   )
   await page.reload()
   await expect(page.getByTestId('page-card')).toHaveCount(texts.length)
+  await groupingTools(page)
 }
 async function create(page, name, indices = []) {
+  await groupingTools(page)
   const unassigned = page.getByTestId('unassigned-pages')
   for (const index of indices) await unassigned.getByRole('checkbox').nth(index).check()
   await page.getByLabel('Jaunā dokumenta nosaukums', { exact: true }).fill(name)
@@ -158,6 +175,7 @@ test('create, move, order, split, merge and delete groups preserve exclusive pag
   first = groups(page).nth(0)
   await first.locator('.group-other-actions summary').click()
   await first.getByRole('button', { name: 'Dzēst grupu, saglabājot lapas' }).click()
+  await groupingTools(page)
   await expect(page.getByTestId('unassigned-pages').getByRole('checkbox')).toHaveCount(2)
   await save(page)
   const deleted = await database(page)
@@ -172,7 +190,7 @@ test('local suggestions, manual values, custom attributes and confirmation remai
   await seed(page, [invoice, 'Invoice No. SYN-002\nGrand total: 50.00 EUR'])
   await create(page, 'Pirmais rēķins', [0])
   await create(page, 'Otrais rēķins', [0])
-  await groups(page).nth(0).getByRole('button', { name: 'Analizēt lokāli', exact: true }).click()
+  await analyzeDocument(page, 0)
   await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('')
   for (const field of [
     'Dokumenta veids',
@@ -194,11 +212,15 @@ test('local suggestions, manual values, custom attributes and confirmation remai
   await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
     'Manuāli pārbaudīts nosūtītājs',
   )
+  await extraFields(page)
   await info(page).getByLabel('Atribūta nosaukums', { exact: true }).fill('Projekta kods')
   await info(page).getByLabel('Atribūta vērtība', { exact: true }).fill('SYNTH-42')
   await info(page).getByRole('button', { name: 'Pievienot atribūtu' }).click()
   await expect(info(page).getByLabel('Projekta kods', { exact: true })).toHaveValue('SYNTH-42')
-  await info(page).getByRole('button', { name: 'Apstiprināt informāciju' }).click()
+  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
+  await reviewDocument(page, 0)
+  await analysisDetails(page)
+  await extraFields(page)
   await expect(
     info(page).getByRole('status').filter({ hasText: 'Informācija apstiprināta' }),
   ).toBeVisible()
@@ -208,16 +230,14 @@ test('local suggestions, manual values, custom attributes and confirmation remai
   )
   await save(page)
   await page.reload()
-  await groups(page)
-    .nth(0)
-    .getByRole('button', { name: 'Dokumenta informācija', exact: true })
-    .click()
+  await reviewDocument(page, 0)
+  await extraFields(page)
   await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('121.00')
   await expect(info(page).getByLabel('Projekta kods', { exact: true })).toHaveValue('SYNTH-42')
   await expect(
     info(page).getByRole('status').filter({ hasText: 'Informācija apstiprināta' }),
   ).toBeVisible()
-  await groups(page).nth(1).getByRole('button', { name: 'Analizēt lokāli', exact: true }).click()
+  await analyzeDocument(page, 1)
   await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue('')
   await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('')
   await expect(info(page).getByLabel('Projekta kods', { exact: true })).toHaveCount(0)
@@ -249,10 +269,14 @@ test('OCR text changes and page replacement mark analysis stale while retaining 
 }) => {
   await seed(page, [invoice, 'Continuation'])
   await create(page, 'Rēķins', [0, 1])
-  await groups(page).getByRole('button', { name: 'Analizēt lokāli', exact: true }).click()
+  await analyzeDocument(page)
   await info(page).getByLabel('Nosūtītājs', { exact: true }).fill('Saglabāta manuālā vērtība')
-  await info(page).getByRole('button', { name: 'Apstiprināt informāciju' }).click()
+  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
+  await reviewDocument(page, 0)
+  await analysisDetails(page)
+  await extraFields(page)
   await save(page)
+  await pageTools(page)
   await page
     .getByTestId('page-card')
     .nth(0)
@@ -262,6 +286,8 @@ test('OCR text changes and page replacement mark analysis stale while retaining 
   await page.getByRole('button', { name: 'Saglabāt tekstu', exact: true }).click()
   await expect(page.getByText('Teksts un sesija saglabāti', { exact: false })).toBeVisible()
   await page.getByRole('button', { name: 'Aizvērt teksta apskati' }).click()
+  await reviewDocument(page)
+  await analysisDetails(page)
   await expect(
     info(page).getByRole('status').filter({ hasText: 'Analizējiet atkārtoti' }),
   ).toBeVisible()
@@ -270,11 +296,12 @@ test('OCR text changes and page replacement mark analysis stale while retaining 
   )
   await expect(
     info(page).getByRole('button', { name: 'Izmantot ieteikumu laukam “Kopējā summa”' }),
-  ).toBeDisabled()
+  ).toHaveCount(0)
   await info(page).getByRole('button', { name: 'Analizēt lokāli', exact: true }).click()
   await expect(
     info(page).getByRole('status').filter({ hasText: 'Analizējiet atkārtoti' }),
   ).toHaveCount(0)
+  await goStep(page, 2)
   await page
     .getByTestId('page-card')
     .nth(0)
@@ -284,11 +311,13 @@ test('OCR text changes and page replacement mark analysis stale while retaining 
   await page.getByRole('button', { name: 'Aizstāt attēlu', exact: true }).click()
   await (await chooser).setFiles({ ...fixture, name: 'replacement.png' })
   await expect(groups(page).getByText('Analīze jāatjaunina', { exact: true })).toBeVisible()
+  await reviewDocument(page)
   await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
     'Saglabāta manuālā vērtība',
   )
   await save(page)
   await page.reload()
+  await groupingTools(page)
   await expect(groups(page).getByText('Analīze jāatjaunina', { exact: true })).toBeVisible()
   const stored = await database(page)
   expect(stored.drafts[0].documents[0].pageIds).toEqual(stored.drafts[0].pageIds)
@@ -305,6 +334,7 @@ test('legacy IndexedDB drafts reopen unassigned without losing original or edite
   await create(page, 'Migrēts dokuments', [0, 1])
   await save(page)
   await page.reload()
+  await groupingTools(page)
   await expect(groups(page)).toHaveCount(1)
   const stored = await database(page)
   expect(stored.drafts[0].schemaVersion).toBe(2)
@@ -348,9 +378,9 @@ test('group and attribute writes roll back together on failure and retry keeps t
 }) => {
   await seed(page, [invoice])
   await create(page, 'Atomārs dokuments', [0])
-  await groups(page).getByRole('button', { name: 'Analizēt lokāli', exact: true }).click()
+  await analyzeDocument(page)
+  const before = await database(page)
   await info(page).getByLabel('Nosūtītājs', { exact: true }).fill('Manuāls nosūtītājs')
-  await info(page).getByRole('button', { name: 'Apstiprināt informāciju' }).click()
   await page.evaluate(() => {
     window.originalPut = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
@@ -359,9 +389,9 @@ test('group and attribute writes roll back together on failure and retry keeps t
       return window.originalPut.apply(this, args)
     }
   })
-  await page.getByRole('button', { name: 'Saglabāt melnrakstu', exact: true }).click()
+  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('nepietiek vietas')
-  expect((await database(page)).drafts[0].documents).toEqual([])
+  expect((await database(page)).drafts[0].documents).toEqual(before.drafts[0].documents)
   await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
     'Manuāls nosūtītājs',
   )

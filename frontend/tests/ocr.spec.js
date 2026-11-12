@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { pageTools, textTools, sessionTools } from '../test-support/workflowUi.js'
 import AxeBuilder from '@axe-core/playwright'
 
 // Real browser canvas documents with known transcriptions; no worker mocking.
@@ -39,11 +40,15 @@ async function documentImage(page, text, name = 'synthetic.png', options = {}) {
 async function importFiles(page, files) {
   await page.getByTestId('gallery-input').setInputFiles(files)
   await expect(page.getByTestId('page-card')).toHaveCount(Array.isArray(files) ? files.length : 1)
+  await expect(page.getByText('Apstrādā…', { exact: true })).toHaveCount(0)
+  for (let index = 0; index < (Array.isArray(files) ? files.length : 1); index++)
+    await pageTools(page, index)
 }
 function dialog(page) {
   return page.getByRole('dialog', { name: 'Lapas teksts', exact: true })
 }
 async function recognize(page, index = 0) {
+  await pageTools(page, index)
   await page
     .getByTestId('page-card')
     .nth(index)
@@ -70,6 +75,8 @@ async function storedPages(page) {
   })
 }
 async function setLanguages(page, selected) {
+  if (await page.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }).count())
+    await textTools(page)
   const group = page.getByRole('group', { name: 'Dokumenta OCR valodas' }).filter({ visible: true })
   const labels = { lav: 'Latviešu', eng: 'Angļu', rus: 'Krievu' }
   for (const lang of selected)
@@ -131,6 +138,8 @@ test('real Latvian OCR, editing, original preservation, rerun confirmation and I
   await view.getByRole('button', { name: 'Atkārtot OCR', exact: true }).click()
   await expect(view.getByTestId('ocr-text')).toHaveValue('Manuāli labots teksts')
   await page.reload()
+  if (await page.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }).count())
+    await pageTools(page)
   await page
     .getByTestId('page-card')
     .getByRole('button', { name: 'Skatīt tekstu', exact: true })
@@ -157,6 +166,8 @@ test('real Latvian OCR, editing, original preservation, rerun confirmation and I
   expect(requests).toEqual([])
   expect(errors).toEqual([])
   await closeResult(page)
+  await sessionTools(page)
+  await sessionTools(page)
   await page.getByRole('button', { name: 'Jauna sesija', exact: true }).click()
   await importFiles(page, fixture)
   await expect(page.locator('.ocr-session .ocr-progress')).toHaveCount(0)
@@ -265,6 +276,8 @@ test('real batch OCR reuses the worker, combines in page order and isolates a co
     db.close()
   })
   await page.reload()
+  if (await page.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }).count())
+    await pageTools(page)
   await setLanguages(page, ['eng'])
   const workerLoads = []
   page.on('worker', (worker) => {
@@ -387,6 +400,8 @@ test('prepared OCR resources work after internet disconnect and a full offline r
   await saveDraft(page)
   await context.setOffline(true)
   await page.reload()
+  if (await page.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }).count())
+    await pageTools(page)
   for (const [index, lang] of ['lav', 'eng', 'rus'].entries()) {
     await setLanguages(page, [lang])
     const view = await recognize(page, index)
@@ -394,6 +409,9 @@ test('prepared OCR resources work after internet disconnect and a full offline r
     await closeResult(page)
   }
   await page.reload()
+  if (await page.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }).count())
+    await pageTools(page)
+  await pageTools(page, 1)
   await page.getByRole('button', { name: 'Skatīt tekstu', exact: true }).nth(1).click()
   await expect(dialog(page).getByTestId('ocr-text')).toHaveValue(/OFFLINE INVOICE 789/)
   await context.setOffline(false)
@@ -408,6 +426,8 @@ test('legacy drafts acquire real OCR and processing makes results stale; replace
   await saveDraft(page)
   expect((await storedPages(page))[0].ocr).toBeUndefined()
   await page.reload()
+  if (await page.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }).count())
+    await pageTools(page)
   await setLanguages(page, ['eng'])
   await recognize(page)
   await closeResult(page)
@@ -534,6 +554,8 @@ test('real OCR reads the saved perspective-corrected, rotated, filtered full ima
   await expect(editor).toHaveCount(0)
   await saveDraft(page)
   await page.reload()
+  if (await page.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }).count())
+    await pageTools(page)
   await setLanguages(page, ['eng'])
   const view = await recognize(page)
   const actual = await view.getByTestId('ocr-text').inputValue()
@@ -591,6 +613,8 @@ test('cancelling an active real batch keeps completed pages and persists the can
   expect(stored.find((p) => p.ocr)?.ocr.originalText).toContain('COMPLETED INVOICE PAGE 101')
   expect(stored.find((p) => p.ocrAttempt)?.ocrAttempt.status).toBe('cancelled')
   await page.reload()
+  if (await page.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }).count())
+    await pageTools(page)
   await expect(page.getByTestId('page-card').nth(0)).toContainText('Teksts atpazīts')
   await expect(page.getByTestId('page-card').nth(1)).toContainText('OCR atcelts')
 })

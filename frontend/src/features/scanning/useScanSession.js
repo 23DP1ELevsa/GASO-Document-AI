@@ -6,10 +6,12 @@ import { newId } from './id'
 import { assertTextLength } from '../ocr/model.js'
 import * as documents from '../documents/model.js'
 import { analyzePages } from '../documents/analysis.js'
+import { navigationState, asSingleDocument, groupAtBoundaries } from '../documents/workflow.js'
 
 const active = shallowRef(null)
 const dirty = ref(false)
 const busy = ref(false)
+const saving = ref(false)
 export const draftsChanged = ref(0)
 const POINTER_KEY = 'gaso-document-ai:active-draft'
 function announce() {
@@ -173,6 +175,7 @@ export function useScanSession() {
     if (busy.value || !active.value || (!active.value.pages.length && !active.value.revision))
       throw new ScanError('empty')
     busy.value = true
+    saving.value = true
     try {
       const metadata = await repository.saveDraft(active.value)
       active.value = {
@@ -184,6 +187,7 @@ export function useScanSession() {
       announce()
       return metadata.id
     } finally {
+      saving.value = false
       busy.value = false
     }
   }
@@ -235,10 +239,24 @@ export function useScanSession() {
     }))
     dirty.value = true
   }
+  function setWorkflow(value) {
+    if (busy.value || !active.value) throw new ScanError('busy')
+    const workflow = navigationState({ ...active.value.workflow, ...value })
+    if (JSON.stringify(workflow) === JSON.stringify(active.value.workflow)) return
+    active.value = { ...active.value, workflow, updatedAt: Date.now() }
+    dirty.value = true
+  }
+  function groupSession(starts = null) {
+    if (busy.value || !active.value) throw new ScanError('busy')
+    active.value =
+      starts === null ? asSingleDocument(active.value) : groupAtBoundaries(active.value, starts)
+    dirty.value = true
+  }
   return {
     active,
     dirty,
     busy,
+    saving,
     initialize,
     open,
     newSession,
@@ -252,6 +270,8 @@ export function useScanSession() {
     discard,
     changeDocuments,
     analyzeDocument,
+    setWorkflow,
+    groupSession,
     hasUnsavedChanges: computed(() => dirty.value || busy.value),
   }
 }

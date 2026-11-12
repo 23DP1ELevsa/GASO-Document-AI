@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import sharp from 'sharp'
+import { sessionTools } from '../test-support/workflowUi.js'
 import { createHash } from 'node:crypto'
 
 let files, rotated
@@ -36,7 +37,9 @@ async function count(page, number) {
   await expect(page.getByText('Apstrādā…', { exact: true })).toHaveCount(0)
 }
 async function save(page) {
-  await page.getByRole('button', { name: 'Saglabāt melnrakstu', exact: true }).click()
+  await page
+    .getByRole('button', { name: /^(Saglabāt melnrakstu|Mēģināt saglabāt vēlreiz)$/, exact: true })
+    .click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Melnraksts sekmīgi saglabāts' }),
   ).toBeVisible()
@@ -212,6 +215,8 @@ test('draft list opens, continues and deletes sessions only after confirmation',
   await page.getByTestId('gallery-input').setInputFiles(files[0])
   await count(page, 1)
   await save(page)
+  await sessionTools(page)
+  await sessionTools(page)
   await page.getByRole('button', { name: 'Jauna sesija', exact: true }).click()
   await count(page, 0)
   await page.getByTestId('gallery-input').setInputFiles(files.slice(1))
@@ -338,7 +343,7 @@ test('unavailable IndexedDB gives a real error while in-memory scanning remains 
   await count(page, 1)
   await page.getByRole('button', { name: 'Saglabāt melnrakstu' }).click()
   await expect(page.getByRole('alert')).toContainText('Lokālā krātuve nav pieejama')
-  await expect(page.getByRole('button', { name: 'Saglabāt melnrakstu' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Mēģināt saglabāt vēlreiz' })).toBeEnabled()
   await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Lokālā krātuve nav pieejama')
   await expect(page.getByText('Vēl nav saglabātu melnrakstu', { exact: true })).toHaveCount(0)
@@ -362,9 +367,11 @@ test('empty saved session removes all unused image records, and full-session del
   await page.getByTestId('gallery-input').setInputFiles(files[1])
   await count(page, 1)
   page.once('dialog', (dialog) => dialog.dismiss())
+  await sessionTools(page)
   await page.getByRole('button', { name: 'Dzēst sesiju', exact: true }).click()
   await count(page, 1)
   page.once('dialog', (dialog) => dialog.accept())
+  await sessionTools(page)
   await page.getByRole('button', { name: 'Dzēst sesiju', exact: true }).click()
   await count(page, 0)
   stored = await storage(page)
@@ -441,12 +448,16 @@ test('new-session confirmation protects unsaved work and mixed batches keep vali
   await count(page, 2)
   await expect(page.getByRole('alert')).toContainText('Neatbalstīts')
   page.once('dialog', (dialog) => dialog.dismiss())
+  await sessionTools(page)
+  await sessionTools(page)
   await page.getByRole('button', { name: 'Jauna sesija', exact: true }).click()
   await count(page, 2)
   page.once('dialog', (dialog) => dialog.accept())
+  await sessionTools(page)
+  await sessionTools(page)
   await page.getByRole('button', { name: 'Jauna sesija', exact: true }).click()
   await count(page, 0)
-  await expect(page.getByRole('button', { name: 'Saglabāt melnrakstu' })).toBeDisabled()
+  await expect(page.locator('.workspace-savebar button')).toBeDisabled()
 })
 
 test('a stale tab cannot overwrite a newer draft revision', async ({ page, context }) => {

@@ -4,6 +4,7 @@
 @import url('./ocr.css');
 @import url('./documents.css');
 @import url('./pdf.css');
+@import url('./workflow.css');
 
 * {
   box-sizing: border-box;

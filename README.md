@@ -195,6 +195,9 @@ Capacitor konfigurācija: nosaukums `GASO Document AI`, `webDir: dist`, pagaidu 
 
 ### Pašreizējās funkcijas
 
+- Četru soļu dokumenta sagatavošana: **Pievienošana → Lapas → Informācija → PDF**. Vienam dokumentam pietiek ar izvēli **Visas lapas ir viens dokuments**; vairākiem dokumentiem sākuma lapas atzīmē priekšskatījumos.
+- **Atpazīt dokumentu** secīgi izmanto vajadzīgo lapu OCR un lokālo rekvizītu analīzi. Ieteikumus pieņem atsevišķi, laukus var aizpildīt arī manuāli. PDF iespējams iegūt arī bez OCR.
+- Sākumlapā pieejama konkrētu melnrakstu turpināšana. Pārejot starp soļiem un apstiprinot rekvizītus, sesija saglabājas; redzams saglabāšanas statuss un kļūmes atkārtošanas darbība.
 - Četri latviski ekrāni: **Sākums**, **Skenēt**, **Dokumenti**, **Iestatījumi**; Vue Router navigācija bez lapas pārlādes.
 - Apakšējā navigācija tālrunī un sānu navigācija darbvirsmā; izkārtojums arī 360 px platumā.
 - Gaišais un tumšais režīms ar ierīcē saglabātu izvēli. Ja pārlūks liedz lokālo glabāšanu, saskarne turpina darboties un paskaidro ierobežojumu.
@@ -330,8 +333,8 @@ npm.cmd run dev
 `ocr:prepare` kopē worker un sešus WebAssembly kodolus no instalētajām npm pakotnēm, lejupielādē trīs konkrētas versijas valodu modeļus un pārbauda to SHA-256 kontrolsummas. `dev`, `build` un `android:sync` šo sagatavošanu izpilda automātiski. Pirmajai sagatavošanai nepieciešams internets; atkārtoti izmanto jau sagatavotos, pārbaudītos modeļus. Faili `frontend/public/ocr/v7-fast-4-1-0/` un `dist/ocr/` kopā aizņem aptuveni **34,9 MiB**. Tie tiek ģenerēti lokāli; avota kontrolē saglabāts sagatavošanas skripts un versiju/kontrolsummu fails. Licences kopētas `licenses/` apakšmapē.
 
 1. Sadaļā **Skenēt** pievienojiet lapas un vajadzības gadījumā koriģējiet attēlus esošajā redaktorā. OCR izmanto pašreizējo pilna izmēra apstrādāto attēlu; mazais kartītes priekšskatījums netiek izmantots.
-2. Izvēlieties **Dokumenta OCR valodas** sesijas sadaļā vai iestatījumos. Izvēle saglabājas pārlūkā. Nevajadzīgie modeļi netiek ielādēti OCR atmiņā.
-3. Lapas kartītē spiediet **Atpazīt tekstu** vai sesijas sadaļā **Atpazīt visas lapas**. Lapas apstrādā secīgi vienā atkārtoti lietojamā OCR worker. Redzams progress, lapu skaits un kļūdas; procesu var apturēt.
+2. Izvēlieties **Dokumenta OCR valodas** sadaļā **Atpazītais teksts** vai iestatījumos. Izvēle saglabājas pārlūkā. Nevajadzīgie modeļi netiek ielādēti OCR atmiņā.
+3. Vienkāršajā plūsmā izmantojiet **Atpazīt dokumentu** informācijas solī. Atsevišķas lapas **Atpazīt tekstu** saglabājas kartītes sadaļā **Papildu darbības**, visas sesijas **Atpazīt visas lapas** — lapu soļa sadaļā **Atpazītais teksts**. Lapas apstrādā secīgi vienā atkārtoti lietojamā OCR worker. Redzams progress, lapu skaits un kļūdas; procesu var apturēt.
 4. Rezultāta dialogā salīdziniet attēlu un tekstu. Var pārslēgt lapu, rediģēt, kopēt un atkārtot OCR. **Saglabāt tekstu** saglabā laboto tekstu un visu sesiju. Sākotnējais OCR teksts paliek atsevišķi apskatāms.
 5. OCR rezultāti tiek automātiski saglabāti pēc katras lapas. Ja saglabāšana neizdodas, kļūda tiek parādīta un rezultāts paliek atmiņā atkārtotai saglabāšanai. Pēc attēla rediģēšanas agrākajam tekstam parādās aktualitātes brīdinājums. Atkārtotai atpazīšanai ar esošu rezultātu vajadzīgs lietotāja apstiprinājums.
 6. **Visu lapu teksts sesijas secībā** parāda katras lapas saglabāto tekstu ar lapu atdalījumiem. Sesijas lapas netiek automātiski uzskatītas par vienu dokumentu.
@@ -344,14 +347,14 @@ OCR izpildes laikā attēli un teksts netiek nosūtīti ārējiem serveriem. `wo
 
 ### 5. posms: dokumentu grupēšana un informācijas kartītes
 
-Sadaļā **Skenēt**, zem lapu priekšskatījumiem, ir **Dokumentu grupas**. Darbs notiek pārlūkā; nav jaunu atkarību vai API atslēgu.
+Lapu solī izvēlieties **Visas lapas ir viens dokuments** vai **Sadalīt vairākos dokumentos**. Otrajā režīmā dokumentu sākumus atzīmē lapu priekšskatījumos; zem tiem pieejamas **Dokumentu grupas** ar pilnajiem manuālajiem rīkiem. Darbs notiek pārlūkā; nav jaunu atkarību vai API atslēgu.
 
-1. Atzīmējiet **Nepiesaistītās lapas**, ievadiet nosaukumu un spiediet **Izveidot dokumentu**. Bez atlases izveidojas tukša grupa.
+1. Papildu sadaļā **Manuāla lapu atlase un grupu izveide** var atzīmēt **Nepiesaistītās lapas**, ievadīt nosaukumu un spiest **Izveidot dokumentu**. Bez atlases izveidojas tukša grupa. Vienkāršajā plūsmā šī darbība nav vajadzīga.
 2. **Rediģēt grupējumu un lapu secību** ļauj pārvietot atlasītas lapas uz citu dokumentu vai nepiesaistīto lapu sarakstu. Bultiņas maina dokumenta lapu secību. **Atdalīt jaunā dokumentā** izveido dokumentu no atlasītās lapu daļas ar jaunu, tukšu kartīti.
-3. **Apvienošana un grupas dzēšana** ļauj pievienot grupas lapas cita dokumenta beigās. Pirms apvienošanas jāapstiprina, ka saglabāsies mērķa kartītes dati. **Dzēst grupu, saglabājot lapas** izņem grupu un tās kartīti; attēli un OCR paliek nepiesaistīti.
-4. **Dokumenta informācija** rāda rediģējamu tabulu ar kopīgajiem un tipam atbilstošiem laukiem. Var pievienot savu atribūta nosaukumu un vērtību. **Analizēt lokāli** piedāvā vērtības atsevišķā kolonnā ar OCR avota fragmentu un dokumenta lapas numuru. **Izmantot** pārnes vienu ieteikumu rediģējamajā laukā; atkārtota analīze nepārraksta lietotāja datus.
-5. **Apstiprināt informāciju** saglabā atsevišķu pārbaudīto vērtību momentuzņēmumu. Pēc lapu, attēlu vai OCR izmaiņām redzams aktualitātes brīdinājums; manuālās vērtības saglabājas. Laukus var labot un apstiprināt atkārtoti.
-6. **Saglabāt melnrakstu** atomāri ieraksta grupējumu, kartītes, analīzi un apstiprinājumus. Pēc pārlādes tie atjaunojas. Grupējuma izmaiņām, tāpat kā iepriekšējai lapu pārvaldībai, nav automātiskas saglabāšanas; OCR darbības turpina saglabāt visu sesiju pēc lapas apstrādes.
+3. Grupas **Papildu darbības** ļauj pievienot grupas lapas cita dokumenta beigās. Pirms apvienošanas jāapstiprina, ka saglabāsies mērķa kartītes dati. **Dzēst grupu, saglabājot lapas** izņem grupu un tās kartīti; attēli un OCR paliek nepiesaistīti.
+4. **Dokumenta informācija** atver informācijas soli ar rediģējamu formu. **Atpazīt dokumentu** atpazīst tikai trūkstošu vai novecojušu lapu tekstu un piedāvā rekvizītus. **Izmantot** pārnes vienu ieteikumu laukā; atkārtota analīze nepārraksta lietotāja datus. Avota fragmenti un atsevišķā **Analizēt lokāli** darbība ir izvēršami. Savus atribūtus pievieno sadaļā **Papildu lauki un atribūti**.
+5. **Apstiprināt un turpināt** izveido atsevišķu pārbaudīto vērtību momentuzņēmumu un saglabā sesiju. Vairākiem dokumentiem atver nākamo nepārbaudīto; beigās — PDF soli. Pēc lapu, attēlu vai OCR izmaiņām redzams aktualitātes brīdinājums; manuālās vērtības saglabājas.
+6. Pāreja starp soļiem un **Saglabāt melnrakstu** atomāri ieraksta grupējumu, kartītes, analīzi un apstiprinājumus. OCR turpina saglabāt pēc katras lapas. Nav paralēla fona taimera; pēc atsevišķiem labojumiem, paliekot solī, redzams nesaglabāto izmaiņu statuss un pieejama saglabāšanas poga. Veiksme tiek parādīta tikai pēc transakcijas pabeigšanas.
 
 Lokālā analīze izmanto ierobežotu LV/EN/RU apzīmējumu kopu. Dokumenta tipam vajadzīgs virsraksts un papildu satura pierādījums; nosūtītāju/saņēmēju nosaka tikai pēc skaidras lomas. Kopējo summu, PVN, summu bez PVN, summu ar PVN, samaksāto un atlikumu glabā atsevišķi. Pretrunas vai neskaidrs formāts dod `null`, nenoteikts tips ir `unknown`. Nav uzņēmumu veidņu, koordinātu noteikumu, ārēja MI, valodas noteikšanas vai summu aritmētiskas pārbaudes. Rēķinu robežu ieteikumi balstās uz skaidru virsrakstu lapas sākumā un dokumenta numura maiņu; sadalīšana vienmēr prasa apstiprinājumu.
 
@@ -363,7 +366,7 @@ IndexedDB datubāzes versija **1** un trīs krātuves saglabājas. `drafts` iera
 
 ### 6. posms: PDF priekšskatījums un eksports
 
-Dokumenta grupas kartītē spiediet **Izveidot PDF**. Dialogā izvēlieties:
+PDF solī atlasiet dokumentu un spiediet **Izveidot PDF**. Priekšskatījums sagatavojas automātiski. Neapstiprinātiem rekvizītiem pieejamas **Pārbaudīt informāciju** un **Saglabāt tikai skenētās lapas** izvēles. Dialoga sadaļā **Papildu PDF iestatījumi** var mainīt:
 
 - **Iekļaut dokumenta informācijas lapu** — PDF sākumā būs atlasāms un kopējams latviešu lauku/atribūtu teksts. Garās vērtības un tabulas turpinās nākamajās lapās. Šis režīms pieejams tikai ar aktuāli apstiprinātu kartīti; neapstiprinātus automātiskos ieteikumus PDF nepievieno.
 - **Tikai skenētās lapas** — noņemiet informācijas lapas atzīmi. Dokumenta lapas saglabāsies tā grupas secībā, arī bez apstiprinātas kartītes.
@@ -381,6 +384,14 @@ PDF netiek arhivēts IndexedDB vai PWA kešā. Informācijas lapas teksts ir mek
 [PDF ģenerēšanas arhitektūra, licences, kvalitātes robežas un faktiskie testu rezultāti](docs/testing/pdf-export.md).
 
 6. posma galīgās pārbaudes: **46/46 vienību testi**, **162/162 Playwright testi**, sekmīgs `build` un `format:check`. PDF saturu papildus nolasa ar neatkarīgu PDF.js lasītāju; pārbaudīts Unicode teksts, attēlu secība, proporcijas, bezsaistes eksports un resursu atbrīvošana.
+
+### UX pārstrāde: dokumenta sagatavošana četros soļos
+
+**Skenēt dokumentu → pievienot lapas → pārbaudīt/pagriezt → visas lapas kā viens dokuments vai vizuāla sadalīšana → atpazīt vai aizpildīt rekvizītus → apstiprināt → izveidot un lejupielādēt PDF.** Bez rekvizītiem informācijas soli var izlaist. Iepriekšējie rīki paliek konteksta papildu sadaļās.
+
+Soļi rāda faktisko lapu, grupējuma un apstiprinājumu stāvokli. Vecajiem melnrakstiem nav vajadzīga datubāzes pārbūve: neobligātie `workflow` metadati norāda pēdējo saglabāto soli un atlasīto dokumentu; ja to nav, turpinājumu nosaka no satura. Sākumlapa piedāvā turpināt saglabātos darbus. Dokumentu sadaļa atšķir iesāktas un sagrupētas sesijas; lejupielādētos PDF lietotne nearhivē.
+
+[UX problēmu analīze, saglabāšanas izvēle, saderība, manuālā pārbaude VS Code pārlūkprogrammā un izpildīto testu rezultāti](docs/testing/ux-workflow.md).
 
 ### Pārbaudes un nākamais posms
 

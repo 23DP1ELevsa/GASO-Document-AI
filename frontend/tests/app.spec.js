@@ -3,8 +3,8 @@ import AxeBuilder from '@axe-core/playwright'
 
 const headings = {
   '/': 'Dokumentu kārtība sākas šeit.',
-  '/scan': 'Dodiet papīram digitālu dzīvi.',
-  '/documents': 'Vieta visiem svarīgajiem dokumentiem.',
+  '/scan': 'Sagatavojiet dokumentu',
+  '/documents': 'Jūsu skenēšanas sesijas',
   '/settings': 'Iestatījumi',
 }
 
@@ -47,7 +47,7 @@ test('navigation and browser back work without reloading the document', async ({
   await page.evaluate(() => {
     window.navigationSentinel = 'mounted'
   })
-  await page.getByRole('link', { name: 'Skenēt dokumentu', exact: true }).click()
+  await page.getByRole('button', { name: 'Skenēt dokumentu', exact: true }).click()
   await expect(page).toHaveURL(/#\/scan$/)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings['/scan'])
   const navigation = page
@@ -98,7 +98,7 @@ test('browser capture inputs are available and new archive is empty', async ({ p
   await expect(page.getByRole('button', { name: 'Pievienot no galerijas' })).toBeEnabled()
   await expect(page.getByTestId('camera-input')).toHaveAttribute('capture', 'environment')
   await expect(page.getByTestId('gallery-input')).toHaveAttribute('multiple', '')
-  await expect(page.getByRole('button', { name: 'Saglabāt melnrakstu' })).toBeDisabled()
+  await expect(page.locator('.workspace-savebar button')).toBeDisabled()
   await page.goto('/#/documents')
   await expect(page.getByRole('heading', { name: 'Vēl nav saglabātu melnrakstu' })).toBeVisible()
   await expect(page.locator('.count-badge')).toHaveText('0')

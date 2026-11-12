@@ -10,6 +10,7 @@ import {
   VSnackbar,
   VAlert,
   VProgressCircular,
+  VProgressLinear,
   VDialog,
   VMenu,
 } from 'vuetify/components'
@@ -34,6 +35,7 @@ export default createVuetify({
     VSnackbar,
     VAlert,
     VProgressCircular,
+    VProgressLinear,
     VDialog,
     VMenu,
   },

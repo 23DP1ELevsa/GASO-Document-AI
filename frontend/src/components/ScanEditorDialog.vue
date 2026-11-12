@@ -14,7 +14,8 @@ import {
 } from '../features/processing/geometry'
 import { t } from '../locales'
 
-const props = defineProps({ page: { type: Object, required: true } })
+const props = defineProps({ page: { type: Object, required: true }, simple: Boolean })
+const advanced = ref(!props.simple)
 const emit = defineEmits(['close', 'apply'])
 const parameters = ref(defaultProcessing()),
   source = shallowRef(null),
@@ -180,8 +181,11 @@ onScopeDispose(() => {
           :aria-label="t('editor.working')"
         /><span>{{ t('editor.working') }} {{ progress }}%</span>
       </div>
-      <div v-if="displayUrl" class="editor-layout">
-        <section class="editor-original">
+      <v-btn v-if="simple" variant="text" :aria-expanded="advanced" @click="advanced = !advanced">{{
+        t('workflow.advanced')
+      }}</v-btn>
+      <div v-if="displayUrl" class="editor-layout" :class="{ 'editor-simple': !advanced }">
+        <section v-show="advanced" class="editor-original">
           <h3>{{ t('editor.original') }}</h3>
           <CornerPicker
             :url="displayUrl"
@@ -209,7 +213,12 @@ onScopeDispose(() => {
           <p v-if="!valid" class="editor-validation" role="alert">
             {{ t('scan.errors.invalidQuad') }}
           </p>
-          <div class="editor-filter-options" role="group" :aria-label="t('editor.filters')">
+          <div
+            v-show="advanced"
+            class="editor-filter-options"
+            role="group"
+            :aria-label="t('editor.filters')"
+          >
             <v-btn
               v-for="mode in ['original', 'enhanced', 'grayscale', 'bw']"
               :key="mode"
@@ -236,9 +245,11 @@ onScopeDispose(() => {
           <p class="small-muted">{{ t('editor.rotationValue', { value: parameters.rotation }) }}</p>
         </section>
       </div>
-      <p v-if="displayUrl" class="editor-limit-note small-muted">{{ t('editor.limits') }}</p>
+      <p v-if="displayUrl && advanced" class="editor-limit-note small-muted">
+        {{ t('editor.limits') }}
+      </p>
       <footer class="editor-footer">
-        <v-btn variant="text" :disabled="busy || !source" @click="restore">{{
+        <v-btn v-if="advanced" variant="text" :disabled="busy || !source" @click="restore">{{
           t('editor.restore')
         }}</v-btn>
         <div>

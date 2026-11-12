@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, shallowRef, watch, nextTick } from 'vue'
 import AppIcon from './AppIcon.vue'
 import { useBlobUrl } from '../composables/useBlobUrl.js'
 import { isConfirmationCurrent } from '../features/documents/model.js'
@@ -12,7 +12,12 @@ import { processingJob } from '../features/processing/processor.js'
 import { ScanError, errorCode } from '../features/scanning/errors.js'
 import { t } from '../locales'
 
-const props = defineProps({ controller: Object, documentId: String })
+const props = defineProps({
+  controller: Object,
+  documentId: String,
+  initialOptions: Object,
+  autoPreview: Boolean,
+})
 const emit = defineEmits(['close', 'review'])
 const document = computed(() =>
   props.controller.active.value?.documents.find((item) => item.id === props.documentId),
@@ -21,7 +26,7 @@ const title = computed(() => document.value?.values.document_title || t('pdf.tit
 const confirmed = computed(
   () => document.value && isConfirmationCurrent(props.controller.active.value, document.value),
 )
-const options = ref({ ...DEFAULT_PDF_OPTIONS }),
+const options = ref({ ...DEFAULT_PDF_OPTIONS, ...props.initialOptions }),
   working = ref(false),
   downloading = ref(false),
   error = ref('')
@@ -139,6 +144,14 @@ function close() {
   clearResult()
   emit('close')
 }
+async function scansOnly() {
+  options.value = { ...options.value, includeInformation: false }
+  await nextTick()
+  await generate()
+}
+onMounted(() => {
+  if (props.autoPreview && canGenerate.value) generate()
+})
 onScopeDispose(() => {
   disposed = true
   generation++
@@ -157,49 +170,62 @@ onScopeDispose(() => {
       <header class="pdf-heading">
         <div>
           <p class="eyebrow">{{ t('pdf.title') }}</p>
-          <h2>{{ title }}</h2>
+          <h2>{{ result ? t('workflow.ready') : title }}</h2>
+          <p v-if="result">{{ title }}</p>
         </div>
         <v-btn variant="text" :aria-label="t('pdf.close')" @click="close"
           ><AppIcon name="close"
         /></v-btn>
       </header>
-      <p v-if="!confirmed" class="ocr-warning" role="status">{{ t('pdf.unconfirmed') }}</p>
+      <p v-if="!confirmed && !result && !working" class="ocr-warning" role="status">
+        {{ t('pdf.unconfirmed') }}
+      </p>
       <v-btn
-        v-if="!confirmed"
+        v-if="!confirmed && !result && !working"
         variant="text"
         color="primary"
         :disabled="working"
         @click="emit('review')"
-        >{{ t('pdf.review') }}</v-btn
+        >{{ t('workflow.review') }}</v-btn
       >
-      <div class="pdf-options">
-        <label class="pdf-checkbox"
-          ><input
-            v-model="options.includeInformation"
-            type="checkbox"
-            :disabled="working || downloading"
-          />{{ t('pdf.includeInformation') }}</label
-        >
-        <label
-          >{{ t('pdf.pageSize')
-          }}<select v-model="options.pageSize" :disabled="working || downloading">
-            <option value="a4">{{ t('pdf.a4') }}</option>
-            <option value="image">{{ t('pdf.image') }}</option>
-          </select></label
-        >
-        <label
-          >{{ t('pdf.quality')
-          }}<select v-model="options.quality" :disabled="working || downloading">
-            <option value="high">{{ t('pdf.high') }}</option>
-            <option value="optimized">{{ t('pdf.optimized') }}</option>
-          </select></label
-        >
-      </div>
-      <p :class="options.quality === 'optimized' ? 'ocr-warning' : 'small-muted'">
-        {{ t(options.quality === 'optimized' ? 'pdf.optimizedHint' : 'pdf.qualityHint') }}
-      </p>
-      <p v-if="controller.dirty.value" class="small-muted">{{ t('pdf.unsaved') }}</p>
-      <div class="pdf-actions">
+      <v-btn
+        v-if="!confirmed && !result && !working"
+        color="primary"
+        :disabled="downloading"
+        @click="scansOnly"
+        >{{ t('workflow.scansOnly') }}</v-btn
+      >
+      <details class="pdf-advanced">
+        <summary>{{ t('workflow.pdfSettings') }}</summary>
+        <div class="pdf-options">
+          <label class="pdf-checkbox"
+            ><input
+              v-model="options.includeInformation"
+              type="checkbox"
+              :disabled="working || downloading"
+            />{{ t('pdf.includeInformation') }}</label
+          >
+          <label
+            >{{ t('pdf.pageSize')
+            }}<select v-model="options.pageSize" :disabled="working || downloading">
+              <option value="a4">{{ t('pdf.a4') }}</option>
+              <option value="image">{{ t('pdf.image') }}</option>
+            </select></label
+          >
+          <label
+            >{{ t('pdf.quality')
+            }}<select v-model="options.quality" :disabled="working || downloading">
+              <option value="high">{{ t('pdf.high') }}</option>
+              <option value="optimized">{{ t('pdf.optimized') }}</option>
+            </select></label
+          >
+        </div>
+        <p :class="options.quality === 'optimized' ? 'ocr-warning' : 'small-muted'">
+          {{ t(options.quality === 'optimized' ? 'pdf.optimizedHint' : 'pdf.qualityHint') }}
+        </p>
+        <p v-if="controller.dirty.value" class="small-muted">{{ t('pdf.unsaved') }}</p>
+      </details>
+      <div v-if="!result && (confirmed || !options.includeInformation)" class="pdf-actions">
         <v-btn color="primary" :disabled="!canGenerate" @click="generate">{{
           t(controller.dirty.value ? 'pdf.savePreview' : 'pdf.preview')
         }}</v-btn>

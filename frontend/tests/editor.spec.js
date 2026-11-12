@@ -78,7 +78,9 @@ async function apply(page, dialog) {
   await expect(page.getByRole('dialog')).toHaveCount(0)
 }
 async function save(page) {
-  await page.getByRole('button', { name: 'Saglabāt melnrakstu', exact: true }).click()
+  await page
+    .getByRole('button', { name: /^(Saglabāt melnrakstu|Mēģināt saglabāt vēlreiz)$/, exact: true })
+    .click()
   await expect(
     page.getByRole('status').filter({ hasText: 'Melnraksts sekmīgi saglabāts' }),
   ).toBeVisible()
@@ -377,7 +379,7 @@ test('legacy v1 records remain readable and editing is non-destructive when canc
   await dialog.getByRole('button', { name: 'Atcelt rediģēšanu', exact: true }).last().click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   expect(await state(page)).toEqual(before)
-  await expect(page.getByRole('button', { name: 'Saglabāt melnrakstu' })).toBeDisabled()
+  await expect(page.locator('.workspace-savebar button')).toBeDisabled()
   dialog = await openEditor(page)
   await apply(page, dialog)
   await save(page)

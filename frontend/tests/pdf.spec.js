@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { goStep, groupingTools, pdfSettings } from '../test-support/workflowUi.js'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
 import sharp from 'sharp'
@@ -188,14 +189,22 @@ async function seed(
   }
   await page.reload()
   await expect(groups(page)).toHaveCount(2)
+  await goStep(page, 4)
   return storage(page)
 }
 async function open(page, index = 0) {
-  await groups(page).nth(index).getByRole('button', { name: 'Izveidot PDF', exact: true }).click()
+  await goStep(page, 4)
+  await page.getByTestId('workflow-document').nth(index).click()
+  const create = page.getByRole('button', { name: 'Izveidot PDF', exact: true })
+  if (await create.isVisible()) await create.click()
+  else
+    await page.getByRole('button', { name: 'Saglabāt tikai skenētās lapas', exact: true }).click()
   await expect(dialog(page)).toBeVisible()
   return dialog(page)
 }
 async function preview(page) {
+  await expect(dialog(page).locator('.pdf-progress')).toHaveCount(0, { timeout: 30000 })
+  if (await dialog(page).getByTestId('pdf-preview').isVisible()) return
   await dialog(page)
     .getByRole('button', { name: /^(?:Saglabāt un priekšskatīt PDF|Priekšskatīt PDF)$/ })
     .click()
@@ -255,24 +264,23 @@ test('PDF with searchable Unicode information uses only the selected group, appr
   await close(page)
 })
 
-test('unconfirmed or stale data block an information page, review returns to the card and scans-only export saves pending changes safely', async ({
+test('unconfirmed data offer review or scans-only export and save the pending changes safely', async ({
   page,
 }) => {
   await seed(page)
+  await groupingTools(page)
   await groups(page)
     .nth(0)
     .getByLabel('Dokumenta nosaukums', { exact: true })
     .fill('Labots nosaukums')
-  await open(page)
+  await goStep(page, 4)
+  await expect(page.getByRole('button', { name: 'Izveidot PDF', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Pārbaudīt informāciju', exact: true }).click()
+  await expect(page.getByTestId('document-information')).toBeVisible()
   await expect(
-    dialog(page).getByRole('button', { name: 'Saglabāt un priekšskatīt PDF', exact: true }),
-  ).toBeDisabled()
-  await expect(dialog(page).getByRole('status')).toContainText('nav apstiprināta')
-  await dialog(page).getByRole('button', { name: 'Atgriezties pie datu pārbaudes' }).click()
-  await expect(dialog(page)).toHaveCount(0)
-  await expect(page.getByTestId('document-information')).toBeFocused()
+    page.getByTestId('document-information').getByLabel('Dokumenta nosaukums', { exact: true }),
+  ).toHaveValue('Labots nosaukums')
   await open(page)
-  await dialog(page).getByLabel('Iekļaut dokumenta informācijas lapu').uncheck()
   await preview(page)
   const { parsed, filename } = await download(page)
   expect(parsed.pageCount).toBe(2)
@@ -287,6 +295,7 @@ test('WebP conversion, EXIF orientation, image-sized pages and optimized quality
 }) => {
   await seed(page, { oriented: true })
   await open(page, 1)
+  await pdfSettings(page)
   await dialog(page).getByLabel('Iekļaut dokumenta informācijas lapu').uncheck()
   await dialog(page).getByLabel('Skenēto lapu formāts').selectOption('image')
   await preview(page)
@@ -357,10 +366,11 @@ test('long attributes continue over information pages and preview fallback remai
   await close(page)
 })
 
-test('failed autosave prevents generation and a retry exports the complete saved document', async ({
+test('failed transition save prevents export and a retry exports the complete saved document', async ({
   page,
 }) => {
   await seed(page)
+  await groupingTools(page)
   await groups(page)
     .nth(0)
     .getByLabel('Dokumenta nosaukums', { exact: true })
@@ -372,13 +382,12 @@ test('failed autosave prevents generation and a retry exports the complete saved
       return window.savedPut.apply(this, args)
     }
   })
-  await open(page)
-  await dialog(page).getByLabel('Iekļaut dokumenta informācijas lapu').uncheck()
-  await dialog(page)
-    .getByRole('button', { name: 'Saglabāt un priekšskatīt PDF', exact: true })
+  await page
+    .getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' })
+    .getByRole('button', { name: /^PDF/ })
     .click()
-  await expect(dialog(page).getByRole('alert')).toContainText('nepietiek vietas')
-  await expect(dialog(page).getByTestId('pdf-preview')).toHaveCount(0)
+  await expect(page.getByRole('alert')).toContainText('nepietiek vietas')
+  await expect(dialog(page)).toHaveCount(0)
   expect(await page.evaluate(() => pdfWorkers.size)).toBe(0)
   expect((await storage(page)).draft.documents[0].values.document_title).not.toBe(
     'Nesaglabāts nosaukums',
@@ -386,6 +395,9 @@ test('failed autosave prevents generation and a retry exports the complete saved
   await page.evaluate(() => {
     IDBObjectStore.prototype.put = window.savedPut
   })
+  await page.getByRole('button', { name: 'Mēģināt saglabāt vēlreiz', exact: true }).click()
+  await expect(page.getByText('Melnraksts sekmīgi saglabāts', { exact: false })).toBeVisible()
+  await open(page)
   await preview(page)
   expect((await download(page)).parsed.pageCount).toBe(2)
   await close(page)
@@ -414,7 +426,6 @@ test('missing images fail visibly without partial download; restoration permits 
     db.close()
   }, id)
   await open(page)
-  await dialog(page).getByRole('button', { name: 'Priekšskatīt PDF', exact: true }).click()
   await expect(dialog(page).getByRole('alert')).toContainText('attēls nav pieejams')
   await expect(dialog(page).getByRole('button', { name: 'Lejupielādēt PDF' })).toHaveCount(0)
   expect(await page.evaluate(() => pdfWorkers.size)).toBe(0)
@@ -467,6 +478,7 @@ test('a changed saved revision blocks downloading a preview from another tab', a
   await preview(page)
   const other = await context.newPage()
   await other.goto(page.url())
+  await groupingTools(other)
   await groups(other)
     .nth(0)
     .getByLabel('Dokumenta nosaukums', { exact: true })
@@ -510,11 +522,8 @@ test('cancelling an active PDF process terminates its worker, releases URLs and 
     })
   })
   await open(page)
-  await dialog(page).getByRole('button', { name: 'Priekšskatīt PDF', exact: true }).click()
   await expect.poll(() => page.evaluate(() => pdfWorkers.size)).toBe(1)
-  await expect(
-    dialog(page).getByRole('button', { name: 'Priekšskatīt PDF', exact: true }),
-  ).toBeDisabled()
+  await expect(dialog(page).locator('.pdf-progress')).toBeVisible()
   await close(page)
   expect(await storage(page)).toEqual(before)
   await open(page)

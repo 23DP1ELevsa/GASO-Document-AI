@@ -1,9 +1,11 @@
 import grouping from './grouping.lv.js'
 import pdf from './pdf.lv.js'
+import workflow from './workflow.lv.js'
 
 export default {
   grouping,
   pdf,
+  workflow,
   app: {
     name: 'GASO Document AI',
     shortName: 'Document AI',
@@ -27,7 +29,7 @@ export default {
     allDocuments: 'Visi dokumenti',
     localTitle: 'Jūsu ierīcē. Jūsu pārziņā.',
     localDescription:
-      'Attēli un melnraksti tiek glabāti šīs pārlūkprogrammas IndexedDB krātuvē. Tie netiek nosūtīti ārējiem pakalpojumiem. Pārlūka datu dzēšana izdzēsīs arī melnrakstus; tā nav rezerves kopija.',
+      'Attēli un iesāktie darbi paliek šajā pārlūkprogrammā. Tie netiek nosūtīti ārējiem pakalpojumiem. Pārlūka datu dzēšana izdzēsīs arī iesākto darbu; svarīgos PDF saglabājiet savā ierīcē.',
     localShort: 'Saskarne darbojas neatkarīgi no servera.',
     next: 'Nākamajos posmos',
     learnMore: 'Par lokālo režīmu',
@@ -36,7 +38,7 @@ export default {
     eyebrow: 'MAZĀK PAPĪRA. VAIRĀK SKAIDRĪBAS.',
     title: 'Dokumentu kārtība sākas šeit.',
     description:
-      'Viena vieta dokumentu digitalizācijai. No pirmā attēla līdz pārskatāmam dokumentu arhīvam.',
+      'Pievienojiet fotogrāfijas, pārbaudiet lapas un saglabājiet PDF. Viss notiek jūsu ierīcē.',
     scanHint: 'Fotografējiet vai pievienojiet attēlus no ierīces',
     recent: 'Jūsu melnraksti',
     recentSubtitle: 'Lokāli saglabātās skenēšanas sesijas.',
@@ -273,9 +275,9 @@ export default {
   },
   documents: {
     eyebrow: 'LOKĀLIE MELNRAKSTI',
-    title: 'Vieta visiem svarīgajiem dokumentiem.',
+    title: 'Jūsu skenēšanas sesijas',
     description:
-      'Turpiniet skenēšanas sesijas, kas saglabātas šajā pārlūkprogrammā. Tie ir melnraksti, nevis reģistrēti dokumenti.',
+      'Atveriet iesākto darbu un turpiniet no saglabātā soļa. Lejupielādētie PDF šeit netiek arhivēti.',
     count: 'Saglabātie melnraksti',
     emptyTitle: 'Vēl nav saglabātu melnrakstu',
     emptyDescription:
