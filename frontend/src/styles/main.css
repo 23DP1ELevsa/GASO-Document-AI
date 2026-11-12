@@ -2,6 +2,7 @@
 @import url('./scanning.css');
 @import url('./editor.css');
 @import url('./ocr.css');
+@import url('./documents.css');
 
 * {
   box-sizing: border-box;

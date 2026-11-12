@@ -4,6 +4,8 @@ import { importImage, IMAGE_LIMITS } from './imageImport'
 import { ScanError, errorCode } from './errors'
 import { newId } from './id'
 import { assertTextLength } from '../ocr/model.js'
+import * as documents from '../documents/model.js'
+import { analyzePages } from '../documents/analysis.js'
 
 const active = shallowRef(null)
 const dirty = ref(false)
@@ -46,12 +48,16 @@ function newSession() {
     revision: 0,
     status: 'draft',
     pages: [],
+    schemaVersion: 2,
+    documents: [],
   }
   dirty.value = false
   remember(null)
 }
-function mutate(pages) {
-  active.value = { ...active.value, pages, updatedAt: Date.now() }
+function mutate(pages, replacedId = null, replacementId = null) {
+  let next = { ...active.value, pages, updatedAt: Date.now() }
+  if (replacedId) next = documents.replacePageReference(next, replacedId, replacementId)
+  active.value = documents.reconcilePages(next)
   dirty.value = true
 }
 
@@ -100,6 +106,8 @@ export function useScanSession() {
             replaced
               ? pages.map((item) => (item.id === replacingId ? page : item))
               : [...pages, page],
+            replaced?.id,
+            page.id,
           )
           added++
         } catch (error) {
@@ -129,14 +137,31 @@ export function useScanSession() {
       throw new ScanError('busy')
     mutate(
       active.value.pages.map((page) =>
-        page.id === id ? { ...page, ...changes, modifiedAt: Date.now() } : page,
+        page.id === id
+          ? {
+              ...page,
+              ...changes,
+              modifiedAt: Date.now(),
+              contentRevision: (page.contentRevision || 0) + 1,
+            }
+          : page,
       ),
     )
   }
   function applyOcr(id, changes) {
     if (busy.value || !active.value?.pages.some((page) => page.id === id))
       throw new ScanError('busy')
-    mutate(active.value.pages.map((page) => (page.id === id ? { ...page, ...changes } : page)))
+    mutate(
+      active.value.pages.map((page) =>
+        page.id === id
+          ? {
+              ...page,
+              ...changes,
+              contentRevision: (page.contentRevision || 0) + (changes.ocr ? 1 : 0),
+            }
+          : page,
+      ),
+    )
   }
   function editOcrText(id, text) {
     assertTextLength(text)
@@ -178,6 +203,38 @@ export function useScanSession() {
       busy.value = false
     }
   }
+  function changeDocuments(action, ...args) {
+    if (busy.value || !active.value) throw new ScanError('busy')
+    const operation = documents[action]
+    if (
+      ![
+        'createDocument',
+        'assignPages',
+        'deleteDocument',
+        'mergeDocuments',
+        'splitDocument',
+        'reorderPage',
+        'editValue',
+        'confirmDocument',
+        'addCustomField',
+      ].includes(action)
+    )
+      throw new Error('Unknown operation')
+    active.value = operation(active.value, ...args)
+    dirty.value = true
+  }
+  function analyzeDocument(id) {
+    if (busy.value || !active.value) throw new ScanError('busy')
+    active.value = documents.updateDocument(active.value, id, (document) => ({
+      ...document,
+      analysis: {
+        analyzedAt: Date.now(),
+        source: documents.sourceVersion(active.value, document),
+        result: analyzePages(documents.documentPages(active.value, document)),
+      },
+    }))
+    dirty.value = true
+  }
   return {
     active,
     dirty,
@@ -193,6 +250,8 @@ export function useScanSession() {
     editOcrText,
     save,
     discard,
+    changeDocuments,
+    analyzeDocument,
     hasUnsavedChanges: computed(() => dirty.value || busy.value),
   }
 }

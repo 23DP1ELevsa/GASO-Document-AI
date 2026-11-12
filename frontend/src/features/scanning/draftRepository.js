@@ -1,5 +1,6 @@
 import { ScanError } from './errors'
 import { validateOcr } from '../ocr/model.js'
+import { migrateGrouping, validateDocuments } from '../documents/model.js'
 
 export const DATABASE_NAME = 'gaso-document-ai'
 const STORES = ['drafts', 'pages', 'images']
@@ -129,7 +130,7 @@ export function loadDraft(id) {
         }
       })
     }
-  })
+  }).then(migrateGrouping)
 }
 
 function readImage(id, display) {
@@ -163,6 +164,7 @@ export function readDisplay(id) {
 }
 
 export function saveDraft(session) {
+  validateDocuments(session)
   return transaction(STORES, 'readwrite', (tx, result, fail) => {
     const drafts = tx.objectStore('drafts'),
       pages = tx.objectStore('pages'),
@@ -175,6 +177,8 @@ export function saveDraft(session) {
       }
       const pageIds = session.pages.map((page) => page.id)
       const draft = {
+        schemaVersion: 2,
+        documents: session.documents || [],
         id: session.id,
         createdAt: session.createdAt,
         updatedAt: Date.now(),

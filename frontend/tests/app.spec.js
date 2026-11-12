@@ -197,6 +197,8 @@ test('skip link preserves current route and mobile safe zones reserve space', as
   page,
 }, testInfo) => {
   await page.goto('/#/documents')
+  // The app mounts after the asynchronous initial route has loaded.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings['/documents'])
   await page.keyboard.press('Tab')
   await expect(page.getByRole('link', { name: 'Pāriet uz saturu' })).toBeFocused()
   await page.keyboard.press('Enter')

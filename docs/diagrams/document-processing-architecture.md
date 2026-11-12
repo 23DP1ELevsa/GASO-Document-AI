@@ -1,5 +1,25 @@
 # Dokumentu apstrādes arhitektūra
 
+## Pārlūka 5. posmā realizētā plūsma
+
+```mermaid
+flowchart TD
+    S[Skenēšanas sesijas lapas un OCR] --> G[Manuāli pārbaudītas dokumentu grupas]
+    G --> L[Lokāli LV/EN/RU teksta noteikumi]
+    L --> I[Ieteikumi un avota fragmenti]
+    I --> U[Lietotāja rediģētie atribūti]
+    U --> C[Atsevišķs apstiprinājuma momentuzņēmums]
+    G --> D[Atomāra IndexedDB saglabāšana]
+    C --> D
+    S --> V[Lapu un OCR versiju pārbaude]
+    V --> I
+    D --> P[Informācijas un attēlu ID plāns nākotnes PDF]
+```
+
+`features/documents/analysis.js` analizē tikai dokumentam piesaistītās lapas; `model.js` pārvalda piederību, secību, kartītes un aktualitāti. Ieteikumi, manuālie dati un apstiprinājums ir atsevišķi. Saglabāšana izmanto esošo melnraksta transakciju bez attēlu dublēšanas. Pilna automātiska grupēšana, PDF un backend nav ieviesti. [5. posma pārskats](../testing/document-grouping.md).
+
+Turpmākās sadaļas apraksta sākotnējo CLI prototipu un nākotnes servera arhitektūru, nevis pašreizējās pārlūka lietotnes darbības prasības.
+
 ## Plānotā plūsma
 
 ```mermaid
@@ -21,16 +41,16 @@ PWA, automātiska lapu grupēšana, PDF izveide un MongoDB reģistrācija šajā
 
 ## Komponenšu robežas
 
-| Komponente | Atbildība | Šī posma realizācija |
-| --- | --- | --- |
-| Ievade un attēli | Saturs, baitu/pikseļu/lapu limiti, orientācija | `ocr_demo.input_pages`; 25 MiB, 40 MP/lapā, 20 lapas |
-| OCR | Teksts, vārdi, rindas, robežas, dzinēja novērtējumi | `engines.TesseractEngine`; Paddle adapteris nav validēts |
-| Klasifikācija | Dokumenta nozīme, `unknown` nenoteiktībā | Daži virsraksti `analysis.py` |
-| Atribūti | Lauku nozīme un avoti | Ierobežots LV/EN/RU apzīmējumu eksperiments |
-| Normalizācija | Datumi, decimālvirknes, vienādas nozīmes atslēgas | Neatkarīgas funkcijas, `null` divdomīgos gadījumos |
-| Validācija | Vienots atbildes līgums | JSON shēma; faktiskie 14 rezultāti pārbaudīti pret to |
-| Lietotāja pārbaude | Labojumi un apstiprinājuma notikums | Prasība `requires_review: true`; saskarne vēl nav izveidota |
-| PDF un krātuve | Oriģinālā vizuālā satura saglabāšana un MongoDB | Vēlākas kartītes |
+| Komponente         | Atbildība                                           | Šī posma realizācija                                        |
+| ------------------ | --------------------------------------------------- | ----------------------------------------------------------- |
+| Ievade un attēli   | Saturs, baitu/pikseļu/lapu limiti, orientācija      | `ocr_demo.input_pages`; 25 MiB, 40 MP/lapā, 20 lapas        |
+| OCR                | Teksts, vārdi, rindas, robežas, dzinēja novērtējumi | `engines.TesseractEngine`; Paddle adapteris nav validēts    |
+| Klasifikācija      | Dokumenta nozīme, `unknown` nenoteiktībā            | Daži virsraksti `analysis.py`                               |
+| Atribūti           | Lauku nozīme un avoti                               | Ierobežots LV/EN/RU apzīmējumu eksperiments                 |
+| Normalizācija      | Datumi, decimālvirknes, vienādas nozīmes atslēgas   | Neatkarīgas funkcijas, `null` divdomīgos gadījumos          |
+| Validācija         | Vienots atbildes līgums                             | JSON shēma; faktiskie 14 rezultāti pārbaudīti pret to       |
+| Lietotāja pārbaude | Labojumi un apstiprinājuma notikums                 | Prasība `requires_review: true`; saskarne vēl nav izveidota |
+| PDF un krātuve     | Oriģinālā vizuālā satura saglabāšana un MongoDB     | Vēlākas kartītes                                            |
 
 `DocumentAnalysisProvider` ir aizvietojamības robeža. Python prototips palīdz pārbaudīt līgumu; Laravel pusē nākamajā posmā jāizveido ekvivalents PHP interfeiss un konfigurācijas reģistrs. Nav uzstādīts Laravel, veidots HTTP serveris vai mikroserviss.
 

@@ -8,6 +8,7 @@ import ImagePreviewDialog from '../components/ImagePreviewDialog.vue'
 import ScanEditorDialog from '../components/ScanEditorDialog.vue'
 import OcrResultDialog from '../components/OcrResultDialog.vue'
 import OcrLanguagePicker from '../components/OcrLanguagePicker.vue'
+import DocumentGroups from '../components/DocumentGroups.vue'
 import { useOcrSession } from '../features/ocr/useOcrSession.js'
 import { useOcrSettings } from '../features/ocr/useOcrSettings.js'
 import { useScanSession } from '../features/scanning/useScanSession'
@@ -101,6 +102,25 @@ watch(
 function clearMessages() {
   error.value = ''
   success.value = ''
+}
+function changeDocuments(action, ...args) {
+  if (locked.value) return
+  clearMessages()
+  try {
+    session.changeDocuments(action, ...args)
+    if (action === 'confirmDocument') success.value = t('grouping.confirmedHint')
+  } catch {
+    error.value = t('grouping.actionError')
+  }
+}
+function analyzeDocument(id) {
+  if (locked.value) return
+  clearMessages()
+  try {
+    session.analyzeDocument(id)
+  } catch {
+    error.value = t('grouping.actionError')
+  }
 }
 async function selected(event, replacing = false) {
   if (locked.value) return
@@ -281,6 +301,14 @@ async function deleteSession() {
         />
       </div>
     </section>
+    <DocumentGroups
+      v-if="active && (pages.length || active.documents.length)"
+      :key="active.id"
+      :session="active"
+      :disabled="locked"
+      @change="changeDocuments"
+      @analyze="analyzeDocument"
+    />
     <v-card v-if="pages.length" class="ocr-session bordered-card">
       <h3>{{ t('ocr.sessionTitle') }}</h3>
       <p class="small-muted">{{ t('ocr.sessionHint') }}</p>

@@ -23,6 +23,7 @@ defineEmits(['open', 'remove'])
       <span class="subtle-label">{{ t('documents.draft') }}</span>
       <h2>{{ t('documents.created') }} {{ dateTime(draft.createdAt) }}</h2>
       <p>{{ t('scan.pageCount', { count: draft.pageIds.length }) }}</p>
+      <p>{{ t('grouping.documentCount', { count: draft.documents?.length || 0 }) }}</p>
       <p class="draft-updated">{{ t('documents.updated') }} {{ dateTime(draft.updatedAt) }}</p>
       <div class="draft-actions">
         <v-btn color="primary" variant="tonal" :disabled="busy" @click="$emit('open', draft.id)"

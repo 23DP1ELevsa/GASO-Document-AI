@@ -12,7 +12,7 @@ Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglo
 
 ## Galvenās funkcijas
 
-Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1.–4. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas, lokāls attēlu redaktors un Tesseract.js OCR. Var pievienot attēlus, meklēt vai manuāli izvēlēties dokumenta stūrus, iztaisnot perspektīvu, pagriezt attēlu, piemērot filtrus, atpazīt latviešu/angļu/krievu tekstu un saglabāt labojamus rezultātus IndexedDB. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija nav ieviesta. PDF un reģistrēšana vēl nav realizēta. Atsevišķais Python OCR komandrindas prototips nav mainīts un nav pieslēgts mobilajai lietotnei.
+Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1.–5. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas, lokāls attēlu redaktors, Tesseract.js OCR, manuāla dokumentu grupēšana un rediģējamas dokumentu informācijas kartītes. Var pievienot attēlus, meklēt vai manuāli izvēlēties dokumenta stūrus, iztaisnot perspektīvu, pagriezt attēlu, piemērot filtrus, atpazīt latviešu/angļu/krievu tekstu un saglabāt labojamus rezultātus IndexedDB. Lokālie teksta noteikumi piedāvā pārbaudāmus atribūtus; ārēji MI pakalpojumi nav pieslēgti. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija nav ieviesta. PDF un reģistrēšana vēl nav realizēta. Atsevišķais Python OCR komandrindas prototips nav mainīts un nav pieslēgts mobilajai lietotnei.
 
 1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
 2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
@@ -33,19 +33,19 @@ API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Perso
 
 ## Plānotās tehnoloģijas
 
-| Joma | Tehnoloģija vai risinājums |
-| --- | --- |
-| Lietotāja saskarne | Vue 3, Composition API, JavaScript, Vuetify 3, Vue Router 4, Vite |
-| Servera puse | PHP, Laravel 12 |
-| Datubāze | MongoDB |
-| Mākslīgais intelekts | GASO saskaņotais korporatīvais MI API; detaļas tiks precizētas |
-| Attēlu apstrāde | Pārlūkā: Web Worker, OffscreenCanvas, robežu kandidātu analīze un homogrāfija JavaScript; OpenCV.js izvērtēts, bet nav pievienots |
-| Lokāls OCR | Tesseract.js 7.0.0, WebAssembly/Web Worker, ar lietotni piegādāti `tessdata_fast` 4.1.0 modeļi `lav`, `eng`, `rus` |
-| PDF ģenerēšana | Piemērota PDF izveides bibliotēka; izvēle vēl jāveic |
-| Mobilā lietotne | Capacitor 8 Android un PWA ar kopīgu Vue koda bāzi |
-| Autorizācija | Laravel Sanctum |
-| Izvietošana | Railway, ja izvietojums tiks saskaņots |
-| Versiju kontrole | Git un GitHub |
+| Joma                 | Tehnoloģija vai risinājums                                                                                                        |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Lietotāja saskarne   | Vue 3, Composition API, JavaScript, Vuetify 3, Vue Router 4, Vite                                                                 |
+| Servera puse         | PHP, Laravel 12                                                                                                                   |
+| Datubāze             | MongoDB                                                                                                                           |
+| Mākslīgais intelekts | GASO saskaņotais korporatīvais MI API; detaļas tiks precizētas                                                                    |
+| Attēlu apstrāde      | Pārlūkā: Web Worker, OffscreenCanvas, robežu kandidātu analīze un homogrāfija JavaScript; OpenCV.js izvērtēts, bet nav pievienots |
+| Lokāls OCR           | Tesseract.js 7.0.0, WebAssembly/Web Worker, ar lietotni piegādāti `tessdata_fast` 4.1.0 modeļi `lav`, `eng`, `rus`                |
+| PDF ģenerēšana       | Piemērota PDF izveides bibliotēka; izvēle vēl jāveic                                                                              |
+| Mobilā lietotne      | Capacitor 8 Android un PWA ar kopīgu Vue koda bāzi                                                                                |
+| Autorizācija         | Laravel Sanctum                                                                                                                   |
+| Izvietošana          | Railway, ja izvietojums tiks saskaņots                                                                                            |
+| Versiju kontrole     | Git un GitHub                                                                                                                     |
 
 ## Projekta struktūra
 
@@ -129,15 +129,15 @@ Visas frontend komandas izpilda `frontend/` mapē. Backend, Python OCR vide un A
 
 ### Priekšnoteikumi
 
-| Rīks | Prasība |
-| --- | --- |
-| Node.js | Vismaz 22.12; ieteicama Node.js 24 LTS. Izstrādē pārbaudīta 24.15.0 |
-| npm | Kopā ar Node.js; atkarību reproducēšanai izmantot `npm ci` un saglabāto `package-lock.json` |
-| Pārlūks | Aktuāls Chrome, Edge vai cits mūsdienīgs pārlūks; automatizētie testi izmanto instalētu Chrome |
-| Android Studio | Otter 2025.2.1 vai jaunāks, nepieciešams tikai Android palaišanai |
-| Android SDK | Platform 36, Build Tools 36.0.0, Platform Tools; emulators pēc vajadzības |
+| Rīks                   | Prasība                                                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Node.js                | Vismaz 22.12; ieteicama Node.js 24 LTS. Izstrādē pārbaudīta 24.15.0                                                           |
+| npm                    | Kopā ar Node.js; atkarību reproducēšanai izmantot `npm ci` un saglabāto `package-lock.json`                                   |
+| Pārlūks                | Aktuāls Chrome, Edge vai cits mūsdienīgs pārlūks; automatizētie testi izmanto instalētu Chrome                                |
+| Android Studio         | Otter 2025.2.1 vai jaunāks, nepieciešams tikai Android palaišanai                                                             |
+| Android SDK            | Platform 36, Build Tools 36.0.0, Platform Tools; emulators pēc vajadzības                                                     |
 | Java Android būvēšanai | JDK 21; Android Studio iestatījumos izvēlēties saderīgu Gradle JDK. Šajā vidē atrastā Java 27 nav validēta ar projekta Gradle |
-| Android ierīce | Android 7.0 / API 24 vai jaunāka; ieteicams testēt arī API 35/36 un aktuālu Android System WebView |
+| Android ierīce         | Android 7.0 / API 24 vai jaunāka; ieteicams testēt arī API 35/36 un aktuālu Android System WebView                            |
 
 Prasības pārbaudītas [Capacitor vides dokumentācijā](https://capacitorjs.com/docs/getting-started/environment-setup), [Capacitor 8 Android konfigurācijā](https://capacitorjs.com/docs/updating/8-0) un [Vite dokumentācijā](https://vite.dev/guide/). Izmantots tieši [Vuetify 3](https://v3.vuetifyjs.com/en/getting-started/installation/), kā prasīts uzdevumā. Precīzās instalētās atkarību versijas fiksē `frontend/package-lock.json`.
 
@@ -237,14 +237,14 @@ Ja sesija saglabāta, tās adrese satur melnraksta ID; pēc pārlādes melnrakst
 
 #### Failu un sesijas ierobežojumi
 
-| Ierobežojums | Vērtība |
-| --- | --- |
-| Formāti | JPEG, PNG, WebP, kuru saturs un deklarētais MIME tips atbilst un kurus pārlūks spēj dekodēt |
-| Faila izmērs | 1 baits līdz 25 MiB katram attēlam |
-| Izšķirtspēja | Līdz 40 megapikseļiem un 16 000 px jebkurā malā |
-| Sesijas apjoms | Līdz 20 lapām un 200 MiB oriģinālu kopā |
-| Mazais priekšskatījums | Līdz 480 px garākajā malā, JPEG; oriģināla kvalitāti tas nemaina |
-| Neatbalstīts | PDF, HEIC/HEIF, SVG, GIF, bojāti un pārlūkā neatverami attēli |
+| Ierobežojums           | Vērtība                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| Formāti                | JPEG, PNG, WebP, kuru saturs un deklarētais MIME tips atbilst un kurus pārlūks spēj dekodēt |
+| Faila izmērs           | 1 baits līdz 25 MiB katram attēlam                                                          |
+| Izšķirtspēja           | Līdz 40 megapikseļiem un 16 000 px jebkurā malā                                             |
+| Sesijas apjoms         | Līdz 20 lapām un 200 MiB oriģinālu kopā                                                     |
+| Mazais priekšskatījums | Līdz 480 px garākajā malā, JPEG; oriģināla kvalitāti tas nemaina                            |
+| Neatbalstīts           | PDF, HEIC/HEIF, SVG, GIF, bojāti un pārlūkā neatverami attēli                               |
 
 Faila saturs un attēla galvenes izmēri tiek pārbaudīti pirms rastra dekodēšanas. Attēli tiek apstrādāti secīgi; vienlaikus netiek dekodēti visi oriģināli. Saglabājas sākotnējie attēla baiti bez pārkodēšanas, samazināšanas vai EXIF metadatu noņemšanas. Priekšskatījumu orientācijai izmanto pārlūka EXIF atbalstu; liels priekšskatījums ielādē tikai izvēlēto oriģinālu. Animētu attēlu plūsma nav paredzēta skenēšanas funkcija.
 
@@ -289,12 +289,12 @@ OpenCV.js tika izvērtēts pēc [oficiālās ģeometrisko transformāciju dokume
 
 #### Filtri
 
-| Režīms | Darbība |
-| --- | --- |
-| Oriģinālās krāsas | Bez krāsu filtra; izvēlētā perspektīva un pagrieziens joprojām ir spēkā |
-| Uzlabots | Mērena histogrammā balstīta gaišuma/kontrasta korekcija ar ierobežotu pastiprinājumu, saglabājot krāsas |
-| Pelēktoņi | Svērts RGB gaišuma pārveidojums |
-| Melnbalts | Adaptīvs lokāls slieksnis, kas seko lēnām apgaismojuma izmaiņām |
+| Režīms            | Darbība                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| Oriģinālās krāsas | Bez krāsu filtra; izvēlētā perspektīva un pagrieziens joprojām ir spēkā                                 |
+| Uzlabots          | Mērena histogrammā balstīta gaišuma/kontrasta korekcija ar ierobežotu pastiprinājumu, saglabājot krāsas |
+| Pelēktoņi         | Svērts RGB gaišuma pārveidojums                                                                         |
+| Melnbalts         | Adaptīvs lokāls slieksnis, kas seko lēnām apgaismojuma izmaiņām                                         |
 
 Sīkas tabulu līnijas, bāli zīmogi un vāji simboli jāpārbauda priekšskatījumā; īpaši melnbaltais režīms var mainīt to salasāmību. Vienmēr var mainīt filtru vai atjaunot oriģinālu.
 
@@ -304,15 +304,15 @@ Redaktors vienmēr sāk ar **oriģinālo Blob**, nevis iepriekš saglabāto rezu
 
 IndexedDB krātuvju struktūra un datubāzes **versija 1 paliek spēkā**: pievienoti neobligāti ierakstu lauki, neveidojot jaunas krātuves vai indeksus. Nav vajadzīga destruktīva migrācija vai veco attēlu pārrakstīšana. Veciem ierakstiem bez `processing` redaktors izmanto pilnu attēlu, 0° pagriezienu un sākotnējās krāsas. Lapas secības maiņa saglabā parametrus, aizstāšana sāk jaunu neapstrādātu attēlu, dzēšana izņem abus attēlus. Apstiprināta apstrāde un oriģināls tiek saglabāti vienā melnraksta transakcijā; kļūmes gadījumā paliek iepriekšējais saglabājums.
 
-| Apstrādes resurss | Ierobežojums |
-| --- | --- |
-| Importa oriģināls | Iepriekšējie 25 MiB / 40 MP / 16 000 px ierobežojumi |
-| Darba rastrs | Līdz 16 MP un 6000 px vienā malā; lielāks oriģināls paliek neskarts |
-| Robežu analīze | Līdz 900 px garākajā malā |
-| Rezultāta priekšskatījums | Līdz 1200 px garākajā malā |
-| Saglabājamais rezultāts | Līdz 8 MP un 5000 px vienā malā; PNG, bez mākslīgas palielināšanas |
-| Rezultāta Blob | Līdz 48 MiB; pārlūka faktiskā IndexedDB kvota var būt mazāka |
-| Viens Worker darbs | Līdz 45 sekundēm, atceļams; vienai redaktora instancei vienlaikus ir viena operācija |
+| Apstrādes resurss         | Ierobežojums                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------ |
+| Importa oriģināls         | Iepriekšējie 25 MiB / 40 MP / 16 000 px ierobežojumi                                 |
+| Darba rastrs              | Līdz 16 MP un 6000 px vienā malā; lielāks oriģināls paliek neskarts                  |
+| Robežu analīze            | Līdz 900 px garākajā malā                                                            |
+| Rezultāta priekšskatījums | Līdz 1200 px garākajā malā                                                           |
+| Saglabājamais rezultāts   | Līdz 8 MP un 5000 px vienā malā; PNG, bez mākslīgas palielināšanas                   |
+| Rezultāta Blob            | Līdz 48 MiB; pārlūka faktiskā IndexedDB kvota var būt mazāka                         |
+| Viens Worker darbs        | Līdz 45 sekundēm, atceļams; vienai redaktora instancei vienlaikus ir viena operācija |
 
 Aprēķini notiek [Web Worker ar OffscreenCanvas](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas). Katrā darbā rastri un Blob URL tiek atbrīvoti, Worker pēc darba tiek [apturēts](https://developer.mozilla.org/en-US/docs/Web/API/Worker/terminate). Kļūme vai atcelšana nemaina oriģinālu. Lielākā apjoma attēlu veiktspēja fiziskos mazatmiņas tālruņos vēl jāpārbauda.
 
@@ -342,6 +342,25 @@ OCR izpildes laikā attēli un teksts netiek nosūtīti ārējiem serveriem. `wo
 
 [OCR integrācijas pārskats, datu struktūra, licences un faktiskie pārbaužu rezultāti](docs/testing/local-ocr.md). OCR dod tekstu un dzinēja ticamības vērtējumu; tas vēl neizprot rēķinu rekvizītus vai līguma saturu. Rezultāts jāpārbauda lietotājam.
 
+### 5. posms: dokumentu grupēšana un informācijas kartītes
+
+Sadaļā **Skenēt**, zem lapu priekšskatījumiem, ir **Dokumentu grupas**. Darbs notiek pārlūkā; nav jaunu atkarību vai API atslēgu.
+
+1. Atzīmējiet **Nepiesaistītās lapas**, ievadiet nosaukumu un spiediet **Izveidot dokumentu**. Bez atlases izveidojas tukša grupa.
+2. **Rediģēt grupējumu un lapu secību** ļauj pārvietot atlasītas lapas uz citu dokumentu vai nepiesaistīto lapu sarakstu. Bultiņas maina dokumenta lapu secību. **Atdalīt jaunā dokumentā** izveido dokumentu no atlasītās lapu daļas ar jaunu, tukšu kartīti.
+3. **Apvienošana un grupas dzēšana** ļauj pievienot grupas lapas cita dokumenta beigās. Pirms apvienošanas jāapstiprina, ka saglabāsies mērķa kartītes dati. **Dzēst grupu, saglabājot lapas** izņem grupu un tās kartīti; attēli un OCR paliek nepiesaistīti.
+4. **Dokumenta informācija** rāda rediģējamu tabulu ar kopīgajiem un tipam atbilstošiem laukiem. Var pievienot savu atribūta nosaukumu un vērtību. **Analizēt lokāli** piedāvā vērtības atsevišķā kolonnā ar OCR avota fragmentu un dokumenta lapas numuru. **Izmantot** pārnes vienu ieteikumu rediģējamajā laukā; atkārtota analīze nepārraksta lietotāja datus.
+5. **Apstiprināt informāciju** saglabā atsevišķu pārbaudīto vērtību momentuzņēmumu. Pēc lapu, attēlu vai OCR izmaiņām redzams aktualitātes brīdinājums; manuālās vērtības saglabājas. Laukus var labot un apstiprināt atkārtoti.
+6. **Saglabāt melnrakstu** atomāri ieraksta grupējumu, kartītes, analīzi un apstiprinājumus. Pēc pārlādes tie atjaunojas. Grupējuma izmaiņām, tāpat kā iepriekšējai lapu pārvaldībai, nav automātiskas saglabāšanas; OCR darbības turpina saglabāt visu sesiju pēc lapas apstrādes.
+
+Lokālā analīze izmanto ierobežotu LV/EN/RU apzīmējumu kopu. Dokumenta tipam vajadzīgs virsraksts un papildu satura pierādījums; nosūtītāju/saņēmēju nosaka tikai pēc skaidras lomas. Kopējo summu, PVN, summu bez PVN, summu ar PVN, samaksāto un atlikumu glabā atsevišķi. Pretrunas vai neskaidrs formāts dod `null`, nenoteikts tips ir `unknown`. Nav uzņēmumu veidņu, koordinātu noteikumu, ārēja MI, valodas noteikšanas vai summu aritmētiskas pārbaudes. Rēķinu robežu ieteikumi balstās uz skaidru virsrakstu lapas sākumā un dokumenta numura maiņu; sadalīšana vienmēr prasa apstiprinājumu.
+
+IndexedDB datubāzes versija **1** un trīs krātuves saglabājas. `drafts` ierakstam pievienoti `schemaVersion: 2` un `documents`; dokumentā glabā sakārtotus lapu ID, tipu/nosaukumu/atribūtus, ieteikumus un atsevišķu apstiprinājumu. Attēli netiek dublēti. Vecie melnraksti atveras ar visām lapām nepiesaistītā stāvoklī, nezaudējot OCR. `documentExportPlan` sagatavo informācijas lapas datus un attēlu ID dokumenta secībā nākamā posma PDF adapterim. PDF ģenerēšana vēl nav ieviesta.
+
+[5. posma datu modelis, analīzes ierobežojumi un faktiskās pārbaudes](docs/testing/document-grouping.md).
+
+5. posma galīgās pārbaudes: **34/34 vienību testi**, **135/135 Playwright testi** (360, 412 un 1440 px), sekmīgs `build` un `format:check`. Ietverta visa iepriekšējā skenēšanas, redaktora un īstā lokālā OCR regresija.
+
 ### Pārbaudes un nākamais posms
 
 ```powershell
@@ -357,7 +376,7 @@ Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē 
 
 4. posmā sekmīgi izpildīti **18/18 vienību testi**, **117/117 Playwright testi**, produkcijas būvējums un formatējuma pārbaude. Pēc pēdējā kļūdas paziņojuma labojuma atsevišķi izturēti vēl **3/3** regresijas testi. Ar īsto OCR pārbaudītas visas trīs valodas, perspektīvas/pagrieziena/filtra rezultāts, saglabāšana, atcelšana un bezsaistes darbs pēc pārlādes. [Faktiskie OCR mērījumi un ierobežojumi](docs/testing/local-ocr.md).
 
-Nākamajos posmos jārealizē dokumentu grupēšana un PDF ģenerēšana un jāpaplašina reālu, izmantošanai atļautu fotogrāfiju OCR kvalitātes novērtēšana. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, OCR fiziskās mazatmiņas ierīcēs, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
+Nākamajos posmos jārealizē PDF ģenerēšana, jāpaplašina dokumentu robežu un atribūtu noteikšana un reālu, izmantošanai atļautu fotogrāfiju OCR kvalitātes novērtēšana. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, OCR fiziskās mazatmiņas ierīcēs, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
 
 [Mobilās lietotnes arhitektūra un paplašināšanas robežas](docs/diagrams/mobile-architecture.md). Iepriekšējā dokumentācija un `tools/ocr-evaluation/` saglabāta; OCR CLI netiek automātiski palaists pārlūkā vai Android lietotnē.
 
