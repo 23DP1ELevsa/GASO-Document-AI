@@ -1,6 +1,6 @@
 # Dokumentu apstrādes arhitektūra
 
-## Pārlūka 5. posmā realizētā plūsma
+## Pārlūka 6. posmā realizētā plūsma
 
 ```mermaid
 flowchart TD
@@ -13,10 +13,12 @@ flowchart TD
     C --> D
     S --> V[Lapu un OCR versiju pārbaude]
     V --> I
-    D --> P[Informācijas un attēlu ID plāns nākotnes PDF]
+    D --> P[Revīzijas un apstiprinājuma pārbaude]
+    P --> W[Lokāls PDF Worker un Unicode fonts]
+    W --> E[Blob priekšskatījums un faila lejupielāde]
 ```
 
-`features/documents/analysis.js` analizē tikai dokumentam piesaistītās lapas; `model.js` pārvalda piederību, secību, kartītes un aktualitāti. Ieteikumi, manuālie dati un apstiprinājums ir atsevišķi. Saglabāšana izmanto esošo melnraksta transakciju bez attēlu dublēšanas. Pilna automātiska grupēšana, PDF un backend nav ieviesti. [5. posma pārskats](../testing/document-grouping.md).
+`features/documents/analysis.js` analizē tikai dokumentam piesaistītās lapas; `model.js` pārvalda piederību, secību, kartītes un aktualitāti. Ieteikumi, manuālie dati un apstiprinājums ir atsevišķi. Saglabāšana izmanto esošo melnraksta transakciju bez attēlu dublēšanas. `features/pdf/` veido PDF no saglabātas, pārbaudītas versijas: izvēles informācijas lapa un pilna izmēra attēli grupas secībā. Gatavais PDF ir īslaicīgs Blob, nevis jauns ieraksts IndexedDB. Pilna automātiska grupēšana un backend nav ieviesti. [5. posma pārskats](../testing/document-grouping.md), [6. posma PDF pārskats](../testing/pdf-export.md).
 
 Turpmākās sadaļas apraksta sākotnējo CLI prototipu un nākotnes servera arhitektūru, nevis pašreizējās pārlūka lietotnes darbības prasības.
 

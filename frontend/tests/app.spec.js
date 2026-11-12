@@ -137,7 +137,7 @@ test('installed shell and unvisited routes open offline; cache holds only app as
   expect(cacheUrls.length).toBeGreaterThan(5)
   for (const url of cacheUrls)
     expect(new URL(url).pathname).toMatch(
-      /^\/(?:index\.html|assets\/[^/]+\.(?:js|css|woff2)|icons\/[^/]+\.png|icon\.svg|manifest\.webmanifest)$/,
+      /^\/(?:index\.html|assets\/[^/]+\.(?:js|css|woff2|ttf)|icons\/[^/]+\.png|icon\.svg|manifest\.webmanifest)$/,
     )
 })
 

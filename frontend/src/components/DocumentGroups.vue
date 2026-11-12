@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import BlobImage from './BlobImage.vue'
 import DocumentInformation from './DocumentInformation.vue'
 import {
@@ -12,7 +12,14 @@ import { suggestBoundaries } from '../features/documents/analysis.js'
 import { t } from '../locales'
 
 const props = defineProps({ session: Object, disabled: Boolean })
-const emit = defineEmits(['change', 'analyze'])
+const emit = defineEmits(['change', 'analyze', 'pdf'])
+const groupRoot = ref(null)
+async function showInformation(id) {
+  infoId.value = id
+  await nextTick()
+  groupRoot.value?.querySelector('[data-testid="document-information"]')?.focus()
+}
+defineExpose({ showInformation })
 const selected = ref([]),
   targets = ref({}),
   mergeTargets = ref({}),
@@ -87,7 +94,12 @@ function applyBoundaries(document) {
 }
 </script>
 <template>
-  <section class="document-groups" :aria-label="t('grouping.title')" data-testid="document-groups">
+  <section
+    ref="groupRoot"
+    class="document-groups"
+    :aria-label="t('grouping.title')"
+    data-testid="document-groups"
+  >
     <header>
       <h2>
         {{ t('grouping.title') }} <span class="count-badge">{{ documents.length }}</span>
@@ -241,6 +253,13 @@ function applyBoundaries(document) {
         <p class="small-muted">{{ t('grouping.splitHint') }}</p>
       </details>
       <div class="group-actions">
+        <v-btn
+          variant="tonal"
+          color="primary"
+          :disabled="disabled || !document.pageIds.length"
+          @click="emit('pdf', document.id, $event.currentTarget)"
+          >{{ t('pdf.create') }}</v-btn
+        >
         <v-btn
           variant="tonal"
           color="primary"

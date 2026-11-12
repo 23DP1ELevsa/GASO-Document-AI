@@ -227,7 +227,7 @@ export function addCustomField(session, id, label, value = null) {
     values: { ...document.values, [key]: value?.trim() || null },
   }))
 }
-// Future PDF adapter reads image blobs by pageId, preserving document order and visual content.
+// PDF export reads image blobs by pageId, preserving document order and visual content.
 export function documentExportPlan(session, id) {
   const document = requireDocument(session, id)
   return {

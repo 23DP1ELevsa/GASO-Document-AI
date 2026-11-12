@@ -503,7 +503,7 @@ test('saved image sessions reopen and accept changes offline without entering se
   })
   for (const path of cachePaths)
     expect(path).toMatch(
-      /^\/(?:index\.html|assets\/[^/]+\.(?:js|css|woff2)|icons\/[^/]+\.png|icon\.svg|manifest\.webmanifest)$/,
+      /^\/(?:index\.html|assets\/[^/]+\.(?:js|css|woff2|ttf)|icons\/[^/]+\.png|icon\.svg|manifest\.webmanifest)$/,
     )
   await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
   await expect(page.getByTestId('draft-card')).toHaveCount(1)

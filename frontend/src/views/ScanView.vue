@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, shallowRef, watch, nextTick } from 'vue'
+import { computed, ref, shallowRef, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import PageHeading from '../components/PageHeading.vue'
@@ -18,10 +18,29 @@ import { t, dateTime } from '../locales'
 const route = useRoute(),
   router = useRouter()
 const session = useScanSession()
+const PdfExportDialog = defineAsyncComponent(() => import('../components/PdfExportDialog.vue'))
+const pdfDocumentId = ref(null),
+  pdfTrigger = shallowRef(null),
+  documentGroups = ref(null)
+function openPdf(id, trigger) {
+  if (locked.value) return
+  pdfTrigger.value = trigger
+  pdfDocumentId.value = id
+}
+async function closePdf() {
+  pdfDocumentId.value = null
+  await nextTick()
+  if (pdfTrigger.value?.isConnected) pdfTrigger.value.focus({ preventScroll: true })
+}
+async function reviewPdf() {
+  const id = pdfDocumentId.value
+  await closePdf()
+  await documentGroups.value?.showInformation(id)
+}
 const { active, dirty, busy } = session
 const ocr = useOcrSession(session)
 const { languages, storageError, setLanguages } = useOcrSettings()
-const locked = computed(() => busy.value || ocr.running.value)
+const locked = computed(() => busy.value || ocr.running.value || Boolean(pdfDocumentId.value))
 const ocrPageId = ref(null),
   ocrTrigger = shallowRef(null)
 function openText(page, trigger) {
@@ -302,12 +321,14 @@ async function deleteSession() {
       </div>
     </section>
     <DocumentGroups
+      ref="documentGroups"
       v-if="active && (pages.length || active.documents.length)"
       :key="active.id"
       :session="active"
       :disabled="locked"
       @change="changeDocuments"
       @analyze="analyzeDocument"
+      @pdf="openPdf"
     />
     <v-card v-if="pages.length" class="ocr-session bordered-card">
       <h3>{{ t('ocr.sessionTitle') }}</h3>
@@ -381,6 +402,13 @@ async function deleteSession() {
       :page="selectedPage"
       :return-focus="previewTrigger"
       @close="selectedPage = null"
+    />
+    <PdfExportDialog
+      v-if="pdfDocumentId"
+      :controller="session"
+      :document-id="pdfDocumentId"
+      @close="closePdf"
+      @review="reviewPdf"
     />
     <ScanEditorDialog
       v-if="editingPage"

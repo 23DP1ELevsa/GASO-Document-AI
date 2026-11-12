@@ -12,7 +12,7 @@ Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglo
 
 ## Galvenās funkcijas
 
-Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1.–5. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas, lokāls attēlu redaktors, Tesseract.js OCR, manuāla dokumentu grupēšana un rediģējamas dokumentu informācijas kartītes. Var pievienot attēlus, meklēt vai manuāli izvēlēties dokumenta stūrus, iztaisnot perspektīvu, pagriezt attēlu, piemērot filtrus, atpazīt latviešu/angļu/krievu tekstu un saglabāt labojamus rezultātus IndexedDB. Lokālie teksta noteikumi piedāvā pārbaudāmus atribūtus; ārēji MI pakalpojumi nav pieslēgti. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija nav ieviesta. PDF un reģistrēšana vēl nav realizēta. Atsevišķais Python OCR komandrindas prototips nav mainīts un nav pieslēgts mobilajai lietotnei.
+Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1.–6. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas, lokāls attēlu redaktors, Tesseract.js OCR, manuāla dokumentu grupēšana, rediģējamas dokumentu informācijas kartītes un lokāls PDF eksports ar priekšskatījumu. Var pievienot attēlus, koriģēt perspektīvu, pagriezt attēlu, piemērot filtrus, atpazīt latviešu/angļu/krievu tekstu un saglabāt labojamus rezultātus IndexedDB. Katru dokumentu var eksportēt atsevišķā PDF ar vai bez apstiprinātas informācijas lapas. Lokālie teksta noteikumi piedāvā pārbaudāmus atribūtus; ārēji MI pakalpojumi nav pieslēgti. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija un dokumentu reģistrēšana vēl nav ieviesta. Atsevišķais Python OCR komandrindas prototips nav pieslēgts pārlūka lietotnei.
 
 1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
 2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
@@ -41,7 +41,7 @@ API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Perso
 | Mākslīgais intelekts | GASO saskaņotais korporatīvais MI API; detaļas tiks precizētas                                                                    |
 | Attēlu apstrāde      | Pārlūkā: Web Worker, OffscreenCanvas, robežu kandidātu analīze un homogrāfija JavaScript; OpenCV.js izvērtēts, bet nav pievienots |
 | Lokāls OCR           | Tesseract.js 7.0.0, WebAssembly/Web Worker, ar lietotni piegādāti `tessdata_fast` 4.1.0 modeļi `lav`, `eng`, `rus`                |
-| PDF ģenerēšana       | Piemērota PDF izveides bibliotēka; izvēle vēl jāveic                                                                              |
+| PDF ģenerēšana       | Lokāli: pdf-lib 1.17.1, @pdf-lib/fontkit 1.1.1, iegults Noto Sans fonts un Web Worker                                             |
 | Mobilā lietotne      | Capacitor 8 Android un PWA ar kopīgu Vue koda bāzi                                                                                |
 | Autorizācija         | Laravel Sanctum                                                                                                                   |
 | Izvietošana          | Railway, ja izvietojums tiks saskaņots                                                                                            |
@@ -131,7 +131,7 @@ Visas frontend komandas izpilda `frontend/` mapē. Backend, Python OCR vide un A
 
 | Rīks                   | Prasība                                                                                                                       |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Node.js                | Vismaz 22.12; ieteicama Node.js 24 LTS. Izstrādē pārbaudīta 24.15.0                                                           |
+| Node.js                | Vismaz 22.13; 6. posmā pārbaudīta 22.14.0. PDF testu lasītājam vajadzīgs Node.js 22.13 vai jaunāks                            |
 | npm                    | Kopā ar Node.js; atkarību reproducēšanai izmantot `npm ci` un saglabāto `package-lock.json`                                   |
 | Pārlūks                | Aktuāls Chrome, Edge vai cits mūsdienīgs pārlūks; automatizētie testi izmanto instalētu Chrome                                |
 | Android Studio         | Otter 2025.2.1 vai jaunāks, nepieciešams tikai Android palaišanai                                                             |
@@ -355,11 +355,32 @@ Sadaļā **Skenēt**, zem lapu priekšskatījumiem, ir **Dokumentu grupas**. Dar
 
 Lokālā analīze izmanto ierobežotu LV/EN/RU apzīmējumu kopu. Dokumenta tipam vajadzīgs virsraksts un papildu satura pierādījums; nosūtītāju/saņēmēju nosaka tikai pēc skaidras lomas. Kopējo summu, PVN, summu bez PVN, summu ar PVN, samaksāto un atlikumu glabā atsevišķi. Pretrunas vai neskaidrs formāts dod `null`, nenoteikts tips ir `unknown`. Nav uzņēmumu veidņu, koordinātu noteikumu, ārēja MI, valodas noteikšanas vai summu aritmētiskas pārbaudes. Rēķinu robežu ieteikumi balstās uz skaidru virsrakstu lapas sākumā un dokumenta numura maiņu; sadalīšana vienmēr prasa apstiprinājumu.
 
-IndexedDB datubāzes versija **1** un trīs krātuves saglabājas. `drafts` ierakstam pievienoti `schemaVersion: 2` un `documents`; dokumentā glabā sakārtotus lapu ID, tipu/nosaukumu/atribūtus, ieteikumus un atsevišķu apstiprinājumu. Attēli netiek dublēti. Vecie melnraksti atveras ar visām lapām nepiesaistītā stāvoklī, nezaudējot OCR. `documentExportPlan` sagatavo informācijas lapas datus un attēlu ID dokumenta secībā nākamā posma PDF adapterim. PDF ģenerēšana vēl nav ieviesta.
+IndexedDB datubāzes versija **1** un trīs krātuves saglabājas. `drafts` ierakstam pievienoti `schemaVersion: 2` un `documents`; dokumentā glabā sakārtotus lapu ID, tipu/nosaukumu/atribūtus, ieteikumus un atsevišķu apstiprinājumu. Attēli netiek dublēti. Vecie melnraksti atveras ar visām lapām nepiesaistītā stāvoklī, nezaudējot OCR. `documentExportPlan` sagatavo informācijas lapas datus un attēlu ID dokumenta secībā. 5. posmā tas bija sagatavots nākamajam posmam; 6. posmā šo plānu izmanto PDF eksporta adapteris.
 
 [5. posma datu modelis, analīzes ierobežojumi un faktiskās pārbaudes](docs/testing/document-grouping.md).
 
 5. posma galīgās pārbaudes: **34/34 vienību testi**, **135/135 Playwright testi** (360, 412 un 1440 px), sekmīgs `build` un `format:check`. Ietverta visa iepriekšējā skenēšanas, redaktora un īstā lokālā OCR regresija.
+
+### 6. posms: PDF priekšskatījums un eksports
+
+Dokumenta grupas kartītē spiediet **Izveidot PDF**. Dialogā izvēlieties:
+
+- **Iekļaut dokumenta informācijas lapu** — PDF sākumā būs atlasāms un kopējams latviešu lauku/atribūtu teksts. Garās vērtības un tabulas turpinās nākamajās lapās. Šis režīms pieejams tikai ar aktuāli apstiprinātu kartīti; neapstiprinātus automātiskos ieteikumus PDF nepievieno.
+- **Tikai skenētās lapas** — noņemiet informācijas lapas atzīmi. Dokumenta lapas saglabāsies tā grupas secībā, arī bez apstiprinātas kartītes.
+- **A4** automātiski izvēlas portreta/ainavas lapu un centrē attēlu, saglabājot proporcijas. **Pielāgots** saglabā attēla proporcijas pašas PDF lapas izmērā.
+- **Augsta** kvalitāte ir noklusējums: JPEG/PNG parasti ievieto bez pārkodēšanas, lielus attēlus pielāgo līdz 16 MP / 6000 px. **Optimizēta** samazina līdz 4 MP / 2400 px un pārkodē JPEG; sīko tekstu pēc tam jāpārbauda.
+
+**Priekšskatīt PDF** vispirms vajadzības gadījumā saglabā sesijas izmaiņas un tad izveido PDF atsevišķā Worker procesā ar progresu. Saglabāšanas kļūmes gadījumā eksports apstājas. Izmanto pilna izmēra apstiprināto apstrādāto attēlu; ja apstrādes nav, oriģinālu. Thumbnail netiek eksportēti. Atbalstīti JPEG, PNG un lokāli konvertēts WebP, tostarp JPEG EXIF orientācija.
+
+Priekšskatījumā redzams lapu skaits, izmērs, informācijas lapas statuss un fails. **Lejupielādēt PDF** saglabā vienu atsevišķu dokumentu. Ja iebūvēts PDF skats nav pieejams, darbojas **Atvērt PDF jaunā cilnē** un lejupielāde. Faila nosaukumu veido no aktuāli apstiprinātiem atribūtiem, citādi `Dokuments_<id>.pdf`; nepieļaujamās rakstzīmes aizstāj. Dialoga aizvēršana aptur izveidi un atbrīvo Blob URL.
+
+Izmantots [pdf-lib 1.17.1](https://pdf-lib.js.org/) un `@pdf-lib/fontkit` 1.1.1 (MIT), lokāls Noto Sans Regular 2.008 (OFL-1.1). Fonts atbalsta latviešu diakritiku un kirilicu; pilnie licenču teksti ir `frontend/public/licenses/`, avots un kontrolsumma — `frontend/src/assets/fonts/source.json`. PDF izveidei nav fontu CDN vai dokumentu augšupielāžu. Produkcijas PWA iepriekš sagatavo arī PDF kodu un fontu darbam bezsaistē. `pdfjs-dist` 6.5.438 izmanto tikai testos PDF teksta, attēlu un lapu pārbaudei.
+
+PDF netiek arhivēts IndexedDB vai PWA kešā. Informācijas lapas teksts ir meklējams; **skenētajām lapām vēl nav OCR teksta slāņa**. Atbalstīts līdz 20 skenētām lapām, 128 PDF lapām kopā, 64 MiB sagatavotu attēlu un 80 MiB gala failam. Lielu failu gadījumā izvēlieties optimizāciju vai sadaliet grupu.
+
+[PDF ģenerēšanas arhitektūra, licences, kvalitātes robežas un faktiskie testu rezultāti](docs/testing/pdf-export.md).
+
+6. posma galīgās pārbaudes: **46/46 vienību testi**, **162/162 Playwright testi**, sekmīgs `build` un `format:check`. PDF saturu papildus nolasa ar neatkarīgu PDF.js lasītāju; pārbaudīts Unicode teksts, attēlu secība, proporcijas, bezsaistes eksports un resursu atbrīvošana.
 
 ### Pārbaudes un nākamais posms
 
@@ -376,7 +397,7 @@ Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē 
 
 4. posmā sekmīgi izpildīti **18/18 vienību testi**, **117/117 Playwright testi**, produkcijas būvējums un formatējuma pārbaude. Pēc pēdējā kļūdas paziņojuma labojuma atsevišķi izturēti vēl **3/3** regresijas testi. Ar īsto OCR pārbaudītas visas trīs valodas, perspektīvas/pagrieziena/filtra rezultāts, saglabāšana, atcelšana un bezsaistes darbs pēc pārlādes. [Faktiskie OCR mērījumi un ierobežojumi](docs/testing/local-ocr.md).
 
-Nākamajos posmos jārealizē PDF ģenerēšana, jāpaplašina dokumentu robežu un atribūtu noteikšana un reālu, izmantošanai atļautu fotogrāfiju OCR kvalitātes novērtēšana. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, OCR fiziskās mazatmiņas ierīcēs, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu vai maksas pakalpojumu.
+Nākamajos posmos jāpaplašina dokumentu robežu un atribūtu noteikšana, OCR kvalitātes novērtēšana ar atļautiem dokumentiem un jāizvērtē koordinātām piesaistīts OCR slānis PDF. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija un failu saglabāšana, OCR/PDF fiziskās mazatmiņas ierīcēs, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu, servera izvietojuma vai APK būvēšanas.
 
 [Mobilās lietotnes arhitektūra un paplašināšanas robežas](docs/diagrams/mobile-architecture.md). Iepriekšējā dokumentācija un `tools/ocr-evaluation/` saglabāta; OCR CLI netiek automātiski palaists pārlūkā vai Android lietotnē.
 

@@ -55,6 +55,7 @@ function addField() {
   <section
     class="document-information"
     data-testid="document-information"
+    tabindex="-1"
     :aria-label="t('grouping.information')"
   >
     <h4>{{ t('grouping.information') }}</h4>

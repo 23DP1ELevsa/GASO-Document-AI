@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         // Interface precache; public OCR assets are cached only on demand.
-        globPatterns: ['index.html', 'assets/*.{js,css,woff2}', 'icons/*.png', 'icon.svg'],
+        globPatterns: ['index.html', 'assets/*.{js,css,woff2,ttf}', 'icons/*.png', 'icon.svg'],
         navigateFallback: 'index.html',
         navigateFallbackAllowlist: [/^\/$/, /\/index\.html$/],
         runtimeCaching: [

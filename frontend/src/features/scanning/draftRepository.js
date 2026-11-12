@@ -1,4 +1,4 @@
-import { ScanError } from './errors'
+import { ScanError } from './errors.js'
 import { validateOcr } from '../ocr/model.js'
 import { migrateGrouping, validateDocuments } from '../documents/model.js'
 

@@ -1,7 +1,9 @@
 import grouping from './grouping.lv.js'
+import pdf from './pdf.lv.js'
 
 export default {
   grouping,
+  pdf,
   app: {
     name: 'GASO Document AI',
     shortName: 'Document AI',
@@ -280,7 +282,7 @@ export default {
       'Pievienojiet dokumentu attēlus skenēšanas sadaļā un saglabājiet sesiju. Pēc tam to varēsiet atvērt un turpināt šeit.',
     future: 'Arhīvs augs kopā ar jums',
     futureText:
-      'Dokumentu grupas un datu kartītes ir pieejamas skenēšanas sesijā. PDF ģenerēšana, meklēšana un reģistrēšana paredzēta nākamajos posmos.',
+      'Dokumentu grupas, datu kartītes un PDF eksports ir pieejami skenēšanas sesijā. Meklēšana un reģistrēšana paredzēta nākamajos posmos.',
     draft: 'Melnraksts',
     created: 'Izveidots',
     updated: 'Rediģēts',
@@ -311,7 +313,7 @@ export default {
     languageNote: 'Angļu un krievu valodas atbalsts paredzēts nākotnē.',
     github: 'Projekts GitHub',
     githubHint: 'Atveras jaunā cilnē',
-    prototype: '5. posms · dokumentu grupas un datu kartītes',
+    prototype: '6. posms · lokāls PDF eksports',
   },
   pwa: {
     install: 'Instalēt lietotni',
