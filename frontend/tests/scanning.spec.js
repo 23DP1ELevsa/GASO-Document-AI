@@ -1,3 +1,5 @@
+import { navigate } from '../test-support/workflowUi.js'
+import { toggleTheme } from '../test-support/workflowUi.js'
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import sharp from 'sharp'
@@ -47,6 +49,7 @@ async function save(page) {
 async function pageMenu(page, index, action) {
   const card = page.getByTestId('page-card').nth(index)
   await card.getByRole('button', { name: /lapas darbības/ }).click()
+  if (action === 'Dzēst lapu') page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: action, exact: true }).click()
 }
 async function storage(page) {
@@ -137,10 +140,10 @@ test('import camera and gallery files; append, preview and release object URLs',
   expect(await page.evaluate(() => window.activeBlobUrls.size)).toBe(3)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('scan-with-pages.png'), fullPage: true })
-  await nav(page).getByRole('link', { name: 'Iestatījumi', exact: true }).click()
+  await navigate(page, 'Iestatījumi')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Iestatījumi')
   await expect.poll(() => page.evaluate(() => window.activeBlobUrls.size)).toBe(0)
-  await nav(page).getByRole('link', { name: 'Skenēt', exact: true }).click()
+  await navigate(page, 'Skenēt')
   await count(page, 3)
   expect(requests).toEqual([])
   expect(errors).toEqual([])
@@ -222,19 +225,19 @@ test('draft list opens, continues and deletes sessions only after confirmation',
   await page.getByTestId('gallery-input').setInputFiles(files.slice(1))
   await count(page, 2)
   await save(page)
-  await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
+  await navigate(page, 'Dokumenti')
   await expect(page.getByTestId('draft-card')).toHaveCount(2)
   await expect(page.getByTestId('draft-card').getByRole('img')).toHaveCount(2)
   await page
     .getByTestId('draft-card')
-    .filter({ hasText: 'Lapas: 1' })
+    .filter({ hasText: '1 lp.' })
     .getByRole('button', { name: 'Turpināt', exact: true })
     .click()
   await count(page, 1)
   await page.getByTestId('gallery-input').setInputFiles(files[2])
   await count(page, 2)
   await save(page)
-  await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
+  await navigate(page, 'Dokumenti')
   page.once('dialog', (dialog) => dialog.dismiss())
   await page
     .getByTestId('draft-card')
@@ -344,7 +347,7 @@ test('unavailable IndexedDB gives a real error while in-memory scanning remains 
   await page.getByRole('button', { name: 'Saglabāt melnrakstu' }).click()
   await expect(page.getByRole('alert')).toContainText('Lokālā krātuve nav pieejama')
   await expect(page.getByRole('button', { name: 'Mēģināt saglabāt vēlreiz' })).toBeEnabled()
-  await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
+  await navigate(page, 'Dokumenti')
   await expect(page.getByRole('alert')).toContainText('Lokālā krātuve nav pieejama')
   await expect(page.getByText('Vēl nav saglabātu melnrakstu', { exact: true })).toHaveCount(0)
 })
@@ -392,7 +395,7 @@ test('many pages, both themes and page menus pass layout and accessibility check
   await count(page, 20)
   await expect(page.getByRole('alert')).toContainText('ne vairāk kā 20 lapas')
   for (const dark of [false, true]) {
-    if (dark) await page.locator('.theme-toggle').click()
+    if (dark) await toggleTheme(page)
     // Vuetify animates surface colors when the theme changes; measure the final colors.
     await page.waitForFunction(() =>
       document.getAnimations().every((animation) => animation.playState !== 'running'),
@@ -422,7 +425,7 @@ test('many pages, both themes and page menus pass layout and accessibility check
   await page.keyboard.press('Escape')
   await page.screenshot({ path: testInfo.outputPath('many-pages-dark.png'), fullPage: true })
   await save(page)
-  await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
+  await navigate(page, 'Dokumenti')
   await expect(page.getByTestId('draft-card')).toHaveCount(1)
   // Contrast must be measured after the route's opacity transition finishes.
   await expect(page.locator('.page-enter-active')).toHaveCount(0)
@@ -457,7 +460,7 @@ test('new-session confirmation protects unsaved work and mixed batches keep vali
   await sessionTools(page)
   await page.getByRole('button', { name: 'Jauna sesija', exact: true }).click()
   await count(page, 0)
-  await expect(page.locator('.workspace-savebar button')).toBeDisabled()
+  await expect(page.locator('.workspace-savebar button')).toHaveCount(0)
 })
 
 test('a stale tab cannot overwrite a newer draft revision', async ({ page, context }) => {
@@ -516,7 +519,7 @@ test('saved image sessions reopen and accept changes offline without entering se
     expect(path).toMatch(
       /^\/(?:index\.html|assets\/[^/]+\.(?:js|css|woff2|ttf)|icons\/[^/]+\.png|icon\.svg|manifest\.webmanifest)$/,
     )
-  await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
+  await navigate(page, 'Dokumenti')
   await expect(page.getByTestId('draft-card')).toHaveCount(1)
-  await expect(page.getByTestId('draft-card')).toContainText('Lapas: 2')
+  await expect(page.getByTestId('draft-card')).toContainText('2 lp.')
 })

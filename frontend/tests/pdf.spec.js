@@ -1,3 +1,4 @@
+import { toggleTheme } from '../test-support/workflowUi.js'
 import { test, expect } from '@playwright/test'
 import { goStep, groupingTools, pdfSettings } from '../test-support/workflowUi.js'
 import AxeBuilder from '@axe-core/playwright'
@@ -188,6 +189,7 @@ async function seed(
     await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   }
   await page.reload()
+  await goStep(page, 2)
   await expect(groups(page)).toHaveCount(2)
   await goStep(page, 4)
   return storage(page)
@@ -195,10 +197,6 @@ async function seed(
 async function open(page, index = 0) {
   await goStep(page, 4)
   await page.getByTestId('workflow-document').nth(index).click()
-  const create = page.getByRole('button', { name: 'Izveidot PDF', exact: true })
-  if (await create.isVisible()) await create.click()
-  else
-    await page.getByRole('button', { name: 'Saglabāt tikai skenētās lapas', exact: true }).click()
   await expect(dialog(page)).toBeVisible()
   return dialog(page)
 }
@@ -214,6 +212,9 @@ async function download(page) {
   const pending = page.waitForEvent('download')
   await dialog(page).getByRole('button', { name: 'Lejupielādēt PDF', exact: true }).click()
   const downloaded = await pending
+  await expect(dialog(page).getByRole('heading', { name: 'Gatavs!', exact: true })).toBeVisible()
+  await expect.poll(() => page.getByText('Apstrādā…', { exact: true }).count()).toBe(0)
+  await dialog(page).getByRole('button', { name: 'Izveidot PDF vēlreiz', exact: true }).click()
   return {
     parsed: await readPdf(await readFile(await downloaded.path())),
     filename: downloaded.suggestedFilename(),
@@ -258,7 +259,10 @@ test('PDF with searchable Unicode information uses only the selected group, appr
   expect(parsed.pages[2].images[0].sample.slice(0, 3)).toEqual([255, 255, 0])
   expect(parsed.pages[1].width).toBeGreaterThan(parsed.pages[1].height)
   expect(parsed.pages[2].width).toBeLessThan(parsed.pages[2].height)
-  expect(await storage(page)).toEqual(before)
+  const after = await storage(page)
+  expect(after.pages).toEqual(before.pages)
+  expect(after.draft.documents).toEqual(before.draft.documents)
+  expect(after.draft.pageIds).toEqual(before.draft.pageIds)
   expect(requests).toEqual([])
   await page.screenshot({ path: testInfo.outputPath('pdf-preview.png'), fullPage: true })
   await close(page)
@@ -347,7 +351,7 @@ test('long attributes continue over information pages and preview fallback remai
   for (const dark of [false, true]) {
     if (dark) {
       await close(page)
-      await page.locator('.theme-toggle').click()
+      await toggleTheme(page)
       await open(page)
       await preview(page)
     }
@@ -426,6 +430,7 @@ test('missing images fail visibly without partial download; restoration permits 
     db.close()
   }, id)
   await open(page)
+  await dialog(page).getByRole('button', { name: 'Priekšskatīt PDF', exact: true }).click()
   await expect(dialog(page).getByRole('alert')).toContainText('attēls nav pieejams')
   await expect(dialog(page).getByRole('button', { name: 'Lejupielādēt PDF' })).toHaveCount(0)
   expect(await page.evaluate(() => pdfWorkers.size)).toBe(0)
@@ -522,10 +527,14 @@ test('cancelling an active PDF process terminates its worker, releases URLs and 
     })
   })
   await open(page)
+  await dialog(page).getByRole('button', { name: 'Priekšskatīt PDF', exact: true }).click()
   await expect.poll(() => page.evaluate(() => pdfWorkers.size)).toBe(1)
   await expect(dialog(page).locator('.pdf-progress')).toBeVisible()
   await close(page)
-  expect(await storage(page)).toEqual(before)
+  const after = await storage(page)
+  expect(after.pages).toEqual(before.pages)
+  expect(after.draft.documents).toEqual(before.draft.documents)
+  expect(after.draft.pageIds).toEqual(before.draft.pageIds)
   await open(page)
   await preview(page)
   await close(page)

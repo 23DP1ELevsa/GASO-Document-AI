@@ -17,14 +17,14 @@ export default defineConfig({
       use: { viewport: { width: 360, height: 800 }, isMobile: true, hasTouch: true },
     },
     {
-      name: 'mobile-412',
-      use: { viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true },
+      name: 'mobile-390',
+      use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
     },
     { name: 'desktop', use: { viewport: { width: 1440, height: 1000 } } },
   ],
   webServer: {
-    command: 'npm run preview -- --host 127.0.0.1',
+    command: 'node node_modules/vite/bin/vite.js preview --host 127.0.0.1',
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: false,
+    reuseExistingServer: process.env.GASO_E2E_EXTERNAL_SERVER === '1',
   },
 })

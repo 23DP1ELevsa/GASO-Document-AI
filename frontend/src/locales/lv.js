@@ -191,48 +191,47 @@ export default {
     title: 'Lapas teksts',
     recognize: 'Atpazīt tekstu',
     recognizeAll: 'Atpazīt visas lapas',
-    rerun: 'Atkārtot OCR',
+    rerun: 'Atkārtot atpazīšanu',
     view: 'Skatīt tekstu',
     close: 'Aizvērt teksta apskati',
-    image: 'OCR ievades attēls',
+    image: 'Atpazīšanai izmantotais attēls',
     selectPage: 'Izvēlēties lapu',
-    languages: 'Dokumenta OCR valodas',
+    languages: 'Dokumenta valodas',
     language: { lav: 'Latviešu', eng: 'Angļu', rus: 'Krievu' },
-    languageHint:
-      'Izvēlieties vienu vai vairākas dokumenta valodas. Izvēle saglabājas šajā pārlūkprogrammā; atmiņā ielādē tikai izvēlētos modeļus.',
-    settingsTitle: 'Teksta atpazīšana (OCR)',
-    settingsError: 'OCR valodu izvēli neizdevās saglabāt. Tā darbosies līdz pārlādei.',
+    languageHint: 'Izvēlieties dokumentos izmantotās valodas. Izvēli saglabāsim šajā ierīcē.',
+    settingsTitle: 'Teksta atpazīšana',
+    settingsError: 'Valodu izvēli neizdevās saglabāt. Tā darbosies līdz pārlādei.',
     status: 'Statuss',
     statuses: {
       success: 'Teksts atpazīts',
       empty: 'Teksts nav atrasts',
-      error: 'OCR kļūda',
-      cancelled: 'OCR atcelts',
+      error: 'Atpazīšana neizdevās',
+      cancelled: 'Atpazīšana atcelta',
     },
     usedLanguages: 'Izmantotās valodas',
-    confidence: 'Dzinēja ticamības vērtējums',
+    confidence: 'Atpazīšanas ticamība',
     text: 'Atpazītais teksts — varat labot',
-    originalText: 'Sākotnējais OCR teksts',
+    originalText: 'Sākotnēji atpazītais teksts',
     textLimit:
       'Līdz {count} rakstzīmēm katrā teksta versijā. Sākotnējais rezultāts saglabājas atsevišķi.',
     save: 'Saglabāt tekstu',
     saved: 'Teksts un sesija saglabāti šajā pārlūkprogrammā.',
     copy: 'Kopēt tekstu',
     copied: 'Teksts nokopēts.',
-    noResult: 'Šai lapai vēl nav OCR rezultāta.',
+    noResult: 'Šīs lapas teksts vēl nav atpazīts.',
     empty:
       'Teksts nav atpazīts. Pārbaudiet attēlu, dokumenta valodu un filtru; pēc tam mēģiniet vēlreiz.',
     stale: 'Teksts tika atpazīts no iepriekšējās attēla versijas. Ieteicams atkārtot atpazīšanu.',
     staleLabel: 'Teksts no iepriekšējās versijas',
     languageChanged:
-      'Izvēlētais valodu komplekts atšķiras no rezultāta valodām. Lai lietotu jauno izvēli, atkārtojiet OCR.',
+      'Izvēlētās valodas ir mainītas. Atkārtojiet teksta atpazīšanu ar jauno izvēli.',
     confirmRerun:
-      'Jaunais OCR rezultāts var atšķirties. Veiksmīga atpazīšana aizstās iepriekšējo OCR tekstu un šīm lapām saglabātos manuālos labojumus. Vai turpināt?',
+      'Atkārtota atpazīšana aizstās iepriekšējo tekstu un tā manuālos labojumus. Vai turpināt?',
     confirmUnsaved: 'Tekstā ir nesaglabāti labojumi. Vai atmest tos?',
-    cancel: 'Apturēt OCR',
+    cancel: 'Apturēt atpazīšanu',
     cancelled: 'Apstrāde apturēta. Iepriekš pabeigto lapu rezultāti saglabājas.',
-    progress: 'OCR progress',
-    phase: { initializing: 'Sagatavo OCR…', recognizing: 'Atpazīst tekstu…' },
+    progress: 'Atpazīšanas progress',
+    phase: { initializing: 'Sagatavo atpazīšanu…', recognizing: 'Atpazīst tekstu…' },
     batchProgress: 'Lapa {current} no {total} · pabeigtas: {completed} · kļūdas: {errors}',
     sessionTitle: 'Sesijas lapu teksts',
     sessionHint:
@@ -243,34 +242,32 @@ export default {
     privacy:
       'Atpazīšana notiek ierīcē. Attēli un teksts netiek sūtīti ārējiem pakalpojumiem. Ticamības vērtējums nav precizitātes garantija.',
     offlineHint:
-      'Bezsaistes darbam sagatavojiet izvēlēto valodu modeļus un OCR kodu (aptuveni 14–22 MiB). Tīmekļa versijā vajadzīgs arī aktivizēts produkcijas PWA kešs. Pārlūks var izdzēst lokālos datus.',
-    prepareOffline: 'Sagatavot OCR bezsaistei',
-    preparing: 'Sagatavo OCR resursus…',
-    offlineReady:
-      'Izvēlēto valodu modeļi un OCR kods pārbaudīti un saglabāti šajā pārlūkā. PWA interfeisam jābūt iepriekš ielādētam.',
+      'Sagatavojiet valodas, lai atpazīšana darbotos arī bez interneta. Tas aizņem aptuveni 14–22 MB.',
+    prepareOffline: 'Sagatavot darbam bez interneta',
+    preparing: 'Sagatavo valodas…',
+    offlineReady: 'Valodas ir sagatavotas darbam bez interneta šajā ierīcē.',
     errors: {
-      languages: 'Izvēlieties vismaz vienu no atbalstītajām OCR valodām.',
-      busy: 'Sagaidiet pašreizējās OCR darbības beigas.',
+      languages: 'Izvēlieties vismaz vienu dokumenta valodu.',
+      busy: 'Sagaidiet pašreizējās atpazīšanas beigas.',
       modelUnavailable:
-        'OCR valodas modeli nevar ielādēt. Pārbaudiet, vai lietotnes OCR resursi ir sagatavoti un izvēlētā valoda ir pieejama bezsaistē.',
+        'Neizdevās ielādēt izvēlēto valodu. Pārbaudiet interneta savienojumu vai sagatavojiet valodas darbam bez interneta.',
       initialization:
-        'Neizdevās palaist OCR WebAssembly vai Worker. Izmantojiet aktuālu pārlūku un pārbaudiet, vai ir pieejami lietotnes OCR faili.',
+        'Neizdevās sagatavot teksta atpazīšanu. Pārlādējiet lietotni un mēģiniet vēlreiz.',
       recognition:
         'Teksta atpazīšana neizdevās. Iepriekšējais teksts saglabāts. Pārbaudiet attēlu un mēģiniet vēlreiz.',
       imageUnavailable:
-        'Pilna izmēra OCR ievades attēls nav pieejams. Atveriet melnrakstu vēlreiz vai pievienojiet attēlu.',
+        'Pilna izmēra Atpazīšanai izmantotais attēls nav pieejams. Atveriet melnrakstu vēlreiz vai pievienojiet attēlu.',
       memory:
-        'OCR nepietiek ierīces atmiņas. Aizveriet citas cilnes, izvēlieties mazāk valodu vai mazāku attēlu.',
+        'Atpazīšanai nepietiek ierīces atmiņas. Aizveriet citas cilnes, izvēlieties mazāk valodu vai mazāku attēlu.',
       timeout:
-        'OCR pārsniedza trīs minūtes un tika apturēts. Mēģiniet ar vienu valodu vai mazāku attēlu.',
-      cancelled: 'Šīs lapas OCR ir atcelts. Iepriekšējais teksts saglabāts.',
+        'Atpazīšana pārsniedza trīs minūtes un tika apturēts. Mēģiniet ar vienu valodu vai mazāku attēlu.',
+      cancelled: 'Šīs lapas atpazīšana ir atcelta. Iepriekšējais teksts saglabāts.',
       textTooLarge:
-        'OCR teksts pārsniedz 250 000 rakstzīmes. Iepriekšējais rezultāts nav aizstāts; sadaliet ievadi mazākās lapās.',
+        'Atpazītais teksts pārsniedz 250 000 rakstzīmes. Iepriekšējais rezultāts nav aizstāts; sadaliet ievadi mazākās lapās.',
       clipboard: 'Tekstu nevar nokopēt. Atlasiet un kopējiet to manuāli.',
       offlineUnavailable:
         'Pārlūks neļauj sagatavot bezsaistes kešu. Atveriet lietotni localhost vai HTTPS un pārbaudiet glabāšanas atļaujas.',
-      integrity:
-        'OCR faila kontrolsumma neatbilst sagatavotajai versijai. Atjauniniet lietotni un mēģiniet vēlreiz.',
+      integrity: 'Valodas faili ir bojāti. Atjauniniet lietotni un mēģiniet vēlreiz.',
     },
   },
   documents: {

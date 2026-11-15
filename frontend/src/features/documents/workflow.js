@@ -5,6 +5,7 @@ import {
   unassignedPages,
   documentPages,
   isConfirmationCurrent,
+  sourceVersion,
 } from './model.js'
 import { isOcrStale } from '../ocr/model.js'
 
@@ -12,6 +13,17 @@ export function navigationState(value = {}) {
   return {
     step: Number.isInteger(value?.step) && value.step >= 1 && value.step <= 4 ? value.step : null,
     documentId: typeof value?.documentId === 'string' ? value.documentId : null,
+    ...(Array.isArray(value?.exports)
+      ? {
+          exports: value.exports.filter(
+            (item) =>
+              typeof item?.documentId === 'string' &&
+              typeof item?.signature === 'string' &&
+              typeof item?.filename === 'string' &&
+              Number.isFinite(item?.downloadedAt),
+          ),
+        }
+      : {}),
   }
 }
 export function workflowState(session) {
@@ -75,6 +87,30 @@ export function draftHasDocuments(draft) {
   const assigned = new Set(documents.flatMap((document) => document.pageIds))
   return Boolean(
     draft.pageIds.length && documents.length && draft.pageIds.every((id) => assigned.has(id)),
+  )
+}
+export function currentExports(session) {
+  return (session.workflow?.exports || []).filter((entry) => {
+    const document = session.documents.find((item) => item.id === entry.documentId)
+    return (
+      document &&
+      entry.signature ===
+        JSON.stringify([
+          sourceVersion(session, document),
+          document.values,
+          document.customFields,
+          document.confirmation,
+        ])
+    )
+  })
+}
+export function draftIsDownloaded(draft) {
+  const documents = (draft.documents || []).filter((item) => item.pageIds.length)
+  return (
+    draftHasDocuments(draft) &&
+    documents.every((document) =>
+      draft.workflow?.exports?.some((item) => item.documentId === document.id),
+    )
   )
 }
 export async function recognizeDocument(session, ocr, id, languages, confirmRerun = () => true) {

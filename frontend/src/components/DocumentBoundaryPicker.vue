@@ -27,29 +27,42 @@ function number(index) {
   <section v-if="pages.length" class="boundary-picker" data-testid="boundary-picker">
     <p>{{ t('workflow.groupExplanation') }}</p>
     <div class="boundary-grid">
-      <article
-        v-for="(page, index) in pages"
-        :key="page.id"
-        :class="{ 'boundary-start': index === 0 || starts.includes(page.id) }"
-      >
-        <BlobImage :blob="page.thumbnail" :alt="t('scan.pageNumber', { number: index + 1 })" /><span
-          class="boundary-document"
-          >{{ t('workflow.documentNumber', { number: number(index) }) }}</span
+      <template v-for="(page, index) in pages" :key="page.id">
+        <label
+          v-if="index"
+          class="boundary-divider"
+          :class="{ selected: starts.includes(page.id) }"
         >
-        <p>{{ t('scan.pageNumber', { number: index + 1 }) }}</p>
-        <label v-if="index"
-          ><input
+          <input
             type="checkbox"
             :checked="starts.includes(page.id)"
             :disabled="disabled"
             @change="toggle(page.id, $event.target.checked)"
-          />{{ t('workflow.startHere') }}</label
-        >
-        <p v-else class="small-muted">{{ t('workflow.firstPage') }}</p>
-      </article>
+          />
+          <span>{{
+            starts.includes(page.id) ? 'Šeit sākas jauns dokuments' : 'Sākt jaunu dokumentu šeit'
+          }}</span>
+        </label>
+        <h3 v-if="index === 0 || starts.includes(page.id)" class="boundary-heading">
+          Dokuments {{ number(index) }}
+          <span>· {{ pages.filter((_, i) => number(i) === number(index)).length }} lp.</span>
+        </h3>
+        <article>
+          <BlobImage
+            :blob="page.thumbnail"
+            :alt="t('scan.pageNumber', { number: index + 1 })"
+          /><strong>Lapa {{ index + 1 }}</strong>
+        </article>
+      </template>
     </div>
-    <v-btn color="primary" size="large" :disabled="disabled" @click="emit('create', starts)">{{
-      t('workflow.createGroups', { count })
-    }}</v-btn>
+    <v-btn
+      variant="tonal"
+      color="primary"
+      block
+      size="large"
+      :disabled="disabled"
+      @click="emit('create', starts)"
+      >{{ t('workflow.createGroups', { count }) }}</v-btn
+    >
   </section>
 </template>

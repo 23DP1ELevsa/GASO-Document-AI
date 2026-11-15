@@ -20,7 +20,30 @@ const label = ref(''),
 const stale = computed(() => isAnalysisStale(props.session, props.document))
 const confirmed = computed(() => isConfirmationCurrent(props.session, props.document))
 const errors = computed(() => validationErrors(props.document))
-const common = COMMON_FIELDS.map((key) => ({ key, label: t(`grouping.fields.${key}`) }))
+const primaryFields = {
+  invoice: COMMON_FIELDS,
+  contract: [
+    'document_type',
+    'document_title',
+    'document_number',
+    'sender',
+    'recipient',
+    'issue_date',
+  ],
+  application: ['document_type', 'document_title', 'sender', 'recipient', 'issue_date'],
+  delivery_note: COMMON_FIELDS.filter((key) => key !== 'due_date'),
+  other: ['document_type', 'document_title', 'document_number', 'sender', 'issue_date'],
+}
+const common = computed(() => {
+  const type =
+    props.document.values.document_type !== 'unknown'
+      ? props.document.values.document_type
+      : props.document.analysis?.result.document_type
+  return (primaryFields[type] || COMMON_FIELDS).map((key) => ({
+    key,
+    label: t(`grouping.fields.${key}`),
+  }))
+})
 const extra = computed(() => {
   const type = props.document.values.document_type,
     suggested = props.document.analysis?.result.document_type
@@ -28,7 +51,7 @@ const extra = computed(() => {
     (key) => props.document.values[key] !== null && !key.startsWith('custom_'),
   )
   return [...new Set([...(TYPE_FIELDS[type] || []), ...(TYPE_FIELDS[suggested] || []), ...filled])]
-    .filter((key) => !COMMON_FIELDS.includes(key))
+    .filter((key) => !common.value.some((field) => field.key === key))
     .map((key) => ({ key, label: t(`grouping.fields.${key}`) }))
     .concat(props.document.customFields)
 })

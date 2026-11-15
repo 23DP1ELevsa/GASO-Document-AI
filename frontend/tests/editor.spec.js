@@ -1,3 +1,5 @@
+import { navigate } from '../test-support/workflowUi.js'
+import { toggleTheme } from '../test-support/workflowUi.js'
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import sharp from 'sharp'
@@ -379,7 +381,7 @@ test('legacy v1 records remain readable and editing is non-destructive when canc
   await dialog.getByRole('button', { name: 'Atcelt rediģēšanu', exact: true }).last().click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   expect(await state(page)).toEqual(before)
-  await expect(page.locator('.workspace-savebar button')).toBeDisabled()
+  await expect(page.locator('.workspace-savebar button')).toHaveCount(0)
   dialog = await openEditor(page)
   await apply(page, dialog)
   await save(page)
@@ -427,6 +429,7 @@ test('editing multiple pages survives reordering, replacement and deletion witho
     .last()
     .getByRole('button', { name: /lapas darbības/ })
     .click()
+  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Dzēst lapu', exact: true }).click()
   await save(page)
   stored = await state(page)
@@ -502,7 +505,7 @@ test('editor remains accessible in both themes and can process saved images offl
   for (const dark of [false, true]) {
     if (dark) {
       await dialog.getByRole('button', { name: 'Atcelt rediģēšanu', exact: true }).last().click()
-      await page.locator('.theme-toggle').click()
+      await toggleTheme(page)
       dialog = await openEditor(page)
     }
     await page.waitForFunction(() =>
@@ -521,7 +524,7 @@ test('editor remains accessible in both themes and can process saved images offl
   }
   await apply(page, dialog)
   await save(page)
-  await nav(page).getByRole('link', { name: 'Dokumenti', exact: true }).click()
+  await navigate(page, 'Dokumenti')
   await expect(page.getByTestId('draft-card')).toHaveCount(1)
 })
 

@@ -16,21 +16,12 @@ defineEmits(['select'])
           :aria-current="state.step === number ? 'step' : undefined"
           @click="$emit('select', number)"
         >
-          <span class="workflow-step-number" aria-hidden="true">{{
-            state.complete[number - 1] && state.step !== number ? '✓' : number
-          }}</span
-          ><span
-            >{{ t(`workflow.steps.${number}`)
-            }}<small>{{
-              t(
-                state.complete[number - 1]
-                  ? 'workflow.done'
-                  : number === 3
-                    ? 'workflow.optional'
-                    : 'workflow.pending',
-              )
-            }}</small></span
-          >
+          <span class="sr-only">{{ t(`workflow.steps.${number}`) }}</span>
+          <span
+            class="step-progress-bar"
+            :class="{ filled: number <= state.step }"
+            aria-hidden="true"
+          />
         </button>
       </li>
     </ol>

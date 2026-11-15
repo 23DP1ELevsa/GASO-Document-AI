@@ -21,6 +21,6 @@ const router = createRouter({
 router.afterEach(async (to, from) => {
   document.title = `${t(`nav.${to.name}`)} · ${t('app.name')}`
   await nextTick()
-  if (from.name) document.querySelector('main h1')?.focus({ preventScroll: true })
+  if (from.name) document.querySelector('h1')?.focus({ preventScroll: true })
 })
 export default router

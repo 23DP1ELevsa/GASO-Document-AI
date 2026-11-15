@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test'
 export async function goStep(page, number) {
-  const names = ['Pievienošana', 'Lapas', 'Informācija', 'PDF']
+  const names = ['Foto', 'Lapas', 'Dati', 'PDF']
   const button = page
     .getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' })
     .getByRole('button', { name: new RegExp('^' + names[number - 1]) })
@@ -24,6 +24,10 @@ export async function groupingTools(page) {
   await goStep(page, 2)
   const choice = page.getByRole('button', { name: 'Sadalīt vairākos dokumentos', exact: true })
   if (await choice.isVisible()) await choice.click()
+  if (!(await page.locator('.group-manual-creation').count())) {
+    await sessionTools(page)
+    await page.getByRole('button', { name: 'Pārvaldīt dokumentus', exact: true }).click()
+  }
   const details = page.locator('.group-manual-creation')
   if (!(await details.evaluate((element) => element.open)))
     await details.locator(':scope > summary').click()
@@ -70,4 +74,31 @@ export async function analyzeDocument(page, index = 0) {
     .getByTestId('document-information')
     .getByRole('button', { name: 'Analizēt lokāli', exact: true })
     .click()
+}
+
+export async function toggleTheme(page) {
+  await sessionTools(page)
+  await page.locator('.theme-toggle').click()
+  await page.locator('.session-menu > summary').click()
+}
+export async function navigate(page, name) {
+  if (name === 'Skenēt') {
+    await page.getByRole('button', { name: 'Atpakaļ', exact: true }).click()
+    return
+  }
+  if (await page.locator('.session-menu').count()) await sessionTools(page)
+  await page.getByRole('link', { name, exact: true }).click()
+}
+export async function continuePages(page) {
+  const one = page.getByRole('button', { name: 'Visas lapas ir viens dokuments', exact: true })
+  if (await one.isVisible()) await one.click()
+  await page.getByRole('button', { name: 'Turpināt uz datiem', exact: true }).click()
+}
+export async function acceptSuggestions(page) {
+  const info = page.getByTestId('document-information')
+  const more = info.locator('.review-extra')
+  if ((await more.count()) && !(await more.evaluate((el) => el.open)))
+    await more.locator('summary').first().click()
+  const buttons = info.getByRole('button', { name: /^Izmantot ieteikumu laukam/ })
+  while (await buttons.count()) await buttons.first().click()
 }

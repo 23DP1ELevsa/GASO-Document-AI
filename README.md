@@ -6,6 +6,8 @@ GASO Document AI ir topošā Android mobilā lietotne un progresīvā tīmekļa 
 
 Projekta uzdevumi tiek pārvaldīti [GASO Document AI Trello dēlī](https://trello.com/b/J6ecDlQE/gaso-document-ai-projekta-izstrade).
 
+Mobilās saskarnes Lovable dizaina pārnesums, ekrānattēli un pārbaudes ir aprakstītas [dizaina pārnesuma pārskatā](docs/mobile-design-transfer.md).
+
 ## Projekta mērķis
 
 Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglojot drukātu dokumentu digitalizāciju. Lietotājam būs iespēja pārbaudīt un labot gan dokumentu grupējumu, gan iegūtos datus pirms reģistrēšanas un arhivēšanas.

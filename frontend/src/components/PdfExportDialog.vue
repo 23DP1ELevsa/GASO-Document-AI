@@ -1,6 +1,9 @@
 <script setup>
 import { computed, onMounted, onScopeDispose, ref, shallowRef, watch, nextTick } from 'vue'
 import AppIcon from './AppIcon.vue'
+import { VDialog } from 'vuetify/components'
+import MobileStepFooter from './MobileStepFooter.vue'
+import ExportComplete from './ExportComplete.vue'
 import { useBlobUrl } from '../composables/useBlobUrl.js'
 import { isConfirmationCurrent } from '../features/documents/model.js'
 import { createPdfService } from '../features/pdf/pdfService.js'
@@ -17,8 +20,10 @@ const props = defineProps({
   documentId: String,
   initialOptions: Object,
   autoPreview: Boolean,
+  inline: Boolean,
+  workflowState: Object,
 })
-const emit = defineEmits(['close', 'review'])
+const emit = defineEmits(['close', 'review', 'select', 'next', 'busy', 'complete'])
 const document = computed(() =>
   props.controller.active.value?.documents.find((item) => item.id === props.documentId),
 )
@@ -30,6 +35,11 @@ const options = ref({ ...DEFAULT_PDF_OPTIONS, ...props.initialOptions }),
   working = ref(false),
   downloading = ref(false),
   error = ref('')
+const completed = ref(false),
+  downloadedName = ref(''),
+  historyError = ref('')
+const advancedOpen = ref(false)
+watch(completed, (value) => emit('complete', value), { flush: 'sync' })
 const progress = ref({ phase: 'information', completed: 0, total: 0 })
 const result = shallowRef(null),
   blob = shallowRef(null),
@@ -57,9 +67,13 @@ const percentage = computed(() =>
       : 0,
 )
 function clearResult() {
+  error.value = ''
   result.value = blob.value = snapshot.value = null
 }
 watch(options, clearResult, { deep: true })
+watch([working, downloading], () => emit('busy', working.value || downloading.value), {
+  flush: 'sync',
+})
 function message(reason) {
   return reason instanceof ScanError || reason?.name === 'QuotaExceededError'
     ? t(`scan.errors.${errorCode(reason)}`)
@@ -92,9 +106,11 @@ async function generate() {
   }
 }
 async function download() {
+  if (!result.value && canGenerate.value) await generate()
   if (!result.value || downloading.value) return
   downloading.value = true
   error.value = ''
+  historyError.value = ''
   try {
     const prepared = snapshot.value
     await verifyExport(props.controller, prepared)
@@ -106,6 +122,31 @@ async function download() {
     window.document.body.append(link)
     link.click()
     link.remove()
+    downloadedName.value = prepared.metadata.filename
+    completed.value = true
+    try {
+      const exports = (props.controller.active.value.workflow?.exports || []).filter(
+        (item) => item.documentId !== props.documentId,
+      )
+      props.controller.setWorkflow({
+        exports: [
+          ...exports,
+          {
+            documentId: props.documentId,
+            signature: prepared.signature,
+            filename: prepared.metadata.filename,
+            downloadedAt: Date.now(),
+          },
+        ],
+      })
+      await props.controller.save()
+      snapshot.value = { ...prepared, revision: props.controller.active.value.revision }
+      await verifyExport(props.controller, snapshot.value)
+    } catch (reason) {
+      historyError.value =
+        'PDF lejupielāde sākta, bet dokumenta statusu neizdevās saglabāt. ' + message(reason)
+      clearResult()
+    }
   } catch (reason) {
     clearResult()
     error.value = message(reason)
@@ -156,131 +197,188 @@ onScopeDispose(() => {
   disposed = true
   generation++
   service.dispose()
+  emit('busy', false)
+  emit('complete', false)
 })
 </script>
 <template>
-  <v-dialog
+  <component
+    :is="inline ? 'section' : VDialog"
     :model-value="true"
-    max-width="1100"
-    persistent
+    :max-width="430"
+    :persistent="!inline"
+    :role="inline ? 'dialog' : undefined"
     :aria-label="t('pdf.title')"
+    :class="{ 'inline-pdf': inline, 'mobile-pdf-overlay': !inline }"
     @keydown.esc.prevent.stop="close"
   >
-    <v-card class="pdf-dialog">
-      <header class="pdf-heading">
-        <div>
-          <p class="eyebrow">{{ t('pdf.title') }}</p>
-          <h2>{{ result ? t('workflow.ready') : title }}</h2>
-          <p v-if="result">{{ title }}</p>
-        </div>
-        <v-btn variant="text" :aria-label="t('pdf.close')" @click="close"
-          ><AppIcon name="close"
-        /></v-btn>
-      </header>
-      <p v-if="!confirmed && !result && !working" class="ocr-warning" role="status">
-        {{ t('pdf.unconfirmed') }}
-      </p>
-      <v-btn
-        v-if="!confirmed && !result && !working"
-        variant="text"
-        color="primary"
-        :disabled="working"
-        @click="emit('review')"
-        >{{ t('workflow.review') }}</v-btn
-      >
-      <v-btn
-        v-if="!confirmed && !result && !working"
-        color="primary"
+    <v-card class="pdf-dialog" :class="{ 'pdf-is-complete': completed }">
+      <ExportComplete
+        v-if="completed"
+        :filename="downloadedName"
+        :warning="historyError"
         :disabled="downloading"
-        @click="scansOnly"
-        >{{ t('workflow.scansOnly') }}</v-btn
-      >
-      <details class="pdf-advanced">
-        <summary>{{ t('workflow.pdfSettings') }}</summary>
-        <div class="pdf-options">
-          <label class="pdf-checkbox"
-            ><input
-              v-model="options.includeInformation"
-              type="checkbox"
-              :disabled="working || downloading"
-            />{{ t('pdf.includeInformation') }}</label
-          >
-          <label
-            >{{ t('pdf.pageSize')
-            }}<select v-model="options.pageSize" :disabled="working || downloading">
-              <option value="a4">{{ t('pdf.a4') }}</option>
-              <option value="image">{{ t('pdf.image') }}</option>
-            </select></label
-          >
-          <label
-            >{{ t('pdf.quality')
-            }}<select v-model="options.quality" :disabled="working || downloading">
-              <option value="high">{{ t('pdf.high') }}</option>
-              <option value="optimized">{{ t('pdf.optimized') }}</option>
-            </select></label
-          >
-        </div>
-        <p :class="options.quality === 'optimized' ? 'ocr-warning' : 'small-muted'">
-          {{ t(options.quality === 'optimized' ? 'pdf.optimizedHint' : 'pdf.qualityHint') }}
-        </p>
-        <p v-if="controller.dirty.value" class="small-muted">{{ t('pdf.unsaved') }}</p>
-      </details>
-      <div v-if="!result && (confirmed || !options.includeInformation)" class="pdf-actions">
-        <v-btn color="primary" :disabled="!canGenerate" @click="generate">{{
-          t(controller.dirty.value ? 'pdf.savePreview' : 'pdf.preview')
-        }}</v-btn>
-      </div>
-      <div v-if="working" class="pdf-progress" role="status">
-        <p>{{ t(`pdf.${progress.phase}`, progress) }}</p>
-        <v-progress-linear
-          :model-value="percentage"
-          color="primary"
-          :aria-label="t('pdf.working')"
-        />
-      </div>
-      <p v-if="error" class="scan-error" role="alert">{{ error }}</p>
-      <section
-        v-if="result"
-        class="pdf-preview"
-        data-testid="pdf-preview"
-        :aria-label="t('pdf.previewTitle')"
-      >
-        <div class="pdf-summary" role="status">
-          <p>{{ t('pdf.pages', { count: result.pageCount }) }}</p>
-          <p>{{ t('pdf.size', { size: (blob.size / 1024 ** 2).toFixed(2) }) }}</p>
-          <p>{{ t(result.informationPageCount ? 'pdf.verified' : 'pdf.scansOnly') }}</p>
-          <p v-if="result.informationPageCount">
-            {{ t('pdf.informationPages', { count: result.informationPageCount }) }}
+        @next="emit('next')"
+        @back="completed = false"
+      />
+      <template v-else>
+        <header v-if="!inline" class="pdf-heading">
+          <h2>{{ t('pdf.title') }}</h2>
+          <button class="icon-button" aria-label="Atcelt" @click="close">
+            <AppIcon name="close" />
+          </button>
+        </header>
+        <div class="pdf-content">
+          <h2>Izvēlieties PDF saturu</h2>
+          <div class="pdf-mode-choices" role="radiogroup" aria-label="PDF saturs">
+            <label class="pdf-mode-choice" :class="{ selected: options.includeInformation }">
+              <input
+                v-model="options.includeInformation"
+                type="radio"
+                :value="true"
+                :disabled="working || downloading"
+              />
+              <AppIcon name="file" :size="24" /><span
+                ><strong>PDF ar informāciju</strong
+                ><small>Skenējums un pārbaudītie dokumenta dati</small></span
+              >
+            </label>
+            <label class="pdf-mode-choice" :class="{ selected: !options.includeInformation }">
+              <input
+                v-model="options.includeInformation"
+                type="radio"
+                :value="false"
+                :disabled="working || downloading"
+              />
+              <AppIcon name="layers" :size="24" /><span
+                ><strong>Tikai skenējums</strong><small>Tikai jūsu pievienotās lapas</small></span
+              >
+            </label>
+          </div>
+          <p v-if="options.includeInformation && !confirmed" class="ocr-warning" role="status">
+            Lai iekļautu informāciju, vispirms pārbaudiet un apstipriniet datus.
           </p>
-          <p>{{ snapshot.metadata.filename }}</p>
-        </div>
-        <p v-if="result.resized" class="ocr-warning">{{ t('pdf.resized') }}</p>
-        <iframe
-          v-if="embeddedViewer && url"
-          :src="url"
-          :title="t('pdf.previewTitle')"
-          @error="embeddedViewer = false"
-        />
-        <p v-else class="ocr-warning">{{ t('pdf.noViewer') }}</p>
-        <p class="small-muted">{{ t('pdf.fallback') }}</p>
-        <div class="pdf-actions">
-          <v-btn color="primary" :disabled="downloading" @click="download">{{
-            t('pdf.download')
-          }}</v-btn
-          ><a
-            :href="url"
-            target="_blank"
-            rel="noopener noreferrer"
-            :aria-disabled="downloading"
-            @click.prevent="openInTab"
-            >{{ t('pdf.open') }}</a
+          <v-btn
+            v-if="!confirmed"
+            variant="text"
+            color="primary"
+            :disabled="working || downloading"
+            @click="emit('review')"
+            >{{ t('workflow.review') }}</v-btn
           >
+          <details
+            class="pdf-advanced"
+            :open="advancedOpen"
+            @toggle="advancedOpen = $event.target.open"
+          >
+            <summary>Papildu iestatījumi</summary>
+            <div class="pdf-options">
+              <label class="pdf-checkbox"
+                ><input
+                  v-model="options.includeInformation"
+                  type="checkbox"
+                  :disabled="working || downloading"
+                />{{ t('pdf.includeInformation') }}</label
+              >
+              <label
+                >{{ t('pdf.pageSize')
+                }}<select v-model="options.pageSize" :disabled="working || downloading">
+                  <option value="a4">A4</option>
+                  <option value="letter">Letter</option>
+                  <option value="image">Pēc foto</option>
+                </select></label
+              >
+              <label
+                >{{ t('pdf.quality')
+                }}<select v-model="options.quality" :disabled="working || downloading">
+                  <option value="optimized">Standarta</option>
+                  <option value="high">Augsta</option>
+                </select></label
+              >
+            </div>
+            <p class="small-muted">
+              {{ t(options.quality === 'optimized' ? 'pdf.optimizedHint' : 'pdf.qualityHint') }}
+            </p>
+          </details>
+          <div v-if="working" class="pdf-progress" role="status">
+            <p>{{ t(`pdf.${progress.phase}`, progress) }}</p>
+            <v-progress-linear
+              :model-value="percentage"
+              color="primary"
+              :aria-label="t('pdf.working')"
+            />
+          </div>
+          <p v-if="error" class="scan-error" role="alert">{{ error }}</p>
+          <section
+            v-if="result"
+            class="pdf-preview"
+            data-testid="pdf-preview"
+            :aria-label="t('pdf.previewTitle')"
+          >
+            <div class="pdf-summary" role="status">
+              <p>{{ t('pdf.pages', { count: result.pageCount }) }}</p>
+              <p>{{ t('pdf.size', { size: (blob.size / 1024 ** 2).toFixed(2) }) }}</p>
+              <p>{{ snapshot.metadata.filename }}</p>
+              <p>{{ t(result.informationPageCount ? 'pdf.verified' : 'pdf.scansOnly') }}</p>
+            </div>
+            <p v-if="result.resized" class="ocr-warning">{{ t('pdf.resized') }}</p>
+            <iframe
+              v-if="embeddedViewer && url"
+              :src="url"
+              :title="t('pdf.previewTitle')"
+              @error="embeddedViewer = false"
+            />
+            <p v-else class="small-muted">{{ t('pdf.noViewer') }}</p>
+            <a
+              :href="url"
+              target="_blank"
+              rel="noopener noreferrer"
+              :aria-disabled="downloading"
+              @click.prevent="openInTab"
+              >{{ t('pdf.open') }}</a
+            >
+          </section>
+          <p class="pdf-privacy">
+            <AppIcon name="shield" :size="15" />PDF tiek izveidots tikai šajā ierīcē
+          </p>
+          <button class="text-link pdf-cancel" :disabled="downloading" @click="close">
+            Atcelt
+          </button>
         </div>
-      </section>
-      <p class="small-muted pdf-privacy">{{ t('pdf.privacy') }}</p>
-      <div class="pdf-actions">
-        <v-btn variant="text" @click="close">{{ t('pdf.close') }}</v-btn>
-      </div>
+        <MobileStepFooter
+          :state="
+            workflowState || { step: 4, maximum: 4, complete: [true, true, confirmed, false] }
+          "
+          :disabled="working || downloading"
+          :saving="controller.saving.value"
+          :dirty="controller.dirty.value"
+          :saved="Boolean(controller.active.value?.revision)"
+          :can-save="false"
+          @select="emit('select', $event)"
+        >
+          <v-btn
+            v-if="!result"
+            variant="text"
+            color="primary"
+            block
+            :disabled="!canGenerate"
+            @click="generate"
+            ><AppIcon name="expand" :size="18" />{{
+              t(controller.dirty.value ? 'pdf.savePreview' : 'pdf.preview')
+            }}</v-btn
+          >
+          <v-btn
+            v-if="!error || result"
+            color="primary"
+            block
+            size="x-large"
+            :disabled="working || downloading || (!result && !canGenerate)"
+            :loading="working || downloading"
+            @click="download"
+            ><AppIcon name="download" :size="20" />Lejupielādēt PDF</v-btn
+          >
+        </MobileStepFooter>
+      </template>
     </v-card>
-  </v-dialog>
+  </component>
 </template>

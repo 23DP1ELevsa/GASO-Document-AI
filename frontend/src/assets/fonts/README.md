@@ -1,4 +1,8 @@
-# Noto Sans PDF informācijas lapām
+# Lietotnes lokālie fonti
+
+`Manrope-Variable.ttf` ir mobilās saskarnes fonts (200–800), pārnests atbilstoši Lovable `DESIGN_SPEC.md`. Lejupielādēts no [Google Fonts oficiālā avota](https://github.com/google/fonts/blob/main/ofl/manrope/Manrope%5Bwght%5D.ttf). Licence: [SIL Open Font License 1.1](Manrope-OFL.txt). SHA-256: `3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6`. Fonts tiek piegādāts un kešots lokāli; saskarne neprasa fontu CDN.
+
+## Noto Sans PDF informācijas lapām
 
 `NotoSans-Regular.ttf` ir nemainīts Noto Sans Regular 2.008 fonts no oficiālā `notofonts/noto-fonts` arhīva. Tas atbalsta latviešu diakritiku, latīņu un kirilicas tekstu. Tā nav visu Unicode simbolu bibliotēka; neatbalstītus simbolus PDF modulis noraida ar skaidru kļūdu.
 

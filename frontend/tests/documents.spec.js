@@ -1,3 +1,5 @@
+import { acceptSuggestions } from '../test-support/workflowUi.js'
+import { toggleTheme } from '../test-support/workflowUi.js'
 import { test, expect } from '@playwright/test'
 import {
   groupingTools,
@@ -27,8 +29,8 @@ test.beforeAll(async () => {
 const groups = (page) => page.getByTestId('document-group')
 const info = (page) => page.getByTestId('document-information')
 async function save(page) {
-  if (await page.locator('.workspace-savebar button').isDisabled()) {
-    await expect(page.locator('.workspace-savebar strong')).toHaveText('Saglabāts')
+  if ((await page.locator('.workspace-savebar button').count()) === 0) {
+    await expect(page.locator('.workspace-savebar strong')).toHaveText('Saglabāts ierīcē')
     return
   }
   await page
@@ -191,7 +193,7 @@ test('local suggestions, manual values, custom attributes and confirmation remai
   await create(page, 'Pirmais rēķins', [0])
   await create(page, 'Otrais rēķins', [0])
   await analyzeDocument(page, 0)
-  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('')
+  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('121.00')
   for (const field of [
     'Dokumenta veids',
     'Dokumenta numurs',
@@ -217,6 +219,7 @@ test('local suggestions, manual values, custom attributes and confirmation remai
   await info(page).getByLabel('Atribūta vērtība', { exact: true }).fill('SYNTH-42')
   await info(page).getByRole('button', { name: 'Pievienot atribūtu' }).click()
   await expect(info(page).getByLabel('Projekta kods', { exact: true })).toHaveValue('SYNTH-42')
+  await acceptSuggestions(page)
   await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
   await reviewDocument(page, 0)
   await analysisDetails(page)
@@ -239,14 +242,14 @@ test('local suggestions, manual values, custom attributes and confirmation remai
   ).toBeVisible()
   await analyzeDocument(page, 1)
   await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue('')
-  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('')
+  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('50.00')
   await expect(info(page).getByLabel('Projekta kods', { exact: true })).toHaveCount(0)
   await info(page)
     .getByRole('button', { name: 'Izmantot ieteikumu laukam “Kopējā summa”', exact: true })
     .click()
   await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('50.00')
   for (const dark of [false, true]) {
-    if (dark) await page.locator('.theme-toggle').click()
+    if (dark) await toggleTheme(page)
     await page.waitForFunction(() =>
       document.getAnimations().every((animation) => animation.playState !== 'running'),
     )
@@ -271,6 +274,7 @@ test('OCR text changes and page replacement mark analysis stale while retaining 
   await create(page, 'Rēķins', [0, 1])
   await analyzeDocument(page)
   await info(page).getByLabel('Nosūtītājs', { exact: true }).fill('Saglabāta manuālā vērtība')
+  await acceptSuggestions(page)
   await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
   await reviewDocument(page, 0)
   await analysisDetails(page)
@@ -389,6 +393,7 @@ test('group and attribute writes roll back together on failure and retry keeps t
       return window.originalPut.apply(this, args)
     }
   })
+  await acceptSuggestions(page)
   await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('nepietiek vietas')
   expect((await database(page)).drafts[0].documents).toEqual(before.drafts[0].documents)

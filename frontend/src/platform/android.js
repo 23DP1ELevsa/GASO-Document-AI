@@ -5,6 +5,7 @@ export async function setupAndroid(router) {
   const { App } = await import('@capacitor/app')
   const { SplashScreen } = await import('@capacitor/splash-screen')
   await App.addListener('backButton', () => {
+    if (!window.dispatchEvent(new Event('gaso:back', { cancelable: true }))) return
     if (router.currentRoute.value.name === 'home') App.exitApp()
     else if (router.options.history.state.back) router.back()
     else router.replace('/')

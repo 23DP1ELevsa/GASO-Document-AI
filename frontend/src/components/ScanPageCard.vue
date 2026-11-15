@@ -34,7 +34,9 @@ defineEmits(['preview', 'move', 'replace', 'remove', 'edit', 'ocr', 'text'])
       <span v-if="page.processing" class="processed-label">{{ t('editor.processed') }}</span>
     </div>
     <details class="page-extra-tools">
-      <summary>{{ t('workflow.advanced') }}</summary>
+      <summary>
+        <AppIcon name="ocr" :size="18" /><span class="sr-only">{{ t('workflow.advanced') }}</span>
+      </summary>
       <p class="small-muted">
         {{ page.processedWidth || page.width }} × {{ page.processedHeight || page.height }} px ·
         {{ (page.size / 1024 / 1024).toFixed(1) }} MiB
@@ -75,14 +77,14 @@ defineEmits(['preview', 'move', 'replace', 'remove', 'edit', 'ocr', 'text'])
         :disabled="busy || index === 0"
         :aria-label="t('scan.moveUp', { number: index + 1 })"
         @click="$emit('move', page.id, -1)"
-        ><AppIcon name="up" :size="19"
+        ><AppIcon name="back" :size="19"
       /></v-btn>
       <v-btn
         variant="text"
         :disabled="busy || index === count - 1"
         :aria-label="t('scan.moveDown', { number: index + 1 })"
         @click="$emit('move', page.id, 1)"
-        ><AppIcon name="down" :size="19"
+        ><AppIcon name="arrow" :size="19"
       /></v-btn>
       <v-menu :close-on-content-click="true"
         ><template #activator="{ props }"

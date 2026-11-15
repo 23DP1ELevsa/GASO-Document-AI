@@ -190,6 +190,7 @@ export function editValue(session, id, key, raw) {
   return updateDocument(session, id, (item) => ({
     ...item,
     values: { ...item.values, [key]: value },
+    editedFields: [...new Set([...(item.editedFields || []), key])],
   }))
 }
 export function validationErrors(document) {

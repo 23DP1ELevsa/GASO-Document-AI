@@ -33,7 +33,6 @@ onScopeDispose(() => controller?.abort())
 </script>
 <template>
   <v-card class="settings-card bordered-card">
-    <h3>{{ t('ocr.settingsTitle') }}</h3>
     <OcrLanguagePicker
       :model-value="languages"
       :disabled="preparing"

@@ -2,9 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
-import PageHeading from '../components/PageHeading.vue'
 import EmptyState from '../components/EmptyState.vue'
-import LocalNotice from '../components/LocalNotice.vue'
 import DraftCard from '../components/DraftCard.vue'
 import { useDraftList } from '../features/scanning/useDraftList'
 import { useScanSession } from '../features/scanning/useScanSession'
@@ -51,11 +49,6 @@ async function remove(id) {
 </script>
 <template>
   <div class="view">
-    <PageHeading
-      :eyebrow="t('documents.eyebrow')"
-      :title="t('documents.title')"
-      :description="t('documents.description')"
-    />
     <div v-if="error || actionError" class="scan-error" role="alert">
       {{ actionError || t(`scan.errors.${error}`)
       }}<v-btn v-if="error" variant="text" @click="refresh">{{ t('scan.retry') }}</v-btn>
@@ -94,7 +87,7 @@ async function remove(id) {
           ><AppIcon name="scan" :size="20" />{{ t('common.scan') }}</v-btn
         ></EmptyState
       ></v-card
-    ><LocalNotice expanded />
+    >
     <p class="archive-explanation">{{ t('workflow.pdfStored') }}</p>
   </div>
 </template>

@@ -22,7 +22,7 @@ export function useAppearance() {
       document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
       document
         .querySelector('meta[name="theme-color"]')
-        ?.setAttribute('content', dark ? '#101722' : '#f5f7fb')
+        ?.setAttribute('content', dark ? '#0c121a' : '#f6fafc')
       if (Capacitor.getPlatform() === 'android') {
         SystemBars.setStyle({ style: dark ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch(
           () => {},

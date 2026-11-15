@@ -153,6 +153,7 @@ onScopeDispose(() => {
 </script>
 <template>
   <v-dialog
+    class="mobile-editor-overlay"
     :model-value="true"
     max-width="1320"
     :persistent="busy"

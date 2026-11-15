@@ -1,10 +1,16 @@
 <script setup>
 import AppIcon from './AppIcon.vue'
 import BlobImage from './BlobImage.vue'
+import { computed } from 'vue'
 import { t, dateTime } from '../locales'
-import { draftHasDocuments } from '../features/documents/workflow.js'
-defineProps({ draft: Object, busy: Boolean, resumableOnly: Boolean })
+import { draftHasDocuments, draftIsDownloaded } from '../features/documents/workflow.js'
+const props = defineProps({ draft: Object, busy: Boolean, resumableOnly: Boolean })
 defineEmits(['open', 'remove'])
+const status = computed(() => {
+  if (draftIsDownloaded(props.draft)) return 'Lejupielādēts'
+  if (props.draft.workflow?.step === 4) return 'Gatavs eksportam'
+  return draftHasDocuments(props.draft) ? 'Jāpārbauda dati' : 'Jāpārbauda lapas'
+})
 </script>
 <template>
   <article class="draft-card bordered-card" data-testid="draft-card">
@@ -21,18 +27,16 @@ defineEmits(['open', 'remove'])
       />
     </button>
     <div class="draft-card-content">
-      <span class="subtle-label">{{
-        t(draftHasDocuments(draft) ? 'workflow.preparedStatus' : 'workflow.startedStatus')
-      }}</span>
       <h3>
         {{
           draft.documents?.find((item) => item.values.document_title)?.values.document_title ||
-          t('workflow.draftTitle')
+          'Skenēts dokuments'
         }}
       </h3>
-      <p>{{ t('scan.pageCount', { count: draft.pageIds.length }) }}</p>
-      <p>{{ t('grouping.documentCount', { count: draft.documents?.length || 0 }) }}</p>
-      <p class="draft-updated">{{ t('documents.updated') }} {{ dateTime(draft.updatedAt) }}</p>
+      <p class="draft-updated">{{ draft.pageIds.length }} lp. · {{ dateTime(draft.updatedAt) }}</p>
+      <span class="status-chip" :class="{ 'status-success': status === 'Lejupielādēts' }">{{
+        status
+      }}</span>
       <div class="draft-actions">
         <v-btn color="primary" variant="tonal" :disabled="busy" @click="$emit('open', draft.id)"
           >{{ t('documents.continue') }}<AppIcon name="arrow" :size="18" /></v-btn

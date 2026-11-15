@@ -1,3 +1,5 @@
+import { continuePages, acceptSuggestions } from '../test-support/workflowUi.js'
+import { toggleTheme } from '../test-support/workflowUi.js'
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import sharp from 'sharp'
@@ -39,22 +41,25 @@ async function upload(page, files) {
   await expect(page.getByText('Apstrādā…', { exact: true })).toHaveCount(0)
 }
 async function one(page) {
-  await page.getByRole('button', { name: 'Visas lapas ir viens dokuments', exact: true }).click()
+  await continuePages(page)
   await expect(info(page)).toBeVisible()
 }
 async function pdf(page, scansOnly = false) {
-  await page
-    .getByRole('button', {
-      name: scansOnly ? 'Saglabāt tikai skenētās lapas' : 'Izveidot PDF',
-      exact: true,
-    })
-    .click()
   const dialog = page.getByRole('dialog', { name: 'PDF eksports', exact: true })
-  await expect(dialog.getByTestId('pdf-preview')).toBeVisible({ timeout: 30_000 })
+  await expect(dialog).toBeVisible()
+  await dialog
+    .getByRole('radio', { name: scansOnly ? /Tikai skenējums/ : /PDF ar informāciju/ })
+    .check()
   const pending = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Lejupielādēt PDF', exact: true }).click()
   const result = await pending
   const parsed = await readPdf(await readFile(await result.path()))
+  await expect(dialog.getByRole('heading', { name: 'Gatavs!', exact: true })).toBeVisible()
+  await expect(
+    dialog.getByRole('button', { name: 'Izveidot PDF vēlreiz', exact: true }),
+  ).toBeEnabled()
+  await expect(page.getByText('Apstrādā…', { exact: true })).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Izveidot PDF vēlreiz', exact: true }).click()
   await dialog.getByRole('button', { name: 'Atcelt', exact: true }).last().click()
   await expect(dialog).toHaveCount(0)
   return parsed
@@ -130,6 +135,7 @@ test('first-time user corrects orientation, recognizes two real pages, accepts f
   await page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true }).click()
   await expect(page.getByText('Ieteikumi sagatavoti.', { exact: false })).toBeVisible()
   expect((await stored(page)).pages.map((p) => p.ocr.recognizedAt)).toEqual(recognized)
+  await acceptSuggestions(page)
   await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
   await expect(page.getByTestId('workflow-document')).toHaveCount(1)
   const parsed = await pdf(page)
@@ -157,7 +163,7 @@ test('six page thumbnails split into three documents whose reviewed values and P
   page.once('dialog', (dialog) => dialog.dismiss())
   await page.getByRole('button', { name: 'Visas lapas ir viens dokuments', exact: true }).click()
   await expect(page.getByTestId('document-group')).toHaveCount(3)
-  await page.getByRole('button', { name: 'Turpināt', exact: true }).click()
+  await page.getByRole('button', { name: 'Turpināt uz datiem', exact: true }).click()
   for (let index = 0; index < 3; index++) {
     await expect(info(page)).toBeVisible()
     await info(page)
@@ -187,14 +193,11 @@ test('saved work resumes from Home at the correct step and previous steps retain
 }) => {
   await page.goto('/#/scan')
   await upload(page, await blank())
-  await page.getByRole('button', { name: 'Visas lapas ir viens dokuments', exact: true }).focus()
+  await page.getByRole('button', { name: 'Turpināt uz datiem', exact: true }).focus()
   await page.keyboard.press('Enter')
   await expect(info(page)).toBeVisible()
-  await expect(
-    page.getByRole('heading', { name: 'Pārbaudiet dokumenta informāciju', exact: true }),
-  ).toBeFocused()
-  await page.keyboard.press('Tab')
-  await expect(page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true })).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Dokumenta dati', exact: true })).toBeFocused()
+  await expect(page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true })).toBeEnabled()
   await info(page).getByLabel('Dokumenta nosaukums', { exact: true }).fill('Turpināmais dokuments')
   await info(page).getByLabel('Saņēmējs', { exact: true }).fill('Saglabāts saņēmējs')
   await page.getByRole('button', { name: 'Saglabāt melnrakstu', exact: true }).click()
@@ -232,7 +235,7 @@ test('PDF without recognition is a direct path and the responsive form and stepp
   await upload(page, await blank())
   await one(page)
   for (const dark of [false, true]) {
-    if (dark) await page.locator('.theme-toggle').click()
+    if (dark) await toggleTheme(page)
     await page.waitForFunction(() =>
       document.getAnimations().every((animation) => animation.playState !== 'running'),
     )
@@ -248,7 +251,10 @@ test('PDF without recognition is a direct path and the responsive form and stepp
     path: testInfo.outputPath('workflow-information-dark.png'),
     fullPage: true,
   })
-  await page.getByRole('button', { name: 'Turpināt bez rekvizītu lapas', exact: true }).click()
+  await page
+    .getByRole('button', { name: 'Izlaist — saglabāt tikai skenējumu', exact: true })
+    .last()
+    .click()
   const parsed = await pdf(page, true)
   expect(parsed.pageCount).toBe(1)
   expect(parsed.pages[0].text).toBe('')
@@ -267,7 +273,7 @@ test('failed step-transition save stays actionable and a retry preserves pending
       return window.realPut.apply(this, args)
     }
   })
-  await page.getByRole('button', { name: 'Visas lapas ir viens dokuments', exact: true }).click()
+  await page.getByRole('button', { name: 'Turpināt uz datiem', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('nepietiek vietas')
   await expect(page.getByRole('heading', { name: 'Pārbaudiet lapas', exact: true })).toBeVisible()
   await expect(page.getByText('Melnraksts sekmīgi saglabāts', { exact: false })).toHaveCount(0)

@@ -1,10 +1,11 @@
+import { navigate } from '../test-support/workflowUi.js'
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
 const headings = {
-  '/': 'Dokumentu kārtība sākas šeit.',
-  '/scan': 'Sagatavojiet dokumentu',
-  '/documents': 'Jūsu skenēšanas sesijas',
+  '/': 'Dokuments gatavs dažos soļos',
+  '/scan': 'Foto',
+  '/documents': 'Dokumenti',
   '/settings': 'Iestatījumi',
 }
 
@@ -26,8 +27,11 @@ test('all four screens render without overflow, errors or external requests', as
     const navigation = page
       .getByRole('navigation', { name: 'Galvenā navigācija' })
       .filter({ visible: true })
-    await expect(navigation).toBeVisible()
-    await expect(navigation.getByRole('link')).toHaveCount(4)
+    if (route === '/' || route === '/documents') await expect(navigation).toBeVisible()
+    else await expect(navigation).toHaveCount(0)
+    await expect(navigation.getByRole('link')).toHaveCount(
+      route === '/' || route === '/documents' ? 2 : 0,
+    )
     for (const link of await navigation.getByRole('link').all()) {
       const box = await link.boundingBox()
       expect(box.height).toBeGreaterThanOrEqual(44)
@@ -53,7 +57,7 @@ test('navigation and browser back work without reloading the document', async ({
   const navigation = page
     .getByRole('navigation', { name: 'Galvenā navigācija' })
     .filter({ visible: true })
-  await navigation.getByRole('link', { name: 'Dokumenti', exact: true }).click()
+  await navigate(page, 'Dokumenti')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings['/documents'])
   await page.goBack()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings['/scan'])
@@ -76,7 +80,9 @@ test('appearance persists and applies to every screen', async ({ page }, testInf
   await expect(page.locator('.v-application')).toHaveClass(/v-theme--dark/)
   for (const route of Object.keys(headings)) {
     await page.goto(`/#${route}`)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings[route])
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      route === '/' ? 'Dokuments gatavsdažos soļos' : headings[route],
+    )
     await expect(page.locator('.v-application')).toHaveClass(/v-theme--dark/)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await page.screenshot({
@@ -98,7 +104,7 @@ test('browser capture inputs are available and new archive is empty', async ({ p
   await expect(page.getByRole('button', { name: 'Pievienot no galerijas' })).toBeEnabled()
   await expect(page.getByTestId('camera-input')).toHaveAttribute('capture', 'environment')
   await expect(page.getByTestId('gallery-input')).toHaveAttribute('multiple', '')
-  await expect(page.locator('.workspace-savebar button')).toBeDisabled()
+  await expect(page.locator('.workspace-savebar button')).toHaveCount(0)
   await page.goto('/#/documents')
   await expect(page.getByRole('heading', { name: 'Vēl nav saglabātu melnrakstu' })).toBeVisible()
   await expect(page.locator('.count-badge')).toHaveText('0')
@@ -123,10 +129,12 @@ test('installed shell and unvisited routes open offline; cache holds only app as
     expect((await page.request.get(`/${icon.src}`)).ok()).toBe(true)
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings['/'])
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dokuments gatavsdažos soļos')
   for (const route of ['/scan', '/documents', '/settings']) {
     await page.goto(`/#${route}`)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings[route])
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      route === '/' ? 'Dokuments gatavsdažos soļos' : headings[route],
+    )
   }
   const cacheUrls = await page.evaluate(async () => {
     const urls = []
@@ -162,7 +170,7 @@ test('storage restriction does not prevent rendering or changing appearance', as
 
 test('unknown routes return home and repository link is safe', async ({ page }) => {
   await page.goto('/#/unknown')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings['/'])
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dokuments gatavsdažos soļos')
   await page.goto('/#/settings')
   const link = page.getByRole('link', { name: /Projekts GitHub/ })
   await expect(link).toHaveAttribute('href', 'https://github.com/23DP1ELevsa/GASO-Document-AI')
@@ -178,7 +186,9 @@ test('screens pass automated WCAG AA checks in both themes', async ({ page }) =>
       .click()
     for (const route of Object.keys(headings)) {
       await page.goto(`/#${route}`)
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(headings[route])
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+        route === '/' ? 'Dokuments gatavsdažos soļos' : headings[route],
+      )
       await expect(page.locator('.page-enter-active')).toHaveCount(0)
       const result = await new AxeBuilder({ page })
         .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
@@ -215,7 +225,9 @@ test('skip link preserves current route and mobile safe zones reserve space', as
         .evaluate((el) => parseFloat(getComputedStyle(el).paddingBottom)),
     ).toBeGreaterThanOrEqual(32)
     expect(
-      await page.locator('.topbar').evaluate((el) => parseFloat(getComputedStyle(el).paddingTop)),
+      await page
+        .locator('.mobile-header')
+        .evaluate((el) => parseFloat(getComputedStyle(el).paddingTop)),
     ).toBeGreaterThanOrEqual(24)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }

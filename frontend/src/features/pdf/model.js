@@ -34,7 +34,7 @@ export function pdfOptions(options = {}) {
   const result = { ...DEFAULT_PDF_OPTIONS, ...options }
   if (
     typeof result.includeInformation !== 'boolean' ||
-    !['a4', 'image'].includes(result.pageSize) ||
+    !['a4', 'letter', 'image'].includes(result.pageSize) ||
     !['high', 'optimized'].includes(result.quality)
   )
     throw new PdfError('options')
@@ -148,8 +148,8 @@ export function createExportSnapshot(session, documentId, rawOptions = {}) {
 }
 export function scannedPageLayout(width, height, mode) {
   if (!Number.isFinite(width * height) || width < 1 || height < 1) throw new PdfError('image')
-  const portrait = [595.28, 841.89],
-    landscape = [841.89, 595.28]
+  const portrait = mode === 'letter' ? [612, 792] : [595.28, 841.89],
+    landscape = [...portrait].reverse()
   if (mode === 'image') {
     const scale = Math.min(595.28 / Math.min(width, height), 1440 / Math.max(width, height))
     return {

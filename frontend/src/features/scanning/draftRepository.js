@@ -1,7 +1,7 @@
 import { ScanError } from './errors.js'
 import { validateOcr } from '../ocr/model.js'
 import { migrateGrouping, validateDocuments } from '../documents/model.js'
-import { navigationState } from '../documents/workflow.js'
+import { navigationState, currentExports } from '../documents/workflow.js'
 
 export const DATABASE_NAME = 'gaso-document-ai'
 const STORES = ['drafts', 'pages', 'images']
@@ -180,7 +180,10 @@ export function saveDraft(session) {
       const draft = {
         schemaVersion: 2,
         documents: session.documents || [],
-        workflow: navigationState(session.workflow),
+        workflow: navigationState({
+          ...session.workflow,
+          ...(session.workflow?.exports ? { exports: currentExports(session) } : {}),
+        }),
         id: session.id,
         createdAt: session.createdAt,
         updatedAt: Date.now(),
