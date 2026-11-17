@@ -122,37 +122,10 @@ export async function recognizeDocument(
   confirmRerun = () => true,
   options = {},
 ) {
-  if (options.provider === 'openai' && options.consent !== true) {
-    throw new AiError('consent_required')
-  }
-  const initial = session.active.value
-  const document = initial?.documents.find((item) => item.id === id)
-  if (!document?.pageIds.length || session.busy.value || ocr.running.value)
-    throw new Error('Document unavailable')
-  const pages = documentPages(initial, document)
-  const pending = pages.filter((page) => !page.ocr || isOcrStale(page))
-  let approved = true
-  if (pending.length) {
-    await ocr.run(pending, languages, () => (approved = confirmRerun()))
-    if (!approved || ocr.cancelled.value) return { cancelled: true }
-    if (ocr.saveError.value) throw ocr.saveError.value
-  }
-  const latest = session.active.value
-  const current = latest?.documents.find((item) => item.id === id)
-  if (
-    latest?.id !== initial.id ||
-    !current ||
-    JSON.stringify(current.pageIds) !== JSON.stringify(document.pageIds)
-  )
-    throw new Error('Document changed')
-  await session.analyzeDocument(id, options)
+  if (options.consent !== true) throw new AiError('consent_required')
+  if (options.signal?.aborted) throw new AiError('cancelled')
+  await session.analyzeDocument(id, { ...options, provider: 'openai' })
+  options.onProgress?.({ phase: 'saving' })
   await session.save()
-  return {
-    cancelled: false,
-    reused: pages.length - pending.length,
-    recognized: pending.length,
-    incomplete: documentPages(session.active.value, current).some(
-      (page) => !page.ocr || isOcrStale(page) || page.ocr.status === 'empty',
-    ),
-  }
+  return { cancelled: false, incomplete: false }
 }

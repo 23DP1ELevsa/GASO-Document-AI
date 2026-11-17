@@ -6,10 +6,11 @@ const headings = {
   '/': 'Dokuments gatavs dažos soļos',
   '/scan': 'Foto',
   '/documents': 'Dokumenti',
+  '/collections': 'Komplekti',
   '/settings': 'Iestatījumi',
 }
 
-test('all four screens render without overflow, errors or external requests', async ({
+test('all screens including saved sets render without overflow, errors or external requests', async ({
   page,
 }, testInfo) => {
   const errors = []
@@ -27,10 +28,10 @@ test('all four screens render without overflow, errors or external requests', as
     const navigation = page
       .getByRole('navigation', { name: 'Galvenā navigācija' })
       .filter({ visible: true })
-    if (route === '/' || route === '/documents') await expect(navigation).toBeVisible()
+    if (['/', '/documents', '/collections'].includes(route)) await expect(navigation).toBeVisible()
     else await expect(navigation).toHaveCount(0)
     await expect(navigation.getByRole('link')).toHaveCount(
-      route === '/' || route === '/documents' ? 2 : 0,
+      ['/', '/documents', '/collections'].includes(route) ? 3 : 0,
     )
     for (const link of await navigation.getByRole('link').all()) {
       const box = await link.boundingBox()

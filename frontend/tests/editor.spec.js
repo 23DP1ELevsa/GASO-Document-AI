@@ -90,7 +90,7 @@ async function save(page) {
 async function state(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
       r.onerror = () => reject(r.error)
     })
@@ -179,7 +179,7 @@ test('automatic corners, manual coordinates, perspective and parameters survive 
   await expect(page.getByTestId('page-card')).toContainText('Apstrādāts')
   await save(page)
   let stored = await state(page)
-  expect(stored.version).toBe(1)
+  expect(stored.version).toBe(2)
   expect(stored.pages[0].processing.filter).toBe('original')
   stored.pages[0].processing.corners.forEach((p, i) => {
     expect(p.x).toBeCloseTo(corners[i].x, 4)
@@ -332,7 +332,7 @@ test('legacy v1 records remain readable and editing is non-destructive when canc
   await page.evaluate(
     async ({ original, small }) => {
       const db = await new Promise((resolve, reject) => {
-        const r = indexedDB.open('gaso-document-ai', 1)
+        const r = indexedDB.open('gaso-document-ai')
         r.onupgradeneeded = () => {
           for (const name of ['drafts', 'pages', 'images'])
             r.result.createObjectStore(name, { keyPath: 'id' })
@@ -388,7 +388,7 @@ test('legacy v1 records remain readable and editing is non-destructive when canc
   await page.reload()
   await expect(page.getByTestId('page-card')).toContainText('Apstrādāts')
   const stored = await state(page)
-  expect(stored.version).toBe(1)
+  expect(stored.version).toBe(2)
   expect(stored.images[0].originalHash).toBe(before.images[0].originalHash)
 })
 

@@ -24,12 +24,15 @@ class AnalysisSchema
     {
         return self::object([
             'document_type' => ['type' => 'string', 'enum' => self::TYPES],
-            'attributes' => self::object(array_fill_keys(self::FIELDS, ['type' => ['string', 'null']])),
-            'evidence' => ['type' => 'array', 'items' => self::object([
-                'key' => ['type' => 'string', 'enum' => ['document_type', ...self::FIELDS]],
-                'page_id' => ['type' => 'string'], 'page' => ['type' => 'integer'], 'text' => ['type' => 'string'],
+            'attributes' => ['type' => 'array', 'items' => self::object([
+                'label' => ['type' => 'string'],
+                'key' => ['type' => ['string', 'null']],
+                'value' => ['type' => 'string'],
+                'data_type' => ['type' => 'string', 'enum' => ['text', 'date', 'amount', 'currency', 'number']],
+                'page' => ['type' => ['integer', 'null']],
+                'evidence' => ['type' => ['string', 'null']],
             ])],
-            'warnings' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['unknown_type', 'ambiguous_attribute', 'missing_ocr']]],
+            'warnings' => ['type' => 'array', 'items' => ['type' => 'string', 'enum' => ['unknown_type', 'ambiguous_attribute', 'unreadable_image']]],
         ]);
     }
 }

@@ -6,6 +6,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
+    actionTimeout: 10000,
     baseURL: 'http://127.0.0.1:4173',
     channel: 'chrome',
     trace: 'retain-on-failure',

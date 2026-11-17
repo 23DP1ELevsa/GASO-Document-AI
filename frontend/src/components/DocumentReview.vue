@@ -1,162 +1,77 @@
 <script setup>
 import { computed } from 'vue'
-import AppIcon from './AppIcon.vue'
 import BlobImage from './BlobImage.vue'
-import OcrProgress from './OcrProgress.vue'
-import OcrLanguagePicker from './OcrLanguagePicker.vue'
 import DocumentInformation from './DocumentInformation.vue'
 import { documentPages, isConfirmationCurrent } from '../features/documents/model.js'
-import { t } from '../locales'
 const props = defineProps({
   session: Object,
   document: Object,
-  ocr: Object,
-  languages: Array,
-  settingsError: Boolean,
   disabled: Boolean,
-  analysisProvider: { type: String, default: 'local' },
   aiConsent: Boolean,
   aiFailed: Boolean,
 })
-const emit = defineEmits([
-  'provider',
-  'consent',
-  'local',
-  'select',
-  'preview',
-  'recognize',
-  'skip',
-  'change',
-  'analyze',
-  'languages',
-  'recognize-page',
-  'text',
-])
+const emit = defineEmits(['consent', 'select', 'preview', 'recognize', 'change'])
 const pages = computed(() => documentPages(props.session, props.document))
 const documents = computed(() => props.session.documents.filter((item) => item.pageIds.length))
-const hasSuggestions = computed(() => Boolean(props.document.analysis))
-const documentTitle = (item, index = 0) =>
-  item.values.document_title || t('workflow.documentNumber', { number: index + 1 })
 </script>
 <template>
   <section class="workflow-review">
     <label v-if="documents.length > 1" class="workflow-document-select"
-      >{{ t('workflow.selectDocument')
-      }}<select
+      >Dokuments
+      <select
         :value="document.id"
         :disabled="disabled"
         @change="emit('select', $event.target.value)"
       >
         <option v-for="(item, index) in documents" :key="item.id" :value="item.id">
-          {{ documentTitle(item, index)
-          }}{{ isConfirmationCurrent(session, item) ? ' · ' + t('workflow.confirmed') : '' }}
+          {{ item.values.document_title || 'Dokuments ' + (index + 1)
+          }}{{ isConfirmationCurrent(session, item) ? ' · Apstiprināts' : '' }}
         </option>
-      </select></label
-    >
-    <div v-if="pages.length" class="review-preview-strip">
+      </select>
+    </label>
+    <div class="review-preview-strip">
       <button
         v-for="(page, index) in pages"
         :key="page.id"
         :disabled="disabled"
-        :aria-label="t('scan.openPreview', { number: session.pages.indexOf(page) + 1 })"
+        :aria-label="'Apskatīt lapu ' + (index + 1)"
         @click="emit('preview', page, $event.currentTarget)"
       >
         <BlobImage :blob="page.thumbnail" alt="" /><span>{{ index + 1 }}</span>
       </button>
     </div>
     <div class="bordered-card analysis-choice">
-      <label for="analysis-provider">Dokumenta analīze</label>
-      <select
-        id="analysis-provider"
-        :value="analysisProvider"
-        :disabled="disabled"
-        @change="emit('provider', $event.target.value)"
+      <h3>AI dokumenta analīze</h3>
+      <p>
+        Šī dokumenta fotoattēli tiks nosūtīti OpenAI. Izmantojiet tikai dokumentus, kuru nosūtīšana
+        ir atļauta.
+      </p>
+      <label class="analysis-consent"
+        ><input
+          type="checkbox"
+          :checked="aiConsent"
+          :disabled="disabled"
+          @change="emit('consent', $event.target.checked)"
+        />Piekrītu šī dokumenta fotoattēlu nosūtīšanai OpenAI.</label
       >
-        <option value="local">Lokālā analīze</option>
-        <option value="openai">AI analīze (OpenAI)</option>
-      </select>
-      <template v-if="analysisProvider === 'openai'">
-        <p>
-          Šī dokumenta lapu OCR teksts tiks nosūtīts ārējam OpenAI pakalpojumam. Fotogrāfijas netiks
-          nosūtītas. Izmantojiet tikai sintētiskus vai nosūtīšanai apstiprinātus testdatus.
-        </p>
-        <label class="analysis-consent"
-          ><input
-            type="checkbox"
-            :checked="aiConsent"
-            :disabled="disabled"
-            @change="emit('consent', $event.target.checked)"
-          />
-          Piekrītu šī dokumenta OCR teksta nosūtīšanai OpenAI.</label
-        >
-      </template>
-      <v-btn v-if="aiFailed" variant="tonal" :disabled="disabled" @click="emit('local')"
-        >Turpināt ar lokālo analīzi</v-btn
-      >
+      <v-btn color="primary" :disabled="disabled || !aiConsent" @click="emit('recognize')">{{
+        document.analysis ? 'Analizēt atkārtoti' : 'Analizēt dokumentu'
+      }}</v-btn>
+      <p v-if="aiFailed" role="status">
+        Varat aizpildīt informāciju manuāli vai saglabāt tikai skenējumu.
+      </p>
     </div>
-    <div v-if="!hasSuggestions" class="recognition-panel bordered-card">
-      <span class="recognition-icon"><AppIcon name="sparkles" :size="24" /></span>
-      <h3>Atrast svarīgos datus</h3>
-      <p>Atradīsim numuru, datumus un summu. Pārbaudiet atrasto vai aizpildiet laukus paši.</p>
-      <button class="text-link" :disabled="disabled" @click="emit('skip')">
-        Izlaist — saglabāt tikai skenējumu
-      </button>
-    </div>
-    <v-btn
-      v-if="hasSuggestions || document.editedFields?.length"
-      variant="text"
-      color="primary"
+    <DocumentInformation
+      :key="document.id"
+      :document="document"
+      :session="session"
       :disabled="disabled"
-      @click="emit('recognize')"
-      >{{ t('workflow.recognize') }}</v-btn
-    >
-    <OcrProgress :ocr="ocr" />
-    <div class="review-layout">
-      <DocumentInformation
-        :key="document.id"
-        :document="document"
-        :session="session"
-        :disabled="disabled"
-        managed
-        @value="(key, value) => emit('change', 'editValue', document.id, key, value)"
-        @analyze="emit('analyze', document.id)"
-        @custom="(label, value) => emit('change', 'addCustomField', document.id, label, value)"
-      />
-    </div>
-    <details class="review-text-tools bordered-card">
-      <summary>{{ t('workflow.text') }}</summary>
-      <OcrLanguagePicker
-        :model-value="languages"
-        :disabled="disabled"
-        @update:model-value="emit('languages', $event)"
-      />
-      <p v-if="settingsError" class="scan-error" role="alert">{{ t('ocr.settingsError') }}</p>
-      <div v-for="(page, index) in pages" :key="page.id" class="review-text-row">
-        <BlobImage
-          :blob="page.thumbnail"
-          :alt="t('scan.pageNumber', { number: index + 1 })"
-        /><span>{{ t('scan.pageNumber', { number: index + 1 }) }}</span
-        ><v-btn
-          variant="text"
-          :disabled="disabled"
-          @click="emit('recognize-page', page, $event.currentTarget)"
-          >{{ t('workflow.recognizePage') }}</v-btn
-        ><v-btn
-          v-if="page.ocr"
-          variant="text"
-          :disabled="disabled"
-          @click="emit('text', page, $event.currentTarget)"
-          >{{ t('workflow.fullText') }}</v-btn
-        >
-      </div>
-    </details>
-    <p v-if="documents.length > 1" class="small-muted">
-      {{
-        t('workflow.reviewCount', {
-          done: documents.filter((item) => isConfirmationCurrent(session, item)).length,
-          total: documents.length,
-        })
-      }}
-    </p>
+      managed
+      @value="(key, value) => emit('change', 'editValue', document.id, key, value)"
+      @custom="(label, value) => emit('change', 'addCustomField', document.id, label, value)"
+      @rename="(key, label) => emit('change', 'renameCustomField', document.id, key, label)"
+      @remove="(key) => emit('change', 'removeCustomField', document.id, key)"
+      @review="(key) => emit('change', 'reviewAttribute', document.id, key)"
+    />
   </section>
 </template>

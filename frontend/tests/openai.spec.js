@@ -21,7 +21,7 @@ async function seed(page) {
   await page.evaluate(
     async ({ text, key }) => {
       const db = await new Promise((resolve) => {
-        const request = indexedDB.open('gaso-document-ai', 1)
+        const request = indexedDB.open('gaso-document-ai')
         request.onsuccess = () => resolve(request.result)
       })
       await new Promise((resolve, reject) => {
@@ -51,6 +51,8 @@ async function seed(page) {
     },
     { text, key: processingKey() },
   )
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   await page.reload()
   await expect(page.getByTestId('document-information')).toBeVisible()
 }
@@ -89,24 +91,21 @@ test('AI consent, suggestions, manual edits, IndexedDB reload, confirmation and 
     expect(Object.keys(data).sort()).toEqual(['consent', 'pages'])
     expect(data.consent).toBe(true)
     expect(data.pages).toHaveLength(1)
-    expect(data.pages[0].text).toBe(text)
-    expect(Object.keys(data.pages[0]).sort()).toEqual(['id', 'number', 'text'])
+    expect(data.pages[0].image).toMatch(/^data:image\/jpeg;base64,/)
+    expect(Object.keys(data.pages[0]).sort()).toEqual(['id', 'image', 'number'])
     await route.fulfill({ json: { result: result() } })
   })
   await seed(page)
-  await expect(page.getByLabel('Dokumenta analīze', { exact: true })).toHaveValue('local')
-  await page.getByLabel('Dokumenta analīze', { exact: true }).selectOption('openai')
-  const recognize = page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true }).last()
-  await recognize.click()
-  await expect(
-    page.getByText('Pirms AI analīzes apstipriniet OCR teksta nosūtīšanu OpenAI.', { exact: true }),
-  ).toBeVisible()
+  await expect(page.getByLabel('Dokumenta analīze', { exact: true })).toHaveCount(0)
+  const recognize = page.getByRole('button', { name: 'Analizēt dokumentu', exact: true })
+  await expect(recognize).toBeDisabled()
   expect(calls).toBe(0)
   await page.getByRole('checkbox', { name: /Piekrītu šī dokumenta/ }).check()
   const info = page.getByTestId('document-information')
   await info.getByLabel('Nosūtītājs', { exact: true }).fill('Manuāls pārdevējs')
   await recognize.click()
-  await expect(info.getByText(/OpenAI ieteikumi/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Analizēt atkārtoti', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Atcelt analīzi' })).toHaveCount(0)
   await expect(info.getByLabel('Nosūtītājs', { exact: true })).toHaveValue('Manuāls pārdevējs')
   expect(calls).toBe(1)
   await acceptSuggestions(page)
@@ -119,7 +118,7 @@ test('AI consent, suggestions, manual edits, IndexedDB reload, confirmation and 
   await expect(dialog.locator('.pdf-progress')).toHaveCount(0, { timeout: 30000 })
   await expect(dialog.locator('.pdf-error')).toHaveCount(0)
 })
-test('offline AI offers an explicit local continuation without network requests', async ({
+test('offline AI allows manual entry and scan-only export without local OCR or network requests', async ({
   page,
   context,
 }) => {
@@ -129,22 +128,20 @@ test('offline AI offers an explicit local continuation without network requests'
     return route.abort()
   })
   await seed(page)
-  await page.getByLabel('Dokumenta analīze', { exact: true }).selectOption('openai')
   await page.getByRole('checkbox', { name: /Piekrītu šī dokumenta/ }).check()
-  // The explicitly local action in source details must stay local even with AI selected.
-  await page.getByText('Ieteikumu avoti un papildu informācija', { exact: true }).click()
-  await page.getByRole('button', { name: 'Analizēt lokāli', exact: true }).click()
-  await expect(page.getByTestId('document-information').getByText(/Analīze veikta/)).toBeVisible()
-  expect(calls).toBe(0)
   await context.setOffline(true)
-  await page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true }).last().click()
+  await page.getByRole('button', { name: 'Analizēt dokumentu', exact: true }).click()
   await expect(
-    page.getByText('Nav interneta savienojuma. Varat turpināt ar lokālo analīzi.', { exact: true }),
+    page.getByText(
+      'Nav interneta savienojuma. Varat aizpildīt datus manuāli vai eksportēt skenējumu.',
+      { exact: true },
+    ),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Turpināt ar lokālo analīzi', exact: true }).click()
-  await expect(page.getByLabel('Dokumenta analīze', { exact: true })).toHaveValue('local')
   await expect(
-    page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true }).last(),
-  ).toBeEnabled()
+    page.getByRole('button', { name: 'Turpināt ar lokālo analīzi', exact: true }),
+  ).toHaveCount(0)
+  await page.getByLabel('Nosūtītājs', { exact: true }).fill('Manuāls ieraksts bezsaistē')
   expect(calls).toBe(0)
+  await page.getByRole('button', { name: 'Izlaist — saglabāt tikai skenējumu' }).click()
+  await expect(page.getByRole('dialog', { name: 'PDF eksports', exact: true })).toBeVisible()
 })

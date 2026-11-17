@@ -34,8 +34,7 @@ const { installEvent, install } = usePwa()
             </button>
           </div>
         </v-card>
-        <h2 class="settings-label">{{ t('ocr.settingsTitle') }}</h2>
-        <OcrSettingsCard />
+
         <h2 class="settings-label">Noklusējuma PDF</h2>
         <v-card class="settings-card bordered-card">
           <div class="segmented-control" role="group" aria-label="Noklusējuma PDF">

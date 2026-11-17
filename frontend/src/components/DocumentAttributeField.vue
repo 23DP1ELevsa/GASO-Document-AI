@@ -42,7 +42,13 @@ const shownValue = computed(() =>
       ? suggestion.value
       : null,
 )
-const checked = computed(() => filled.value && (props.confirmed || !props.stale))
+const checked = computed(
+  () =>
+    filled.value &&
+    (props.confirmed ||
+      props.field.status === 'reviewed' ||
+      (!props.field.origin && props.document.editedFields?.includes(props.field.key))),
+)
 const sources = computed(() => props.document.analysis?.result.evidence[props.field.key] || [])
 function normalize(event) {
   if (money.value && filled.value) {

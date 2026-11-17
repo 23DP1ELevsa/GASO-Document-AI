@@ -43,7 +43,7 @@ async function save(page) {
 async function database(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
     })
     try {
@@ -71,7 +71,7 @@ async function seed(page, texts = ['', '', ''], legacy = false) {
   await page.evaluate(
     async ({ texts, legacy, key }) => {
       const db = await new Promise((resolve) => {
-        const r = indexedDB.open('gaso-document-ai', 1)
+        const r = indexedDB.open('gaso-document-ai')
         r.onsuccess = () => resolve(r.result)
       })
       try {

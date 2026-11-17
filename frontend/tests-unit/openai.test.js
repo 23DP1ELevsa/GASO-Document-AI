@@ -62,19 +62,29 @@ function result() {
     warnings: [],
   }
 }
-test('AI sends only the chosen document ordered OCR with explicit consent, no sourceVersion or images', () => {
+test('AI sends only ordered photographs of the chosen document, with explicit consent and no OCR', async () => {
   const session = fixture(),
     id = session.documents[0].id
-  assert.throws(() => analysisPayload(session, id, false), { code: 'consent_required' })
-  assert.deepEqual(analysisPayload(session, id, true), {
+  await assert.rejects(analysisPayload(session, id, false), { code: 'consent_required' })
+  delete session.pages[1].ocr
+  const calls = []
+  const options = {
+    prepare: async (page) => {
+      calls.push(page.id)
+      return { image: 'data:image/jpeg;base64,U1lOVEhFVElD', bytes: 9 }
+    },
+  }
+  assert.deepEqual(await analysisPayload(session, id, true, options), {
     consent: true,
-    pages: [{ id: 'b', number: 1, text: 'Invoice b' }],
+    pages: [{ id: 'b', number: 1, image: 'data:image/jpeg;base64,U1lOVEhFVElD' }],
   })
-  const blank = structuredClone(session)
-  blank.pages[1].ocr.originalText = ''
-  assert.throws(() => analysisPayload(blank, id, true), { code: 'empty_text' })
-  blank.pages[1].ocr.imageVersion = 'old'
-  assert.throws(() => analysisPayload(blank, id, true), { code: 'stale_ocr' })
+  assert.deepEqual(calls, ['b'])
+  await assert.rejects(
+    analysisPayload(session, id, true, {
+      prepare: async () => ({ image: 'x', bytes: 17_000_000 }),
+    }),
+    { code: 'input_too_large' },
+  )
 })
 test('AI attachment preserves manual edits and confirmation; page/OCR changes make analysis stale', () => {
   let session = fixture(),

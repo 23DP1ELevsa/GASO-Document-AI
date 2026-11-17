@@ -8,9 +8,7 @@
   },
   "scripts": {
     "ocr:prepare": "node scripts/prepare-ocr.mjs",
-    "predev": "npm run ocr:prepare",
     "dev": "vite --host 0.0.0.0",
-    "prebuild": "npm run ocr:prepare",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "android:sync": "npm run ocr:prepare && vite build --mode native && cap sync android",

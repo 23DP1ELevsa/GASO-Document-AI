@@ -67,7 +67,7 @@ async function pdf(page, scansOnly = false) {
 async function stored(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
     })
     try {
@@ -197,7 +197,7 @@ test('saved work resumes from Home at the correct step and previous steps retain
   await page.keyboard.press('Enter')
   await expect(info(page)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Dokumenta dati', exact: true })).toBeFocused()
-  await expect(page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Analizēt dokumentu', exact: true })).toBeDisabled()
   await info(page).getByLabel('Dokumenta nosaukums', { exact: true }).fill('Turpināmais dokuments')
   await info(page).getByLabel('Saņēmējs', { exact: true }).fill('Saglabāts saņēmējs')
   await page.getByRole('button', { name: 'Saglabāt melnrakstu', exact: true }).click()

@@ -14,9 +14,8 @@ import AppIcon from '../components/AppIcon.vue'
 import ScanPageCard from '../components/ScanPageCard.vue'
 import ImagePreviewDialog from '../components/ImagePreviewDialog.vue'
 import ScanEditorDialog from '../components/ScanEditorDialog.vue'
-import OcrResultDialog from '../components/OcrResultDialog.vue'
-import OcrLanguagePicker from '../components/OcrLanguagePicker.vue'
-import OcrProgress from '../components/OcrProgress.vue'
+import AiAnalysisOverlay from '../components/AiAnalysisOverlay.vue'
+import AddToCollection from '../components/AddToCollection.vue'
 import DocumentGroups from '../components/DocumentGroups.vue'
 import MobileHeader from '../components/MobileHeader.vue'
 import MobileStepFooter from '../components/MobileStepFooter.vue'
@@ -34,8 +33,6 @@ import {
   isConfirmationCurrent,
   validationErrors,
 } from '../features/documents/model.js'
-import { useOcrSession } from '../features/ocr/useOcrSession.js'
-import { useOcrSettings } from '../features/ocr/useOcrSettings.js'
 import { useScanSession } from '../features/scanning/useScanSession'
 import { errorCode } from '../features/scanning/errors'
 import { t } from '../locales'
@@ -46,7 +43,9 @@ const session = useScanSession()
 const { isDark, setTheme } = useAppearance()
 const { mode: pdfMode } = usePdfPreferences()
 const confirmWarning = ref(false)
-const analysisProvider = ref('local')
+const analysisProvider = ref('openai')
+const analysisProgress = ref({ phase: 'preparing' })
+let analysisController = null
 const aiConsent = ref(false)
 const aiFailed = ref(false)
 const sessionMenu = ref(null)
@@ -90,8 +89,8 @@ async function reviewPdf() {
   document.querySelector('[data-testid="document-information"]')?.focus()
 }
 const { active, dirty, busy, saving } = session
-const ocr = useOcrSession(session)
-const { languages, storageError, setLanguages } = useOcrSettings()
+const ocr = { running: ref(false), saveError: ref(null) }
+const languages = ref([])
 const transitioning = ref(false),
   recognizing = ref(false),
   saveFailed = ref(false)
@@ -201,7 +200,13 @@ function createGroups(starts) {
 }
 async function recognizeCurrent() {
   if (locked.value || !currentDocument.value) return
+  if (!aiConsent.value) {
+    error.value = new AiError('consent_required').message
+    return
+  }
   recognizing.value = true
+  analysisController = new AbortController()
+  analysisProgress.value = { phase: 'preparing' }
   clearMessages()
   aiFailed.value = false
   try {
@@ -211,7 +216,14 @@ async function recognizeCurrent() {
       currentDocument.value.id,
       languages.value,
       () => window.confirm(t('ocr.confirmRerun')),
-      { provider: analysisProvider.value, consent: aiConsent.value },
+      {
+        provider: 'openai',
+        consent: aiConsent.value,
+        signal: analysisController.signal,
+        onProgress: (progress) => {
+          analysisProgress.value = progress
+        },
+      },
     )
     if (!result.cancelled) {
       saveFailed.value = false
@@ -229,12 +241,15 @@ async function recognizeCurrent() {
     saveFailed.value = Boolean(ocr.saveError.value || reason?.code)
   } finally {
     recognizing.value = false
+    if (!error.value && currentDocument.value?.analysis) {
+      await nextTick()
+      const information = document.querySelector('[data-testid="document-information"]')
+      information?.focus({ preventScroll: true })
+      information?.scrollIntoView({ block: 'start' })
+    }
   }
 }
-function continueLocally() {
-  analysisProvider.value = 'local'
-  recognizeCurrent()
-}
+
 async function nextPages() {
   if (locked.value) return
   if (pages.value.length === 1 && !state.value.grouped) await oneDocument()
@@ -256,7 +271,10 @@ function pendingFields() {
 async function confirmCurrent() {
   if (locked.value || !currentDocument.value || validationErrors(currentDocument.value).length)
     return
-  if (pendingFields().length) {
+  if (
+    pendingFields().length ||
+    currentDocument.value.dynamicAttributes?.some((field) => field.status !== 'reviewed')
+  ) {
     confirmWarning.value = true
     return
   }
@@ -268,25 +286,6 @@ async function confirmCurrent() {
 async function reviewDocument(id) {
   selectedDocumentId.value = id
   await go(3)
-}
-const ocrPageId = ref(null),
-  ocrTrigger = shallowRef(null)
-function openText(page, trigger) {
-  ocrTrigger.value = trigger
-  ocrPageId.value = page.id
-}
-async function closeText() {
-  ocrPageId.value = null
-  await nextTick()
-  if (ocrTrigger.value?.isConnected) ocrTrigger.value.focus({ preventScroll: true })
-}
-function runOcr(pagesToRecognize) {
-  return ocr.run(pagesToRecognize, languages.value, () => window.confirm(t('ocr.confirmRerun')))
-}
-async function recognizePage(page, trigger) {
-  if (locked.value) return
-  openText(page, trigger)
-  await runOcr([page])
 }
 const camera = ref(null),
   gallery = ref(null),
@@ -371,13 +370,8 @@ function changeDocuments(action, ...args) {
   }
 }
 async function analyzeDocument(id) {
-  if (locked.value) return
-  clearMessages()
-  try {
-    await session.analyzeDocument(id)
-  } catch {
-    error.value = t('grouping.actionError')
-  }
+  selectedDocumentId.value = id
+  await go(3)
 }
 async function selected(event, replacing = false) {
   if (locked.value) return
@@ -451,13 +445,15 @@ function deviceBack(event) {
   event.preventDefault()
   if (editingPage.value) closeEditor()
   else if (selectedPage.value) selectedPage.value = null
-  else if (ocrPageId.value) closeText()
   else if (confirmWarning.value) confirmWarning.value = false
   else if (currentStep.value > 1) go(currentStep.value - 1)
   else if (!locked.value) router.push('/')
 }
 onMounted(() => window.addEventListener('gaso:back', deviceBack))
-onUnmounted(() => window.removeEventListener('gaso:back', deviceBack))
+onUnmounted(() => {
+  analysisController?.abort()
+  window.removeEventListener('gaso:back', deviceBack)
+})
 </script>
 <template>
   <div class="view scan-workspace guided-workspace">
@@ -476,7 +472,7 @@ onUnmounted(() => window.removeEventListener('gaso:back', deviceBack))
       "
       :subtitle="
         currentStep > 1
-          ? `${pages.length} lp.${state.documents.length > 1 ? ` · ${state.documents.length} dokumenti` : ''}`
+          ? `${pages.length} lp.${state.documents.length > 1 ? ` ? ${state.documents.length} dokumenti` : ''}`
           : undefined
       "
       back
@@ -627,8 +623,6 @@ onUnmounted(() => window.removeEventListener('gaso:back', deviceBack))
             @move="move"
             @replace="replace"
             @remove="remove"
-            @ocr="recognizePage"
-            @text="openText"
           />
         </div>
         <DocumentBoundaryPicker
@@ -649,51 +643,32 @@ onUnmounted(() => window.removeEventListener('gaso:back', deviceBack))
           @review="reviewDocument"
           @pdf="openPdf"
         />
-        <details v-if="pages.length" class="ocr-session bordered-card legacy-text-tools">
-          <summary>{{ t('workflow.text') }}</summary>
-          <OcrLanguagePicker
-            :model-value="languages"
-            :disabled="locked"
-            @update:model-value="setLanguages"
-          />
-          <p v-if="storageError" class="scan-error" role="alert">{{ t('ocr.settingsError') }}</p>
-          <v-btn variant="tonal" :disabled="locked" @click="runOcr(pages)">{{
-            t('ocr.recognizeAll')
-          }}</v-btn>
-          <OcrProgress :ocr="ocr" />
-          <details v-if="pages.some((page) => page.ocr)">
-            <summary>{{ t('ocr.combined') }}</summary>
-            <textarea readonly :value="ocr.combinedText.value" :aria-label="t('ocr.combined')" />
-          </details>
-        </details>
       </section>
 
       <DocumentReview
         v-if="currentStep === 3 && currentDocument"
         :session="active"
         :document="currentDocument"
-        :ocr="ocr"
-        :languages="languages"
-        :settings-error="storageError"
         :disabled="locked"
         :analysis-provider="analysisProvider"
         :ai-consent="aiConsent"
         :ai-failed="aiFailed"
         @provider="analysisProvider = $event"
         @consent="aiConsent = $event"
-        @local="continueLocally"
         @select="selectDocument"
         @preview="openPreview"
         @recognize="recognizeCurrent"
         @skip="go(4)"
         @change="changeDocuments"
         @analyze="analyzeDocument"
-        @languages="setLanguages"
-        @recognize-page="recognizePage"
-        @text="openText"
       />
 
       <section v-if="currentStep === 4" class="workflow-result">
+        <AddToCollection
+          v-if="currentDocument"
+          :controller="session"
+          :document-id="currentDocument.id"
+        />
         <div v-if="!exportCompleted" class="result-document-grid">
           <button
             v-for="(item, index) in state.documents"
@@ -806,7 +781,7 @@ onUnmounted(() => window.removeEventListener('gaso:back', deviceBack))
           color="primary"
           block
           size="x-large"
-          :disabled="locked"
+          :disabled="locked || !aiConsent"
           @click="recognizeCurrent"
           ><AppIcon name="sparkles" :size="20" />{{
             t(recognizing ? 'workflow.recognizing' : 'workflow.recognize')
@@ -842,6 +817,11 @@ onUnmounted(() => window.removeEventListener('gaso:back', deviceBack))
         ><v-btn variant="text" block @click="skipUnchecked">Turpināt tāpat</v-btn></v-card
       >
     </v-dialog>
+    <AiAnalysisOverlay
+      :active="recognizing"
+      :progress="analysisProgress"
+      @cancel="analysisController?.abort()"
+    />
     <ImagePreviewDialog
       :page="selectedPage"
       :return-focus="previewTrigger"
@@ -868,14 +848,6 @@ onUnmounted(() => window.removeEventListener('gaso:back', deviceBack))
       :simple="simpleEditor"
       @close="closeEditor"
       @apply="applyEditing"
-    />
-    <OcrResultDialog
-      v-if="ocrPageId"
-      :pages="pages"
-      :selected-id="ocrPageId"
-      :ocr="ocr"
-      @close="closeText"
-      @recognize="runOcr([$event])"
     />
   </div>
 </template>

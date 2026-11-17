@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\DocumentAi\AnalysisSchema;
 use App\DocumentAi\OpenAiAnalyzer;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -24,16 +24,19 @@ class DocumentAnalysisTest extends TestCase
     private function payload(): array
     {
         return ['consent' => true, 'pages' => [['id' => 'page-a', 'number' => 1,
-            'text' => "INVOICE Nr. SYN-001\nSeller: Synthetic Seller\nBuyer: Synthetic Buyer\nTotal: 125,50 EUR"]]];
+            'image' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=']]];
     }
 
     private function syntheticResult(string $type = 'invoice'): array
     {
-        return ['document_type' => $type, 'attributes' => array_replace(array_fill_keys(AnalysisSchema::FIELDS, null), [
-            'sender' => 'Synthetic Seller', 'recipient' => 'Synthetic Buyer', 'total_amount' => '125,50',
+        $values = ['sender' => 'Synthetic Seller', 'recipient' => 'Synthetic Buyer', 'total_amount' => '125,50',
             'subtotal_amount' => '100', 'tax_amount' => '25,50', 'balance_due' => '75.50',
-            'issue_date' => '17.11.2026', 'currency' => 'eur',
-        ]), 'evidence' => [['key' => 'sender', 'page_id' => 'page-a', 'page' => 1, 'text' => 'Seller: Synthetic Seller']], 'warnings' => []];
+            'issue_date' => '17.11.2026', 'currency' => 'eur'];
+
+        return ['document_type' => $type, 'attributes' => array_map(fn ($key, $value) => [
+            'label' => $key, 'key' => $key, 'value' => $value, 'data_type' => 'text', 'page' => 1,
+            'evidence' => $key === 'sender' ? 'Seller: Synthetic Seller' : null,
+        ], array_keys($values), array_values($values)), 'warnings' => []];
     }
 
     private function envelope(?array $result = null): array
@@ -82,17 +85,23 @@ class DocumentAnalysisTest extends TestCase
     public function test_invalid_dates_ambiguous_money_and_fabricated_evidence_are_not_used(): void
     {
         $result = $this->syntheticResult();
-        $result['attributes']['issue_date'] = '2026-02-30';
-        $result['attributes']['total_amount'] = '1,234';
-        $result['attributes']['subtotal_amount'] = '1.234,56';
-        $result['evidence'][0]['text'] = 'invented quotation';
+        $result['attributes'][6]['value'] = '2026-02-30';
+        $result['attributes'][2]['value'] = '1,234';
+        $result['attributes'][3]['value'] = '1.234,56';
+        $result['attributes'][0]['page'] = 9;
+        Http::fake(['api.openai.com/*' => Http::response($this->envelope($result))]);
+        $this->postJson('/api/document-analysis', $this->payload())->assertStatus(502)
+            ->assertJsonPath('error.code', 'invalid_response');
+        $result['attributes'][0]['page'] = 1;
+        Http::swap(new Factory);
+        Cache::flush();
         Http::fake(['api.openai.com/*' => Http::response($this->envelope($result))]);
         $this->postJson('/api/document-analysis', $this->payload())->assertOk()
             ->assertJsonPath('result.attributes.issue_date', null)
             ->assertJsonPath('result.attributes.total_amount', null)
             ->assertJsonPath('result.attributes.subtotal_amount', '1234.56')
-            ->assertJsonPath('result.evidence', [])
-            ->assertJsonFragment(['invalid_evidence']);
+            ->assertJsonPath('result.evidence.sender.0.verified', false)
+            ->assertJsonFragment(['ambiguous_attribute']);
     }
 
     public static function upstreamErrors(): array
@@ -147,12 +156,14 @@ class DocumentAnalysisTest extends TestCase
         $this->postJson('/api/document-analysis', $this->payload())->assertStatus(502)->assertJsonMissingPath('result');
     }
 
-    public function test_unknown_attribute_is_rejected(): void
+    public function test_nonstandard_attribute_is_preserved_and_deduplicated(): void
     {
         $result = $this->syntheticResult();
-        $result['attributes']['invented_field'] = 'data';
+        $field = ['label' => 'Special condition', 'key' => 'nonstandard_key', 'value' => 'Synthetic condition', 'data_type' => 'text', 'page' => null, 'evidence' => null];
+        $result['attributes'][] = $field;
+        $result['attributes'][] = $field;
         Http::fake(['api.openai.com/*' => Http::response($this->envelope($result))]);
-        $this->postJson('/api/document-analysis', $this->payload())->assertStatus(502)->assertJsonPath('error.code', 'invalid_response');
+        $this->postJson('/api/document-analysis', $this->payload())->assertOk()->assertJsonCount(9, 'result.dynamic_attributes')->assertJsonPath('result.dynamic_attributes.8.key', null);
     }
 
     public function test_missing_key_disabled_and_production_gates(): void
@@ -188,12 +199,13 @@ class DocumentAnalysisTest extends TestCase
         $data['pages'][1]['number'] = 2;
         $this->postJson('/api/document-analysis', $data)->assertStatus(422);
         $data = $this->payload();
-        $data['pages'][0]['image'] = 'not-allowed';
+        $data['pages'][0]['image'] = 'https://example.com/image.png';
         $this->postJson('/api/document-analysis', $data)->assertStatus(422);
         $data = $this->payload();
-        $data['pages'][0]['text'] = '';
-        $this->postJson('/api/document-analysis', $data)->assertStatus(422)->assertJsonPath('error.code', 'empty_text');
-        $data['pages'][0]['text'] = str_repeat('x', 270000);
+        $data['pages'][0]['image'] = 'data:image/png;base64,';
+        $this->postJson('/api/document-analysis', $data)->assertStatus(422)->assertJsonPath('error.code', 'invalid_input');
+        config(['document_ai.max_body_bytes' => 262144]);
+        $data['pages'][0]['image'] = str_repeat('x', 270000);
         $this->postJson('/api/document-analysis', $data)->assertStatus(413);
         Http::assertNothingSent();
     }
@@ -211,7 +223,7 @@ class DocumentAnalysisTest extends TestCase
         $this->postJson('/api/document-analysis', $this->payload())->assertStatus(429)->assertJsonPath('error.code', 'rate_limit');
     }
 
-    public function test_only_numeric_usage_is_logged_and_ocr_is_preserved(): void
+    public function test_only_numeric_usage_is_logged_and_images_are_forwarded(): void
     {
         Log::spy();
         Http::fake(['api.openai.com/*' => Http::response($this->envelope())]);
@@ -219,7 +231,7 @@ class DocumentAnalysisTest extends TestCase
         Log::shouldHaveReceived('info')->once()->with('document_ai.usage', ['input_tokens' => 100, 'output_tokens' => 50, 'total_tokens' => 150]);
         Log::shouldNotHaveReceived('error');
         Log::shouldNotHaveReceived('debug');
-        Http::assertSent(fn ($request) => json_decode($request['input'][0]['content'][0]['text'], true)['pages'] === $this->payload()['pages']);
+        Http::assertSent(fn ($request) => $request['input'][0]['content'][1]['type'] === 'input_image' && $request['input'][0]['content'][1]['image_url'] === $this->payload()['pages'][0]['image']);
     }
 
     public function test_unexpected_exceptions_do_not_leak_or_log_document_data(): void
@@ -234,12 +246,11 @@ class DocumentAnalysisTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_combined_text_limit_is_enforced_before_external_request(): void
+    public function test_combined_image_limit_is_enforced_before_external_request(): void
     {
-        $data = ['consent' => true, 'pages' => [
-            ['id' => 'a', 'number' => 1, 'text' => str_repeat('x', 30001)],
-            ['id' => 'b', 'number' => 2, 'text' => str_repeat('y', 30000)],
-        ]];
+        $data = $this->payload();
+        $data['pages'][] = [...$data['pages'][0], 'id' => 'page-b', 'number' => 2];
+        config(['document_ai.max_image_total_bytes' => 100]);
         $this->postJson('/api/document-analysis', $data)->assertStatus(413)
             ->assertJsonPath('error.code', 'input_too_large');
         Http::assertNothingSent();

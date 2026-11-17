@@ -1,0 +1,85 @@
+{
+    "type": "object",
+    "properties": {
+        "document_type": {
+            "type": "string",
+            "enum": [
+                "invoice",
+                "contract",
+                "application",
+                "insurance_document",
+                "delivery_note",
+                "other",
+                "unknown"
+            ]
+        },
+        "attributes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "value": {
+                        "type": "string"
+                    },
+                    "data_type": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "date",
+                            "amount",
+                            "currency",
+                            "number"
+                        ]
+                    },
+                    "page": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "evidence": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "label",
+                    "key",
+                    "value",
+                    "data_type",
+                    "page",
+                    "evidence"
+                ],
+                "additionalProperties": false
+            }
+        },
+        "warnings": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "unknown_type",
+                    "ambiguous_attribute",
+                    "unreadable_image"
+                ]
+            }
+        }
+    },
+    "required": [
+        "document_type",
+        "attributes",
+        "warnings"
+    ],
+    "additionalProperties": false
+}

@@ -40,6 +40,7 @@ onUnmounted(() => {
 const navigation = [
   { name: 'home', path: '/' },
   { name: 'documents', path: '/documents' },
+  { name: 'collections', path: '/collections' },
 ]
 </script>
 
@@ -95,7 +96,7 @@ const navigation = [
     </div>
 
     <nav
-      v-if="route.name === 'home' || route.name === 'documents'"
+      v-if="['home', 'documents', 'collections'].includes(route.name)"
       class="bottom-nav"
       :aria-label="t('app.navigation')"
     >
@@ -104,7 +105,10 @@ const navigation = [
         :key="item.name"
         :to="item.path"
         :class="{ selected: route.name === item.name }"
-        ><span class="bottom-icon"><AppIcon :name="item.name" :size="23" /></span
+        ><span class="bottom-icon"
+          ><AppIcon
+            :name="item.name === 'collections' ? 'documents' : item.name"
+            :size="23" /></span
         ><span>{{ t(`nav.${item.name}`) }}</span></RouterLink
       >
     </nav>

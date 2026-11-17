@@ -80,7 +80,7 @@ const dialog = (page) => page.getByRole('dialog', { name: 'PDF eksports', exact:
 async function storage(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
     })
     try {
@@ -153,7 +153,7 @@ async function seed(
   await page.evaluate(
     async ({ documents, pages, processed, processedImage }) => {
       const db = await new Promise((resolve) => {
-        const r = indexedDB.open('gaso-document-ai', 1)
+        const r = indexedDB.open('gaso-document-ai')
         r.onsuccess = () => resolve(r.result)
       })
       try {
@@ -414,7 +414,7 @@ test('missing images fail visibly without partial download; restoration permits 
   const id = stored.draft.documents[0].pageIds[1]
   await page.evaluate(async (id) => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
     })
     await new Promise((resolve) => {
@@ -436,7 +436,7 @@ test('missing images fail visibly without partial download; restoration permits 
   expect(await page.evaluate(() => pdfWorkers.size)).toBe(0)
   await page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
     })
     await new Promise((resolve) => {
@@ -470,7 +470,13 @@ test('PDF generation works offline after reload and neither generated PDFs nor d
   })
   expect(paths.some((url) => url.includes('NotoSans-Regular'))).toBe(true)
   expect(paths.every((url) => !url.startsWith('blob:') && !/\.pdf(?:$|\?)/i.test(url))).toBe(true)
-  expect((await storage(page)).stores.sort()).toEqual(['drafts', 'images', 'pages'])
+  expect((await storage(page)).stores.sort()).toEqual([
+    'collections',
+    'drafts',
+    'images',
+    'pages',
+    'savedDocuments',
+  ])
   await close(page)
 })
 

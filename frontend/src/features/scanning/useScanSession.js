@@ -222,6 +222,9 @@ export function useScanSession() {
         'editValue',
         'confirmDocument',
         'addCustomField',
+        'renameCustomField',
+        'removeCustomField',
+        'reviewAttribute',
       ].includes(action)
     )
       throw new Error('Unknown operation')
@@ -230,14 +233,15 @@ export function useScanSession() {
   }
   async function analyzeDocument(id, options = {}) {
     if (busy.value || !active.value) throw new ScanError('busy')
-    if (options.provider === 'openai') {
+    if (options.provider !== 'local') {
       const initial = active.value
       const document = initial.documents.find((item) => item.id === id)
-      const payload = analysisPayload(initial, id, options.consent)
       const source = documents.sourceVersion(initial, document)
       busy.value = true
       try {
-        const result = await requestAiAnalysis(payload)
+        const payload = await analysisPayload(initial, id, options.consent, options)
+        const result = await requestAiAnalysis(payload, options)
+        if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError')
         if (active.value?.id !== initial.id) return
         active.value = attachAiAnalysis(active.value, id, source, result)
         dirty.value = true

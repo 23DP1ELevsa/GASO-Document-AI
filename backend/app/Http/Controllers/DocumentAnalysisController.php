@@ -16,10 +16,10 @@ class DocumentAnalysisController extends Controller
         $validator = Validator::make($data, [
             'consent' => ['required', 'accepted'],
             'pages' => ['required', 'array', 'min:1', 'max:'.config('document_ai.max_pages')],
-            'pages.*' => ['required', 'array:id,number,text'],
+            'pages.*' => ['required', 'array:id,number,image'],
             'pages.*.id' => ['required', 'string', 'regex:/^[A-Za-z0-9_-]{1,100}$/D', 'distinct:strict'],
             'pages.*.number' => ['required', 'integer', 'min:1'],
-            'pages.*.text' => ['present', 'string', 'max:'.config('document_ai.max_text_characters')],
+            'pages.*.image' => ['required', 'string'],
         ]);
         if (array_diff(array_keys($data), ['consent', 'pages']) || $validator->fails()) {
             return $this->error('invalid_input', 422);
@@ -28,15 +28,26 @@ class DocumentAnalysisController extends Controller
         if (array_column($pages, 'number') !== range(1, count($pages))) {
             return $this->error('invalid_input', 422);
         }
-        $text = implode('', array_column($pages, 'text'));
-        if (! trim($text)) {
-            return $this->error('empty_text', 422);
+        $totalBytes = 0;
+        foreach ($pages as $page) {
+            if (! preg_match('#^data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$#D', $page['image'], $match)) {
+                return $this->error('invalid_input', 422);
+            }
+            $bytes = base64_decode($match[2], true);
+            if ($bytes === false || strlen($bytes) > config('document_ai.max_image_bytes')) {
+                return $this->error('input_too_large', 413);
+            }
+            $size = @getimagesizefromstring($bytes);
+            if (! $size || $size['mime'] !== 'image/'.$match[1] || $size[0] * $size[1] > 16000000 || max($size[0], $size[1]) > 6000) {
+                return $this->error('invalid_input', 422);
+            }
+            $totalBytes += strlen($bytes);
         }
-        if (mb_strlen($text) > config('document_ai.max_text_characters')) {
+        if ($totalBytes > config('document_ai.max_image_total_bytes')) {
             return $this->error('input_too_large', 413);
         }
-        // Cache contains only counters and HMAC fingerprints, never OCR or output.
-        $fingerprint = hash_hmac('sha256', json_encode(array_column($pages, 'text')), config('app.key'));
+        // Cache contains counters and HMAC fingerprints only; no images or output.
+        $fingerprint = hash_hmac('sha256', json_encode(array_column($pages, 'image')), config('app.key'));
         $cache = Cache::store(config('cache.default'));
         $lock = $cache->lock('document-ai-budget-lock', 5);
         if (! $lock->get()) {

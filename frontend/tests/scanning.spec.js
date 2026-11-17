@@ -55,7 +55,7 @@ async function pageMenu(page, index, action) {
 async function storage(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
       r.onerror = () => reject(r.error)
     })

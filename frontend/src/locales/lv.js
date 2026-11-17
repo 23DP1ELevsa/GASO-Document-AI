@@ -21,7 +21,13 @@ export default {
     storageWarning:
       'Pārlūks neļauj saglabāt iestatījumus. Izvēlētais režīms darbosies līdz lapas aizvēršanai.',
   },
-  nav: { home: 'Sākums', scan: 'Skenēt', documents: 'Dokumenti', settings: 'Iestatījumi' },
+  nav: {
+    collections: 'Komplekti',
+    home: 'Sākums',
+    scan: 'Skenēt',
+    documents: 'Dokumenti',
+    settings: 'Iestatījumi',
+  },
   common: {
     soon: 'Drīzumā pieejams',
     planned: 'Plānots',
@@ -29,7 +35,7 @@ export default {
     allDocuments: 'Visi dokumenti',
     localTitle: 'Jūsu ierīcē. Jūsu pārziņā.',
     localDescription:
-      'Attēli un iesāktie darbi paliek šajā pārlūkprogrammā. Izvēloties AI analīzi un piekrītot, dokumenta OCR teksts tiek nosūtīts OpenAI. Pārlūka datu dzēšana izdzēsīs arī iesākto darbu; svarīgos PDF saglabājiet savā ierīcē.',
+      'Attēli un iesāktie darbi paliek šajā pārlūkprogrammā. Izvēloties AI analīzi un piekrītot, dokumenta fotoatt?li tiek nosūtīts OpenAI. Pārlūka datu dzēšana izdzēsīs arī iesākto darbu; svarīgos PDF saglabājiet savā ierīcē.',
     localShort: 'Saskarne darbojas neatkarīgi no servera.',
     next: 'Nākamajos posmos',
     learnMore: 'Par lokālo režīmu',
@@ -51,7 +57,7 @@ export default {
     capture: 'Uzņemiet',
     captureText: 'Fotografējiet vienu vai vairākas dokumenta lapas.',
     recognize: 'Atpazīstiet',
-    recognizeText: 'Iegūstiet rediģējamu tekstu ar lokālu OCR.',
+    recognizeText: 'AI atrod svarīgāko informāciju dokumenta fotoattēlos.',
     organize: 'Saglabājiet',
     organizeText: 'Pārbaudiet rezultātu un izveidojiet PDF dokumentu.',
     illustration: 'Dokumenta ilustrācija',
@@ -97,7 +103,7 @@ export default {
     confirmDelete: 'Vai dzēst visu sesiju un tās saglabātos attēlus? Šo darbību nevar atsaukt.',
     localTitle: 'Melnraksti paliek šajā pārlūkprogrammā',
     localInfo:
-      'Saglabāšana ir lokāla, bez servera un MI. Pārlūka datu dzēšana izdzēsīs melnrakstus. Citā pārlūkā vai adresē tie nebūs pieejami.',
+      'Melnraksti un komplekti glabājas jūsu ierīcē. AI analīze nosūta fotoattēlus OpenAI tikai pēc piekrišanas. Pārlūka datu dzēšana izdzēsīs melnrakstus. Citā pārlūkā vai adresē tie nebūs pieejami.',
     unsavedHint:
       'Izmaiņas, arī lapu dzēšana un secība, tiek ierakstītas krātuvē, nospiežot “Saglabāt melnrakstu”. Nesaglabātas izmaiņas pēc pārlādes zudīs.',
     loading: 'Ielādē…',
@@ -304,7 +310,7 @@ export default {
     privacy: 'Dati un privātums',
     aiTitle: 'MI integrācija nākotnē',
     aiDescription:
-      'Lokālā analīze darbojas ierīcē. OpenAI analīze pieejama lokālā izstrādē pēc servera konfigurēšanas un piekrišanas OCR teksta nosūtīšanai. Personīgo API izmantojiet tikai apstiprinātiem testdatiem; reāliem uzņēmuma dokumentiem vajadzīga atsevišķa atļauja.',
+      'OpenAI analizē dokumenta fotoattēlus tikai pēc jūsu piekrišanas. Bez AI varat ievadīt datus manuāli vai saglabāt skenējumu.',
     about: 'Par lietotni',
     aboutText: 'Dokumentu digitalizācijas mobilās lietotnes pamats.',
     language: 'Saskarnes valoda',

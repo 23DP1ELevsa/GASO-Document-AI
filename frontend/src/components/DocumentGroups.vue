@@ -294,7 +294,7 @@ function applyBoundaries(document) {
           >{{ t('grouping.analyze') }}</v-btn
         >
         <v-btn
-          v-if="boundaries(document).length"
+          v-if="false"
           variant="text"
           :disabled="disabled"
           @click="applyBoundaries(document)"

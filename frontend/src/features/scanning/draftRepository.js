@@ -4,7 +4,7 @@ import { migrateGrouping, validateDocuments } from '../documents/model.js'
 import { navigationState, currentExports } from '../documents/workflow.js'
 
 export const DATABASE_NAME = 'gaso-document-ai'
-const STORES = ['drafts', 'pages', 'images']
+const STORES = ['drafts', 'pages', 'images', 'collections', 'savedDocuments']
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -19,7 +19,7 @@ function openDatabase() {
     }
     const timer = setTimeout(() => fail(new ScanError('storageBlocked')), 7000)
     try {
-      request = indexedDB.open(DATABASE_NAME, 1)
+      request = indexedDB.open(DATABASE_NAME, 2)
       request.onupgradeneeded = () => {
         const db = request.result
         for (const name of STORES)
@@ -43,7 +43,7 @@ function openDatabase() {
   })
 }
 
-async function transaction(stores, mode, work) {
+export async function transaction(stores, mode, work) {
   const db = await openDatabase()
   return new Promise((resolve, reject) => {
     let result, failure, tx
@@ -134,26 +134,30 @@ export function loadDraft(id) {
   }).then(migrateGrouping)
 }
 
-function readImage(id, display) {
-  return transaction(['images'], 'readonly', (tx, result, fail) => {
-    tx.objectStore('images').get(id).onsuccess = (event) => {
-      if (!event.target.result) fail(new ScanError('missingImage'))
-      else
-        result(
-          display
-            ? event.target.result.processed || event.target.result.blob
-            : event.target.result.blob,
-        )
-    }
-  })
+async function readImage(id, display) {
+  const record = await readImageRecord(id)
+  return display ? record.processed || record.blob : record.blob
 }
-
 export function readImageRecord(id) {
   return transaction(['images'], 'readonly', (tx, result, fail) => {
-    tx.objectStore('images').get(id).onsuccess = (event) => {
-      if (!event.target.result) fail(new ScanError('missingImage'))
-      else result(event.target.result)
+    const read = (key, seen, complete) => {
+      if (seen.has(key)) {
+        fail(new ScanError('missingImage'))
+        return
+      }
+      const visited = new Set([...seen, key])
+      tx.objectStore('images').get(key).onsuccess = (event) => {
+        const record = event.target.result
+        if (!record) fail(new ScanError('missingImage'))
+        else if (record.reference) read(record.reference, visited, complete)
+        else if (record.originalReference)
+          read(record.originalReference, visited, (original) =>
+            complete({ ...record, blob: original.blob }),
+          )
+        else complete(record)
+      }
     }
+    read(id, new Set(), result)
   })
 }
 
@@ -201,9 +205,17 @@ export function saveDraft(session) {
         validateOcr(page.ocr)
         const { original, processed, ...metadata } = page
         pages.put(metadata)
-        if (original)
-          images.put({ id: page.id, blob: original, ...(processed ? { processed } : {}) })
-        else if (!previous?.pageIds.includes(page.id)) {
+        if (original) {
+          images.get(page.id).onsuccess = guarded(fail, (event) => {
+            const prior = event.target.result
+            const reference = prior?.originalReference || prior?.reference
+            images.put({
+              id: page.id,
+              ...(reference ? { originalReference: reference } : { blob: original }),
+              ...(processed ? { processed } : {}),
+            })
+          })
+        } else if (!previous?.pageIds.includes(page.id)) {
           fail(new ScanError('missingImage'))
           return
         }
@@ -211,6 +223,14 @@ export function saveDraft(session) {
       drafts.put(draft)
       result(draft)
     })
+  }).then(async (draft) => {
+    // Garbage collection can retry later; it must not turn a committed save into a failure.
+    try {
+      await collectUnusedImages()
+    } catch {
+      /* Retaining unused images is safe. */
+    }
+    return draft
   })
 }
 
@@ -223,5 +243,45 @@ export function deleteDraft(id) {
       }
       tx.objectStore('drafts').delete(id)
     })
+  }).then(async () => {
+    try {
+      await collectUnusedImages()
+    } catch {
+      /* Retry on the next successful write. */
+    }
+  })
+}
+
+export function collectUnusedImages() {
+  return transaction(STORES, 'readwrite', (tx) => {
+    const data = {}
+    let remaining = 4
+    for (const store of ['collections', 'savedDocuments', 'drafts', 'images']) {
+      tx.objectStore(store).getAll().onsuccess = (event) => {
+        data[store] = event.target.result
+        if (--remaining) return
+        const documentIds = new Set(data.collections.flatMap((item) => item.documentIds))
+        const retained = data.savedDocuments.filter((item) => documentIds.has(item.id))
+        for (const item of data.savedDocuments)
+          if (!documentIds.has(item.id)) tx.objectStore('savedDocuments').delete(item.id)
+        const pageIds = new Set(data.drafts.flatMap((item) => item.pageIds))
+        const used = new Set(
+          retained.flatMap((item) => item.pages.map((page) => page.imageRecordId)),
+        )
+        for (const id of pageIds) used.add(id)
+        const byId = new Map(data.images.map((image) => [image.id, image]))
+        const pending = [...used]
+        while (pending.length) {
+          const image = byId.get(pending.pop())
+          for (const target of [image?.reference, image?.originalReference])
+            if (target && !used.has(target)) {
+              used.add(target)
+              pending.push(target)
+            }
+        }
+        for (const image of data.images)
+          if (!used.has(image.id)) tx.objectStore('images').delete(image.id)
+      }
+    }
   })
 }

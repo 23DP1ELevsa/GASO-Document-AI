@@ -26,14 +26,21 @@ export function isAnalysisStale(session, document) {
   return Boolean(
     document.analysis &&
     (document.analysis.source !== sourceVersion(session, document) ||
-      documentPages(session, document).some(isOcrStale)),
+      (document.analysis.provider !== 'openai' &&
+        documentPages(session, document).some(isOcrStale))),
   )
 }
 export function isConfirmationCurrent(session, document) {
   return Boolean(
     document.confirmation &&
     document.confirmation.source === sourceVersion(session, document) &&
-    JSON.stringify(document.confirmation.values) === JSON.stringify(document.values),
+    JSON.stringify(document.confirmation.values) === JSON.stringify(document.values) &&
+    (!document.confirmation.customFields ||
+      JSON.stringify(document.confirmation.customFields) ===
+        JSON.stringify(document.customFields)) &&
+    (!document.confirmation.dynamicAttributes ||
+      JSON.stringify(document.confirmation.dynamicAttributes) ===
+        JSON.stringify(document.dynamicAttributes || [])),
   )
 }
 export function unassignedPages(session) {
@@ -190,6 +197,11 @@ export function editValue(session, id, key, raw) {
   return updateDocument(session, id, (item) => ({
     ...item,
     values: { ...item.values, [key]: value },
+    dynamicAttributes: item.dynamicAttributes?.map((field) =>
+      field.key === key
+        ? { ...field, value, status: 'reviewed', origin: 'user', editedAt: Date.now() }
+        : field,
+    ),
     editedFields: [...new Set([...(item.editedFields || []), key])],
   }))
 }
@@ -208,7 +220,11 @@ export function validationErrors(document) {
 }
 export function confirmDocument(session, id) {
   const document = requireDocument(session, id)
-  if (!document.pageIds.length || validationErrors(document).length)
+  if (
+    !document.pageIds.length ||
+    validationErrors(document).length ||
+    document.dynamicAttributes?.some((field) => field.status !== 'reviewed')
+  )
     throw new Error('Invalid information')
   return updateDocument(session, id, (item) => ({
     ...item,
@@ -216,16 +232,42 @@ export function confirmDocument(session, id) {
       confirmedAt: Date.now(),
       source: sourceVersion(session, item),
       values: { ...item.values },
+      customFields: structuredClone(item.customFields),
+      dynamicAttributes: structuredClone(item.dynamicAttributes || []),
     },
   }))
 }
 export function addCustomField(session, id, label, value = null) {
-  if (!label.trim()) throw new Error('Missing label')
+  if (!label.trim() || label.length > 100) throw new Error('Missing label')
+  const existing = requireDocument(session, id)
+  if (
+    existing.customFields.some(
+      (field) => field.label.toLocaleLowerCase() === label.trim().toLocaleLowerCase(),
+    )
+  )
+    throw new Error('Duplicate label')
   const key = `custom_${newId().replaceAll('-', '')}`
   return updateDocument(session, id, (document) => ({
     ...document,
     customFields: [...document.customFields, { key, label: label.trim() }],
     values: { ...document.values, [key]: value?.trim() || null },
+    editedFields: [...(document.editedFields || []), key],
+    dynamicAttributes: [
+      ...(document.dynamicAttributes || []),
+      {
+        id: newId(),
+        key,
+        normalizedKey: null,
+        label: label.trim(),
+        value: value?.trim() || null,
+        dataType: 'text',
+        pageId: null,
+        page: null,
+        evidence: null,
+        status: 'reviewed',
+        origin: 'user',
+      },
+    ],
   }))
 }
 // PDF export reads image blobs by pageId, preserving document order and visual content.
@@ -238,4 +280,60 @@ export function documentExportPlan(session, id) {
     confirmed: isConfirmationCurrent(session, document),
     pages: document.pageIds.map((pageId) => ({ pageId, imageRecordId: pageId })),
   }
+}
+
+export function reviewAttribute(session, id, key) {
+  return updateDocument(session, id, (item) => ({
+    ...item,
+    dynamicAttributes: item.dynamicAttributes?.map((field) =>
+      field.key === key ? { ...field, status: 'reviewed', reviewedAt: Date.now() } : field,
+    ),
+    editedFields: [...new Set([...(item.editedFields || []), key])],
+  }))
+}
+export function renameCustomField(session, id, key, label) {
+  if (!label.trim() || label.length > 100) throw new Error('Invalid label')
+  return updateDocument(session, id, (item) => {
+    if (!item.customFields.some((field) => field.key === key)) throw new Error('Not a custom field')
+    if (
+      item.customFields.some(
+        (field) =>
+          field.key !== key && field.label.toLocaleLowerCase() === label.trim().toLocaleLowerCase(),
+      )
+    )
+      throw new Error('Duplicate label')
+    return {
+      ...item,
+      deletedAttributeLabels: [
+        ...(item.deletedAttributeLabels || []),
+        item.customFields.find((field) => field.key === key).label.toLocaleLowerCase(),
+      ],
+      customFields: item.customFields.map((field) =>
+        field.key === key ? { ...field, label: label.trim() } : field,
+      ),
+      dynamicAttributes: item.dynamicAttributes?.map((field) =>
+        field.key === key ? { ...field, label: label.trim(), origin: 'user' } : field,
+      ),
+      editedFields: [...new Set([...(item.editedFields || []), key])],
+    }
+  })
+}
+export function removeCustomField(session, id, key) {
+  return updateDocument(session, id, (item) => {
+    const field = item.customFields.find((field) => field.key === key)
+    if (!field) throw new Error('Not a custom field')
+    const values = { ...item.values }
+    delete values[key]
+    return {
+      ...item,
+      values,
+      customFields: item.customFields.filter((field) => field.key !== key),
+      dynamicAttributes: item.dynamicAttributes?.filter((field) => field.key !== key),
+      deletedAttributeLabels: [
+        ...(item.deletedAttributeLabels || []),
+        field.label.toLocaleLowerCase(),
+      ],
+      editedFields: [...new Set([...(item.editedFields || []), key])],
+    }
+  })
 }

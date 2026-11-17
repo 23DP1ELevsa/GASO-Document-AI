@@ -1,5 +1,37 @@
 ﻿# GASO Document AI
 
+## Pašreizējā versija: fotoanalīze un saglabāti komplekti
+
+**Nofotografēt → AI analīze → pārbaudīt datus → saglabāt PDF → pievienot komplektam.** Saglabāts Vue 3 / Vuetify 3, Capacitor un Lovable mobilais dizains, 360–430 px telefonu saskarne, gaišais un tumšais režīms.
+
+OpenAI saņem izvēlētā dokumenta sakārtotās fotogrāfijas kā input_image vienā Responses API pieprasījumā. Ierīce ievēro perspektīvu, pagriezienu un EXIF orientāciju un sagatavo JPEG kopiju līdz 2800 px / 8 MP. Oriģināli un PDF attēli netiek aizstāti ar AI kopijām. Laravel validē attēlu faktisko formātu, apjomu, lapu secību un Structured Outputs atbildi.
+
+Lokālais OCR ir atslēgts: nav OCR pogu, valodu/tehnisko iestatījumu vai automātiskas OCR palaišanas. Tesseract.js un izolētais kods saglabāti; OCR resursu sagatavošana vairs nav dev/build priekšnosacījums. Ja AI nav pieejams, var manuāli aizpildīt datus vai eksportēt skenējumu. Automātiskas OCR alternatīvas nav.
+
+AI piedāvā konkrētajam dokumentam būtiskos dinamiskos atribūtus, arī nestandarta laukus. Lietotājs labo vērtības, pārbauda laukus, pārdēvē/dzēš pielāgotos atribūtus un pievieno savus. Manuālie labojumi un apstiprinātās vērtības atkārtotā analīzē saglabājas. Daļēji caurspīdīgs pārklājums rāda reālus sagatavošanas posmus un nenoteiktu AI gaidīšanas indikatoru; pieejama atcelšana bez datu dzēšanas.
+
+### Komplekti un PDF
+
+Navigācija: **Sākums, Dokumenti, Komplekti**. Dokumenta PDF solī izvēlieties **Pievienot komplektam** un esošu vai jaunu komplektu. Arī nākamajā dienā skenējiet jaunu dokumentu un izvēlieties to pašu komplektu. Var mainīt komplekta nosaukumu, dokumentu secību, izņemt dokumentus un eksportēt atsevišķu vai kopējo PDF.
+
+IndexedDB versija **2** tikai pievieno collections un savedDocuments, saglabājot vecos melnrakstus, attēlus un OCR. Komplekti glabā dokumentu/lapu momentuzņēmumus un attēlu atsauces neatkarīgi no sesijas. Sesijas dzēšana nedzēš komplekta attēlus. Vēlāka apstrādātā attēla maiņa veido jaunu versiju, koplietojot oriģinālu; atkritumu savācējs pārbauda visas atsauces.
+
+Komplektā saglabāts pievienošanas brīža dokumenta stāvoklis. Vēlāki melnraksta labojumi komplektu automātiski nemaina: izņemiet dokumentu un pievienojiet aktuālo versiju no jauna. Pārlūka datu dzēšana dzēš lokālos komplektus; svarīgos PDF lejupielādējiet.
+
+PDF izmanto esošo pdf-lib Worker un lokālo Unicode Noto Sans fontu. Katram dokumentam ir apstiprināto atribūtu divu kolonnu tabula un skenētās lapas; garas tabulas turpinās nākamajās lapās. Komplekta PDF atkārto sadaļas lietotāja secībā. Nepārbaudītiem dokumentiem pievieno tikai attēlus. Katrs eksports rada jaunu failu. Pašreizējie resursu limiti: **20 skenētas lapas visā eksportā, 128 PDF lapas, 80 MiB gala fails**; lielākus komplektus eksportējiet pa dokumentiem.
+
+### Konfigurācija, privātums un pārbaudes
+
+Palaišanas komandas zemāk saglabājas. Tikai backend/.env iestatiet DOCUMENT_AI_PROVIDER=openai, DOCUMENT_AI_ENABLED=true un OPENAI_API_KEY. OPENAI_MODEL paliek konfigurējams (gpt-6-luna). Pēc maiņas izpildiet php artisan config:clear. Esošais lietotāja .env nav pārrakstīts. Atslēgu neievietojiet frontend vai Android.
+
+Konfigurējami limiti: DOCUMENT_AI_MAX_PAGES=20, DOCUMENT_AI_MAX_IMAGE_BYTES=4000000, DOCUMENT_AI_MAX_IMAGE_TOTAL_BYTES=16000000, DOCUMENT_AI_MAX_BODY_BYTES=22000000. Saglabāti pieprasījumu biežuma un testa mēģinājumu ierobežojumi; tie negarantē precīzu **5 USD** naudas slieksni. Kredītus papildus kontrolējiet OpenAI projektā.
+
+Attēli tiek nosūtīti tikai pēc piekrišanas; backend tos pastāvīgi neglabā un nežurnalē personas datus vai pilnas AI atbildes. Faktiskais API tokenu patēriņš redzams dokumenta informācijā. store:false neizslēdz visus pakalpojuma glabāšanas režīmus. Produkcijas galapunkts ir bloķēts līdz autentifikācijas un lietotāju kvotu ieviešanai. Atcelšana ierīcē negarantē serverī jau sāktas maksas analīzes apturēšanu.
+
+[Arhitektūra un datu modelis](docs/vision-architecture.md), [faktiskie testu rezultāti](docs/testing/vision-collections.md). Testos izmanto sintētiskus attēlus un imitētas API atbildes, bez maksas pieprasījumiem. MongoDB un Android APK nav veidoti.
+
+**Tālāk saglabāts vēsturisko posmu pārskats. Apraksti par aktīvu OCR un AI teksta ievadi neattiecas uz pašreizējo versiju.**
+
 ## Projekta apraksts
 
 GASO Document AI ir topošā Android mobilā lietotne un progresīvā tīmekļa lietotne (PWA) drukātu dokumentu fotografēšanai, digitalizēšanai, automātiskai klasificēšanai, datu iegūšanai un arhivēšanai. Abas platformas izmanto kopīgu Vue koda bāzi. Ar telefona kameru lietotājs vienā sesijā varēs secīgi fotografēt dažādu dokumentu lapas, piemēram, rēķinus, līgumus un iesniegumus.

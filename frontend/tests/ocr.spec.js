@@ -63,7 +63,7 @@ async function recognize(page, index = 0) {
 async function storedPages(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
       r.onerror = () => reject(r.error)
     })
@@ -261,7 +261,7 @@ test('real batch OCR reuses the worker, combines in page order and isolates a co
   await saveDraft(page)
   await page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai', 1)
+      const r = indexedDB.open('gaso-document-ai')
       r.onsuccess = () => resolve(r.result)
     })
     await new Promise((resolve) => {

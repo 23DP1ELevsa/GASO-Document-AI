@@ -144,43 +144,41 @@ function harness() {
   }
   return { session, ocr, id: s.documents[0].id }
 }
-test('recognize document runs OCR and local analysis in order while preserving manual fields and confirmation', async () => {
+test('recognition uses AI without starting OCR and preserves manual data and confirmation', async () => {
   const { session, ocr, id } = harness()
-  session.active.value = editValue(session.active.value, id, 'sender', 'Manuāls nosūtītājs')
+  session.active.value = editValue(session.active.value, id, 'sender', 'Manual sender')
   session.active.value = confirmDocument(session.active.value, id)
   const confirmation = session.active.value.documents[0].confirmation
-  await recognizeDocument(session, ocr, id, ['lav'])
-  assert.deepEqual(ocr.calls, [['a', 'b']])
-  assert.equal(session.active.value.documents[0].analysis.result.attributes.total_amount, '10.00')
-  assert.equal(session.active.value.documents[0].values.sender, 'Manuāls nosūtītājs')
+  await recognizeDocument(session, ocr, id, [], undefined, { consent: true })
+  assert.deepEqual(ocr.calls, [])
+  assert.equal(session.active.value.documents[0].values.sender, 'Manual sender')
   assert.equal(session.active.value.documents[0].confirmation, confirmation)
   assert.equal(session.saves, 1)
 })
-test('current OCR is reused; only missing or stale pages are recognized again', async () => {
+test('missing and stale OCR never start local recognition before AI', async () => {
   const { session, ocr, id } = harness()
-  await recognizeDocument(session, ocr, id, ['lav'])
-  const result = await recognizeDocument(session, ocr, id, ['lav'])
-  assert.equal(result.reused, 2)
-  assert.equal(ocr.calls.length, 1)
-  session.active.value.pages[1] = {
-    ...session.active.value.pages[1],
-    processing: { ...defaultProcessing(), rotation: 90 },
-  }
-  await recognizeDocument(session, ocr, id, ['lav'])
-  assert.deepEqual(ocr.calls[1], ['b'])
+  await recognizeDocument(session, ocr, id, [], undefined, { consent: true })
+  session.active.value.pages[1].processing = { ...defaultProcessing(), rotation: 90 }
+  await recognizeDocument(session, ocr, id, [], undefined, { consent: true })
+  assert.deepEqual(ocr.calls, [])
+  assert.equal(session.saves, 2)
 })
-test('cancellation and saving failure do not silently produce analysis or confirmation', async () => {
+test('cancellation, absent consent and saving failures remain explicit', async () => {
   const { session, ocr, id } = harness()
-  ocr.run = async () => {
-    ocr.cancelled.value = true
-  }
-  assert.equal((await recognizeDocument(session, ocr, id, ['lav'])).cancelled, true)
+  const abort = new AbortController()
+  abort.abort()
+  await assert.rejects(
+    recognizeDocument(session, ocr, id, [], undefined, { consent: true, signal: abort.signal }),
+    { code: 'cancelled' },
+  )
+  await assert.rejects(recognizeDocument(session, ocr, id, []), { code: 'consent_required' })
   assert.equal(session.active.value.documents[0].analysis, null)
-  ocr.cancelled.value = false
-  const error = new Error('quota')
-  ocr.run = async () => {
-    ocr.saveError.value = error
+  session.save = async () => {
+    throw new Error('quota')
   }
-  await assert.rejects(recognizeDocument(session, ocr, id, ['lav']), /quota/)
-  assert.equal(session.active.value.documents[0].analysis, null)
+  await assert.rejects(
+    recognizeDocument(session, ocr, id, [], undefined, { consent: true }),
+    /quota/,
+  )
+  assert.deepEqual(ocr.calls, [])
 })

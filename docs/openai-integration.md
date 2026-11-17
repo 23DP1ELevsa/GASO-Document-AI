@@ -1,5 +1,7 @@
 # 7. posms: OpenAI dokumentu analīze
 
+> Šis ir vēsturisks 7. posma pārskats. Pašreizējā versija izmanto fotoattēlus, dinamiskus atribūtus un saglabātus komplektus. Skatiet [aktuālo arhitektūru un konfigurāciju](vision-architecture.md) un [testu rezultātus](testing/vision-collections.md). OCR instrukcijas zemāk vairs nav aktīvās saskarnes instrukcija.
+
 Šī ir lokālās izstrādes integrācija. Personīgais OpenAI API paredzēts tikai sintētiskiem vai nosūtīšanai apstiprinātiem izstrādes/testēšanas datiem. Reālus GASO dokumentus drīkst nosūtīt tikai pēc atsevišķas uzņēmuma atļaujas.
 
 ## Priekšnoteikumi un palaišana

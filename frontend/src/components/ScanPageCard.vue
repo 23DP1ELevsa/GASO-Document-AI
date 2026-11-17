@@ -33,37 +33,6 @@ defineEmits(['preview', 'move', 'replace', 'remove', 'edit', 'ocr', 'text'])
       </p>
       <span v-if="page.processing" class="processed-label">{{ t('editor.processed') }}</span>
     </div>
-    <details class="page-extra-tools">
-      <summary>
-        <AppIcon name="ocr" :size="18" /><span class="sr-only">{{ t('workflow.advanced') }}</span>
-      </summary>
-      <p class="small-muted">
-        {{ page.processedWidth || page.width }} × {{ page.processedHeight || page.height }} px ·
-        {{ (page.size / 1024 / 1024).toFixed(1) }} MiB
-      </p>
-      <div class="ocr-card-actions">
-        <v-btn
-          variant="tonal"
-          color="primary"
-          :disabled="busy"
-          @click="$emit('ocr', page, $event.currentTarget)"
-          >{{ t('ocr.recognize') }}</v-btn
-        >
-        <v-btn
-          v-if="page.ocr"
-          variant="text"
-          :disabled="busy"
-          @click="$emit('text', page, $event.currentTarget)"
-          >{{ t('ocr.view') }}</v-btn
-        >
-      </div>
-      <span v-if="page.ocr" class="ocr-card-status">{{
-        t(isOcrStale(page) ? 'ocr.staleLabel' : `ocr.statuses.${page.ocr.status}`)
-      }}</span>
-      <span v-else-if="page.ocrAttempt" class="ocr-card-status">{{
-        t(`ocr.statuses.${page.ocrAttempt.status}`)
-      }}</span>
-    </details>
     <div class="page-card-actions">
       <v-btn
         variant="text"

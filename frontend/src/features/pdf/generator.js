@@ -162,6 +162,14 @@ export async function generatePdf(
   snapshot,
   { readImage, prepareImage, fontBytes, onProgress = () => {}, signal } = {},
 ) {
+  if (snapshot.documents)
+    return generateCollectionPdf(snapshot, {
+      readImage,
+      prepareImage,
+      fontBytes,
+      onProgress,
+      signal,
+    })
   const options = pdfOptions(snapshot.options)
   if (!snapshot.pages.length) throw new PdfError('empty')
   if (
@@ -222,6 +230,47 @@ export async function generatePdf(
     pageCount: pdf.getPageCount(),
     informationPageCount,
     scanPageCount: snapshot.pages.length,
+    resized,
+  }
+}
+
+async function generateCollectionPdf(snapshot, adapters) {
+  if (!snapshot.documents.length || snapshot.pages.length > PDF_LIMITS.scanPages)
+    throw new PdfError('limit')
+  const merged = await PDFDocument.create()
+  merged.setTitle(snapshot.metadata.title)
+  merged.setCreator('GASO Document AI')
+  merged.setLanguage('lv-LV')
+  let offset = 0,
+    informationPageCount = 0,
+    resized = false
+  for (const document of snapshot.documents) {
+    if (adapters.signal?.aborted) throw new PdfError('cancelled')
+    const result = await generatePdf(document, {
+      ...adapters,
+      readImage: (page, index) => adapters.readImage(page, offset + index),
+      onProgress: (progress) =>
+        adapters.onProgress({
+          ...progress,
+          completed: offset + progress.completed,
+          total: snapshot.pages.length,
+        }),
+    })
+    const part = await PDFDocument.load(result.bytes)
+    if (merged.getPageCount() + part.getPageCount() > PDF_LIMITS.pages) throw new PdfError('limit')
+    for (const page of await merged.copyPages(part, part.getPageIndices())) merged.addPage(page)
+    informationPageCount += result.informationPageCount
+    resized ||= result.resized
+    offset += document.pages.length
+    await merged.flush()
+  }
+  const bytes = await merged.save()
+  if (bytes.length > PDF_LIMITS.outputBytes) throw new PdfError('limit')
+  return {
+    bytes,
+    pageCount: merged.getPageCount(),
+    informationPageCount,
+    scanPageCount: offset,
     resized,
   }
 }

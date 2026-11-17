@@ -86,7 +86,8 @@ async function open(id) {
       </p>
     </div>
     <p class="home-privacy">
-      <AppIcon name="shield" :size="16" />Dokumenti tiek apstrādāti tikai šajā ierīcē
+      <AppIcon name="shield" :size="16" />Attēli paliek ierīcē. AI tos saņem tikai ar jūsu
+      piekrišanu.
     </p>
   </div>
 </template>
