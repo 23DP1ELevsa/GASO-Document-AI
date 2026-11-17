@@ -1,6 +1,10 @@
+> Aktuālā mobilās UX versija un pilnā komplekta gala rezultāti: [mobilās UX pārskats](mobile-ux-review.md). Zemāk saglabāts iepriekšējās versijas pārskats.
+
 # Attēlu analīzes un komplektu pārbaudes
 
 Izmaiņu kārta: 2026-11-17. Izmantoti sintētiski attēli un imitētas OpenAI atbildes. Maksas API pieprasījumi, Git operācijas, MongoDB integrācija un APK būvēšana nav veikta. Esošais backend/.env nav pārrakstīts; pēc konfigurācijas izmaiņām iztīrīts Laravel konfigurācijas kešs.
+
+Papildu Windows TLS labojums: reproducēta cURL 60 sertifikātu kļūda bez autorizācijas. Pēc `OpenAiTransport` labojuma īsts HTTPS GET uz OpenAI `/v1/models` bez atslēgas saņēma sagaidāmo 401, saglabājot TLS pārbaudi. Tas neizsauc modeli un nerada analīzes maksu. Pēc labojuma Laravel iztur **34/34 testus (129 assertions)**, frontend **65/65** vienību testus un produkcijas būvējums ir sekmīgs. TLS/DNS kļūmes vairs netiek kļūdaini pasniegtas kā analīzes taimauts. Zemāk tabulā saglabāts sākotnējās izmaiņu kārtas rezultāts.
 
 ## Faktiski izpildīts
 

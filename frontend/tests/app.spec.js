@@ -107,7 +107,7 @@ test('browser capture inputs are available and new archive is empty', async ({ p
   await expect(page.getByTestId('gallery-input')).toHaveAttribute('multiple', '')
   await expect(page.locator('.workspace-savebar button')).toHaveCount(0)
   await page.goto('/#/documents')
-  await expect(page.getByRole('heading', { name: 'Vēl nav saglabātu melnrakstu' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vēl nav saglabātu dokumentu' })).toBeVisible()
   await expect(page.locator('.count-badge')).toHaveText('0')
 })
 

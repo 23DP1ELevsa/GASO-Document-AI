@@ -197,6 +197,7 @@ async function seed(
 async function open(page, index = 0) {
   await goStep(page, 4)
   await page.getByTestId('workflow-document').nth(index).click()
+  await page.getByRole('button', { name: 'Izveidot PDF', exact: true }).click()
   await expect(dialog(page)).toBeVisible()
   return dialog(page)
 }
@@ -278,12 +279,13 @@ test('unconfirmed data offer review or scans-only export and save the pending ch
     .getByLabel('Dokumenta nosaukums', { exact: true })
     .fill('Labots nosaukums')
   await goStep(page, 4)
-  await expect(page.getByRole('button', { name: 'Izveidot PDF', exact: true })).toHaveCount(0)
+  await expect(dialog(page)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Izveidot PDF', exact: true }).click()
   await page.getByRole('button', { name: 'Pārbaudīt informāciju', exact: true }).click()
   await expect(page.getByTestId('document-information')).toBeVisible()
   await expect(
-    page.getByTestId('document-information').getByLabel('Dokumenta nosaukums', { exact: true }),
-  ).toHaveValue('Labots nosaukums')
+    page.getByTestId('document-information').locator('[data-field="document_title"] dd'),
+  ).toContainText('Labots nosaukums')
   await open(page)
   await preview(page)
   const { parsed, filename } = await download(page)

@@ -1,12 +1,18 @@
+import { analyzePages } from '../src/features/documents/analysis.js'
 import { expect } from '@playwright/test'
 export async function goStep(page, number) {
   const names = ['Foto', 'Lapas', 'Dati', 'PDF']
+  if (await page.locator('.completion-card').isVisible()) {
+    if (number === 4) return
+    await page.getByRole('button', { name: 'Atpakaļ', exact: true }).first().click()
+  }
   const button = page
     .getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' })
     .getByRole('button', { name: new RegExp('^' + names[number - 1]) })
   await expect(button).toBeVisible()
   if ((await button.getAttribute('aria-current')) !== 'step') await button.click()
-  await expect(button).toHaveAttribute('aria-current', 'step')
+  if (number === 4) await expect(page.locator('.workflow-result')).toBeVisible()
+  else await expect(button).toHaveAttribute('aria-current', 'step')
   await expect(page.getByText('Apstrādā…', { exact: true })).toHaveCount(0)
 }
 export async function pageTools(page, index = 0) {
@@ -66,14 +72,48 @@ export async function extraFields(page) {
   const details = page.locator('.review-extra')
   if (!(await details.evaluate((element) => element.open)))
     await details.locator(':scope > summary').click()
+  await details.locator('select').selectOption('custom')
 }
 export async function analyzeDocument(page, index = 0) {
   await reviewDocument(page, index)
-  await analysisDetails(page)
-  await page
-    .getByTestId('document-information')
-    .getByRole('button', { name: 'Analizēt lokāli', exact: true })
-    .click()
+  const pages = await page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        const req = indexedDB.open('gaso-document-ai')
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction(['drafts', 'pages'])
+          let drafts, rows
+          const done = () => {
+            if (!drafts || !rows) return
+            const draft = drafts[0],
+              document =
+                draft.documents.find((item) => item.id === draft.workflow.documentId) ||
+                draft.documents[0]
+            resolve(document.pageIds.map((id) => rows.find((page) => page.id === id)))
+            db.close()
+          }
+          tx.objectStore('drafts').getAll().onsuccess = (e) => {
+            drafts = e.target.result
+            done()
+          }
+          tx.objectStore('pages').getAll().onsuccess = (e) => {
+            rows = e.target.result
+            done()
+          }
+        }
+      }),
+  )
+  // Fixture-derived output is a fake backend response; no browser OCR or real AI request runs.
+  const result = { ...analyzePages(pages), provider: 'openai' }
+  await page.route('**/api/document-analysis', (route) => route.fulfill({ json: { result } }))
+  const details = page.locator('.analysis-choice')
+  if ((await details.locator('summary').count()) && !(await details.evaluate((el) => el.open)))
+    await details.locator('summary').click()
+  await page.getByRole('checkbox', { name: /Piekrītu šī dokumenta/ }).check()
+  await page.getByRole('button', { name: /^Analizēt (dokumentu|atkārtoti)$/ }).click()
+  await expect(page.locator('.analysis-choice > summary')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Atcelt analīzi' })).toHaveCount(0)
 }
 
 export async function toggleTheme(page) {
@@ -95,10 +135,7 @@ export async function continuePages(page) {
   await page.getByRole('button', { name: 'Turpināt uz datiem', exact: true }).click()
 }
 export async function acceptSuggestions(page) {
-  const info = page.getByTestId('document-information')
-  const more = info.locator('.review-extra')
-  if ((await more.count()) && !(await more.evaluate((el) => el.open)))
-    await more.locator('summary').first().click()
-  const buttons = info.getByRole('button', { name: /^Izmantot ieteikumu laukam/ })
-  while (await buttons.count()) await buttons.first().click()
+  await expect(page.getByTestId('document-information')).toBeVisible()
+  const done = page.getByRole('button', { name: 'Gatavs', exact: true })
+  if (await done.isVisible()) await done.click()
 }

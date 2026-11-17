@@ -18,6 +18,10 @@ export const AI_ERRORS = {
   duplicate_request: 'Šis dokuments nesen jau nosūtīts. Pirms atkārtošanas uzgaidiet.',
   busy: 'Analīze jau notiek. Uzgaidiet.',
   timeout: 'AI analīzes gaidīšanas laiks beidzās.',
+  upstream_tls:
+    'Serverim neizdodas pārbaudīt OpenAI SSL sertifikātu. Pārbaudiet servera sertifikātu konfigurāciju.',
+  upstream_connection:
+    'Serverim neizdodas savienoties ar OpenAI. Pārbaudiet servera interneta savienojumu.',
   invalid_input: 'Dokumentam nav derīgu fotoattēlu.',
   input_too_large: 'Dokuments pārsniedz AI analīzes apjoma ierobežojumu.',
   source_changed: 'Dokuments analīzes laikā mainījās. Rezultāts nav piemērots.',

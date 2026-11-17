@@ -1,93 +1,187 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import AppIcon from '../components/AppIcon.vue'
-import EmptyState from '../components/EmptyState.vue'
 import DraftCard from '../components/DraftCard.vue'
-import { useDraftList } from '../features/scanning/useDraftList'
-import { useScanSession } from '../features/scanning/useScanSession'
-import { errorCode } from '../features/scanning/errors'
+import DocumentCard from '../components/DocumentCard.vue'
+import { useDraftList } from '../features/scanning/useDraftList.js'
+import { useScanSession } from '../features/scanning/useScanSession.js'
+import { loadDraft } from '../features/scanning/draftRepository.js'
+import { listCollections, loadCollection } from '../features/documents/collections.js'
+import {
+  isConfirmationCurrent,
+  documentPages,
+  unassignedPages,
+} from '../features/documents/model.js'
+import { errorCode } from '../features/scanning/errors.js'
 import { t } from '../locales'
-import { draftHasDocuments } from '../features/documents/workflow.js'
-const router = useRouter()
+const router = useRouter(),
+  scanner = useScanSession()
 const { drafts, loading, error, refresh } = useDraftList()
-const session = useScanSession()
-const sections = computed(() => [
-  { title: 'workflow.started', drafts: drafts.value.filter((draft) => !draftHasDocuments(draft)) },
-  { title: 'workflow.prepared', drafts: drafts.value.filter(draftHasDocuments) },
-])
-const { busy } = session
-const actionError = ref(''),
+const items = ref([]),
+  partial = ref([]),
+  listing = ref(false),
+  actionError = ref(''),
   success = ref('')
-async function open(id) {
-  if (
-    session.dirty.value &&
-    session.active.value?.id !== id &&
-    !window.confirm(t('scan.confirmDiscard'))
-  )
-    return
+const sections = computed(() => [
+  { title: 'Jāpārbauda', items: items.value.filter((item) => !item.confirmed) },
+  { title: 'Apstiprināti dokumenti', items: items.value.filter((item) => item.confirmed) },
+])
+let generation = 0
+async function rebuild() {
+  const current = ++generation
+  listing.value = true
   actionError.value = ''
-  success.value = ''
   try {
-    await session.open(id)
+    const sessions = await Promise.all(drafts.value.map((item) => loadDraft(item.id)))
+    const records = new Map(),
+      incomplete = []
+    for (const session of sessions) {
+      if (!session.documents.length || unassignedPages(session).length) incomplete.push(session)
+      for (const document of session.documents.filter((item) => item.pageIds.length))
+        records.set(session.id + ':' + document.id, {
+          document,
+          draftId: session.id,
+          cover: documentPages(session, document)[0]?.thumbnail,
+          confirmed: isConfirmationCurrent(session, document),
+          updatedAt: document.updatedAt || session.updatedAt,
+          memberships: [],
+        })
+    }
+    for (const set of await listCollections()) {
+      const collection = await loadCollection(set.id)
+      for (const document of collection.documents) {
+        const key = document.sessionId + ':' + document.originalDocumentId
+        if (records.has(key)) records.get(key).memberships.push(set)
+        else
+          records.set(key, {
+            document,
+            collectionId: set.id,
+            cover: document.pages[0]?.thumbnail,
+            confirmed: isConfirmationCurrent({ pages: document.pages }, document),
+            updatedAt: document.savedAt,
+            memberships: [set],
+          })
+      }
+    }
+    if (current !== generation) return
+    items.value = [...records.values()].sort((a, b) => b.updatedAt - a.updatedAt)
+    partial.value = incomplete
+  } catch (reason) {
+    if (current === generation) actionError.value = t('scan.errors.' + errorCode(reason))
+  } finally {
+    if (current === generation) listing.value = false
+  }
+}
+watch(drafts, rebuild, { immediate: true })
+async function resume(id) {
+  try {
+    if (scanner.dirty.value) await scanner.save()
+    await scanner.open(id)
     await router.push({ name: 'scan', query: { draft: id } })
   } catch (reason) {
-    actionError.value = t(`scan.errors.${errorCode(reason)}`)
+    actionError.value = t('scan.errors.' + errorCode(reason))
+  }
+}
+async function open(item) {
+  try {
+    if (scanner.dirty.value) await scanner.save()
+    await router.push({
+      name: 'document',
+      params: { id: item.document.id },
+      query: item.draftId ? { draft: item.draftId } : { collection: item.collectionId },
+    })
+  } catch (reason) {
+    actionError.value = t('scan.errors.' + errorCode(reason))
+  }
+}
+async function start() {
+  try {
+    if (scanner.dirty.value) await scanner.save()
+    scanner.newSession()
+    await router.push('/scan')
+  } catch (reason) {
+    actionError.value = t('scan.errors.' + errorCode(reason))
   }
 }
 async function remove(id) {
-  if (!window.confirm(t('documents.confirmDelete'))) return
-  actionError.value = ''
-  success.value = ''
+  if (
+    !window.confirm(
+      'Dzēst skenēšanas sesiju un visus tajā esošos dokumentus? Komplektos saglabātās versijas paliks pieejamas.',
+    )
+  )
+    return
   try {
-    await session.discard(id)
-    success.value = t('scan.deleted')
+    await scanner.discard(id)
+    success.value = 'Sesija dzēsta.'
+    await refresh()
+    await rebuild()
   } catch (reason) {
-    actionError.value = t(`scan.errors.${errorCode(reason)}`)
+    actionError.value = t('scan.errors.' + errorCode(reason))
   }
 }
 </script>
 <template>
-  <div class="view">
+  <div class="view document-list-view">
     <div v-if="error || actionError" class="scan-error" role="alert">
-      {{ actionError || t(`scan.errors.${error}`)
-      }}<v-btn v-if="error" variant="text" @click="refresh">{{ t('scan.retry') }}</v-btn>
+      {{ actionError || t('scan.errors.' + error)
+      }}<v-btn variant="text" @click="refresh">Mēģināt vēlreiz</v-btn>
     </div>
-    <div v-if="success" class="scan-success" role="status">{{ success }}</div>
+    <p v-if="success" role="status">{{ success }}</p>
     <div class="section-heading">
       <h2>
-        {{ t('documents.count') }} <span class="count-badge">{{ drafts.length }}</span>
+        Mani dokumenti <span class="count-badge">{{ items.length }}</span>
       </h2>
-      <v-btn to="/scan" variant="tonal" color="primary"
-        ><AppIcon name="scan" :size="18" />{{ t('nav.scan') }}</v-btn
+      <v-btn color="primary" variant="tonal" :disabled="scanner.busy.value" @click="start"
+        >Skenēt</v-btn
       >
     </div>
-    <p v-if="loading" role="status" class="small-muted">{{ t('scan.loading') }}</p>
-    <div v-else-if="drafts.length" class="draft-sections">
-      <section
-        v-for="section in sections.filter((item) => item.drafts.length)"
-        :key="section.title"
-      >
-        <h2 class="draft-section-title">{{ t(section.title) }}</h2>
+    <p v-if="loading || listing" role="status">Atver saglabātos dokumentus…</p>
+    <template v-else>
+      <section v-if="partial.length">
+        <h2 class="draft-section-title">Nepabeigti melnraksti</h2>
         <div class="draft-grid">
           <DraftCard
-            v-for="draft in section.drafts"
+            v-for="draft in partial"
             :key="draft.id"
             :draft="draft"
-            :busy="busy"
+            :busy="scanner.busy.value"
+            @open="resume"
+            @remove="remove"
+          />
+        </div>
+      </section>
+      <section v-for="section in sections.filter((item) => item.items.length)" :key="section.title">
+        <h2 class="draft-section-title">{{ section.title }}</h2>
+        <div class="draft-grid">
+          <DocumentCard
+            v-for="item in section.items"
+            :key="item.draftId + ':' + item.document.id"
+            :item="item"
+            :disabled="scanner.busy.value"
             @open="open"
             @remove="remove"
           />
         </div>
       </section>
-    </div>
-    <v-card v-else-if="!error" class="archive-card bordered-card"
-      ><EmptyState :title="t('documents.emptyTitle')" :description="t('documents.emptyDescription')"
-        ><v-btn to="/scan" color="primary" size="large"
-          ><AppIcon name="scan" :size="20" />{{ t('common.scan') }}</v-btn
-        ></EmptyState
-      ></v-card
-    >
-    <p class="archive-explanation">{{ t('workflow.pdfStored') }}</p>
+      <div v-if="!partial.length && !items.length" class="document-list-empty bordered-card">
+        <h2>Vēl nav saglabātu dokumentu</h2>
+        <p>Nofotografējiet pirmo dokumentu. Pēc saglabāšanas tas būs pieejams šeit.</p>
+        <v-btn color="primary" @click="start">Skenēt dokumentu</v-btn>
+      </div>
+    </template>
+    <p class="small-muted">Šeit glabājas fotogrāfijas un dati. PDF varat izveidot jebkurā laikā.</p>
   </div>
 </template>
+<style>
+.document-list-view {
+  display: grid;
+  gap: 20px;
+}
+.document-list-empty {
+  padding: 24px;
+  display: grid;
+  gap: 16px;
+  text-align: center;
+  border-radius: 22px;
+}
+</style>

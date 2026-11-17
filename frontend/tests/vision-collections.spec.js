@@ -1,3 +1,4 @@
+import { editField } from '../test-support/uxFixtures.js'
 import { test, expect } from '@playwright/test'
 import sharp from 'sharp'
 import { readFile } from 'node:fs/promises'
@@ -76,7 +77,7 @@ async function scan(page, count = 1) {
 async function analyze(page) {
   await page.getByRole('checkbox', { name: /Piekrītu šī dokumenta/ }).check()
   await page.getByRole('button', { name: 'Analizēt dokumentu', exact: true }).click()
-  await expect(page.getByText('Vēl jāpārbauda 2 atribūti.', { exact: true })).toBeVisible()
+  await expect(page.locator('.compact-attributes')).toContainText('Synthetic Seller')
 }
 async function add(page, name) {
   await page.getByRole('button', { name: 'Pievienot komplektam', exact: true }).click()
@@ -153,17 +154,20 @@ test('ordered image analysis has explicit consent, a real waiting overlay, edita
     page.getByRole('progressbar', { name: 'Dokumenta analīzes progress' }),
   ).toHaveAttribute('aria-valuemin', '0')
   release()
-  await expect(page.getByLabel('Nosūtītājs', { exact: true })).toHaveValue('Synthetic Seller')
+  await expect(page.locator('.compact-attributes')).toContainText('Synthetic Seller')
   await expect(page.getByRole('heading', { name: 'AI analizē dokumentu…' })).toHaveCount(0)
-  await page.getByLabel('Nosūtītājs', { exact: true }).fill('Lietotāja labojums')
-  await page.getByRole('button', { name: 'Esmu pārbaudījis visus laukus' }).click()
-  await page.getByRole('button', { name: 'Analizēt atkārtoti' }).click()
-  await expect(page.getByLabel('Nosūtītājs', { exact: true })).toHaveValue('Lietotāja labojums')
+  await editField(page, 'Nosūtītājs', 'Lietotāja labojums')
+  await page.locator('.analysis-choice > summary').click()
+  await page.getByRole('button', { name: 'Analizēt atkārtoti', exact: true }).click()
+  await expect(page.locator('.compact-attributes')).toContainText('Lietotāja labojums')
   await expect(page.getByRole('button', { name: 'Atcelt analīzi' })).toHaveCount(0)
   expect(await page.evaluate(() => window.ocrWorkers)).toEqual([])
   const originals = await dbRead(page, 'images')
   expect(originals).toHaveLength(2)
-  await page.getByRole('button', { name: 'Apstiprināt un turpināt' }).click()
+  await page.getByRole('button', { name: 'Apstiprināt dokumentu' }).click()
+  await expect(page.locator('.completion-card')).toBeVisible()
+  if (await page.locator('.completion-card').isVisible())
+    await page.getByRole('button', { name: 'Izveidot PDF', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'PDF eksports', exact: true })).toBeVisible()
   await expect(page.locator('.pdf-progress')).toHaveCount(0, { timeout: 30000 })
   await expect(page.locator('.pdf-error')).toHaveCount(0)
@@ -198,17 +202,13 @@ test('custom attributes can be renamed, removed and reviewed without changing ca
   )
   await scan(page)
   await analyze(page)
-  const row = page
-    .locator('.attribute-table-row')
-    .filter({ has: page.getByLabel('Īpašais nosacījums', { exact: true }) })
-  await row.getByLabel('Atribūta nosaukums', { exact: true }).fill('Lietotāja nosacījums')
-  await page.getByLabel('Nosūtītājs', { exact: true }).focus()
-  await expect(page.getByLabel('Lietotāja nosacījums', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Dzēst: Lietotāja nosacījums', exact: true }).click()
-  await expect(page.getByLabel('Lietotāja nosacījums', { exact: true })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Esmu pārbaudījis visus laukus' }).click()
+  await page.getByRole('button', { name: 'Rediģēt: Īpašais nosacījums', exact: true }).click()
+  await page.getByLabel('Lauka nosaukums', { exact: true }).fill('Lietotāja nosacījums')
+  await page.getByRole('button', { name: 'Dzēst', exact: true }).click()
+  await expect(page.locator('.compact-attributes')).not.toContainText('Lietotāja nosacījums')
+  await page.locator('.analysis-choice > summary').click()
   await page.getByRole('button', { name: 'Analizēt atkārtoti', exact: true }).click()
-  await expect(page.getByLabel('Īpašais nosacījums', { exact: true })).toHaveCount(0)
+  await expect(page.locator('.compact-attributes')).not.toContainText('Īpašais nosacījums')
 })
 
 test('saved sets survive reload, later additions, draft deletion, ordering and combined Unicode PDF', async ({
@@ -219,8 +219,7 @@ test('saved sets survive reload, later additions, draft deletion, ordering and c
   )
   await scan(page)
   await analyze(page)
-  await page.getByRole('button', { name: 'Esmu pārbaudījis visus laukus' }).click()
-  await page.getByRole('button', { name: 'Apstiprināt un turpināt' }).click()
+  await page.getByRole('button', { name: 'Apstiprināt dokumentu' }).click()
   await expect(page.locator('.pdf-progress')).toHaveCount(0, { timeout: 30000 })
   await add(page, 'Komplekts Ābols')
   const firstDraft = (await dbRead(page, 'drafts'))[0]
@@ -421,7 +420,7 @@ test('editing a draft after adding it to a set shares the original and preserves
   // Deleting the last draft removes every now-unreachable image version.
   await page.goto('/#/documents')
   page.once('dialog', (dialog) => dialog.accept())
-  await page.getByRole('button', { name: 'Dzēst melnrakstu', exact: true }).click()
+  await page.getByRole('button', { name: 'Dzēst sesiju', exact: true }).click()
   await expect(page.getByTestId('draft-card')).toHaveCount(0)
   expect(await dbRead(page, 'images')).toHaveLength(0)
 })

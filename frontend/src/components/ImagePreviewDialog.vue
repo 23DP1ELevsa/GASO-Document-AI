@@ -5,11 +5,15 @@ import { useBlobUrl } from '../composables/useBlobUrl'
 import { readOriginal, readDisplay } from '../features/scanning/draftRepository'
 import { errorCode } from '../features/scanning/errors'
 import { t } from '../locales'
-const props = defineProps({ page: Object, returnFocus: Object })
+const props = defineProps({
+  page: Object,
+  pages: { type: Array, default: () => [] },
+  returnFocus: Object,
+})
 function restoreFocus() {
   if (props.returnFocus?.isConnected) props.returnFocus.focus({ preventScroll: true })
 }
-defineEmits(['close'])
+defineEmits(['close', 'select'])
 const blob = shallowRef(null),
   loading = ref(false),
   error = ref('')
@@ -27,8 +31,8 @@ watch(
       const image =
         page.processed ||
         (page.processing
-          ? await readDisplay(page.id)
-          : page.original || (await readOriginal(page.id)))
+          ? await readDisplay(page.imageRecordId || page.id)
+          : page.original || (await readOriginal(page.imageRecordId || page.id)))
       if (generation === current) blob.value = image
     } catch (reason) {
       if (generation === current) error.value = errorCode(reason)
@@ -57,6 +61,16 @@ onScopeDispose(() => {
           ><AppIcon name="close"
         /></v-btn>
       </header>
+      <nav v-if="pages.length > 1" class="preview-pages" aria-label="Dokumenta lapas">
+        <v-btn
+          v-for="(item, index) in pages"
+          :key="item.id"
+          :aria-pressed="item.id === page?.id"
+          variant="text"
+          @click="$emit('select', item)"
+          >{{ index + 1 }}. lapa</v-btn
+        >
+      </nav>
       <div v-if="loading" class="preview-loading" role="status">
         <v-progress-circular indeterminate color="primary" :aria-label="t('scan.loading')" />
         <p>{{ t('scan.loading') }}</p>

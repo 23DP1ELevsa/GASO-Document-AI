@@ -7,6 +7,7 @@ const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: () => import('../views/HomeView.vue') },
+    { path:'/document/:id', name:'document', component:()=>import('../views/DocumentView.vue') },
     { path: '/scan', name: 'scan', component: () => import('../views/ScanView.vue') },
     {
       path: '/documents',

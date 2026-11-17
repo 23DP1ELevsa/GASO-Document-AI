@@ -43,6 +43,7 @@ const session = useScanSession()
 const { isDark, setTheme } = useAppearance()
 const { mode: pdfMode } = usePdfPreferences()
 const confirmWarning = ref(false)
+const documentReview = ref(null)
 const analysisProvider = ref('openai')
 const analysisProgress = ref({ phase: 'preparing' })
 let analysisController = null
@@ -128,13 +129,6 @@ watch(
     multiple.value =
       state.value.documents.length > 1 || (state.value.documents.length > 0 && !state.value.grouped)
     saveFailed.value = false
-    if (state.value.step === 4 && currentDocument.value) {
-      pdfDocumentId.value = currentDocument.value.id
-      pdfInitial.value = {
-        includeInformation:
-          isConfirmationCurrent(active.value, currentDocument.value) && pdfMode.value !== 'scan',
-      }
-    }
   },
   { immediate: true },
 )
@@ -145,13 +139,7 @@ function selectDocument(id) {
   if (locked.value) return
   selectedDocumentId.value = id
   session.setWorkflow({ step: currentStep.value, documentId: id })
-  if (currentStep.value === 4) {
-    if (pdfDocumentId.value !== id) pdfDocumentId.value = id
-    pdfInitial.value = {
-      includeInformation:
-        isConfirmationCurrent(active.value, currentDocument.value) && pdfMode.value !== 'scan',
-    }
-  }
+  pdfDocumentId.value = null
 }
 async function go(target) {
   if (locked.value || target > state.value.maximum) return
@@ -165,13 +153,6 @@ async function go(target) {
     }
     if (target !== 4) pdfDocumentId.value = null
     step.value = target
-    if (target === 4 && currentDocument.value) {
-      pdfInitial.value = {
-        includeInformation:
-          isConfirmationCurrent(active.value, currentDocument.value) && pdfMode.value !== 'scan',
-      }
-      pdfDocumentId.value = currentDocument.value.id
-    }
     saveFailed.value = false
     await nextTick()
     stepHeading.value?.focusHeading()
@@ -255,33 +236,50 @@ async function nextPages() {
   if (pages.value.length === 1 && !state.value.grouped) await oneDocument()
   if (state.value.grouped) await go(3)
 }
-function pendingFields() {
-  const item = currentDocument.value
-  if (!item?.analysis) return []
-  const result = item.analysis.result
-  return Object.entries({ ...result.attributes, document_type: result.document_type }).filter(
-    ([key, value]) =>
-      value !== null &&
-      value !== undefined &&
-      value !== 'unknown' &&
-      !item.editedFields?.includes(key) &&
-      (item.values[key] === null || item.values[key] === 'unknown'),
-  )
-}
 async function confirmCurrent() {
-  if (locked.value || !currentDocument.value || validationErrors(currentDocument.value).length)
-    return
-  if (
-    pendingFields().length ||
-    currentDocument.value.dynamicAttributes?.some((field) => field.status !== 'reviewed')
-  ) {
-    confirmWarning.value = true
+  if (locked.value || !currentDocument.value) return
+  const info = document.querySelector('[data-testid="document-information"]')
+  const invalid = validationErrors(currentDocument.value)
+  if (invalid.length) {
+    error.value = 'Izlabojiet atzīmētos laukus pirms apstiprināšanas.'
+    documentReview.value?.focusInvalid()
     return
   }
-  session.changeDocuments('confirmDocument', currentDocument.value.id)
-  const next = state.value.documents.find((item) => !isConfirmationCurrent(active.value, item))
-  if (next) selectedDocumentId.value = next.id
-  await go(next ? 3 : 4)
+  try {
+    session.changeDocuments('confirmDocument', currentDocument.value.id)
+    await go(4)
+  } catch {
+    error.value = 'Dokumentu neizdevās apstiprināt. Pārbaudiet datus.'
+    info?.focus()
+  }
+}
+async function home() {
+  if (locked.value) return
+  clearMessages()
+  try {
+    if (dirty.value && (pages.value.length || active.value?.revision)) await session.save()
+    await router.push('/')
+  } catch (reason) {
+    saveFailed.value = true
+    error.value = t('scan.errors.' + errorCode(reason))
+  }
+}
+async function viewCurrent() {
+  if (locked.value || !currentDocument.value) return
+  try {
+    if (dirty.value) await session.save()
+    await router.push({
+      name: 'document',
+      params: { id: currentDocument.value.id },
+      query: { draft: active.value.id, from: 'scan' },
+    })
+  } catch (reason) {
+    error.value = t('scan.errors.' + errorCode(reason))
+  }
+}
+async function skipInformation(event) {
+  await go(4)
+  if (currentStep.value === 4) openPdf(currentDocument.value.id, event?.currentTarget, true)
 }
 async function reviewDocument(id) {
   selectedDocumentId.value = id
@@ -447,7 +445,7 @@ function deviceBack(event) {
   else if (selectedPage.value) selectedPage.value = null
   else if (confirmWarning.value) confirmWarning.value = false
   else if (currentStep.value > 1) go(currentStep.value - 1)
-  else if (!locked.value) router.push('/')
+  else if (!locked.value) home()
 }
 onMounted(() => window.addEventListener('gaso:back', deviceBack))
 onUnmounted(() => {
@@ -468,7 +466,7 @@ onUnmounted(() => {
               ? 'Pārbaudiet lapas'
               : currentStep === 3
                 ? 'Dokumenta dati'
-                : 'Saglabāt PDF'
+                : 'Dokuments gatavs'
       "
       :subtitle="
         currentStep > 1
@@ -476,8 +474,11 @@ onUnmounted(() => {
           : undefined
       "
       back
-      @back="currentStep > 1 ? go(currentStep - 1) : router.push('/')"
+      @back="currentStep > 1 ? go(currentStep - 1) : home()"
     >
+      <button class="icon-button" aria-label="Uz sākumu" :disabled="locked" @click="home">
+        <AppIcon name="home" :size="21" />
+      </button>
       <details ref="sessionMenu" class="session-menu">
         <summary aria-label="Dokumenta darbības"><AppIcon name="more" :size="20" /></summary>
         <div>
@@ -646,6 +647,7 @@ onUnmounted(() => {
       </section>
 
       <DocumentReview
+        ref="documentReview"
         v-if="currentStep === 3 && currentDocument"
         :session="active"
         :document="currentDocument"
@@ -664,6 +666,30 @@ onUnmounted(() => {
       />
 
       <section v-if="currentStep === 4" class="workflow-result">
+        <div v-if="currentDocument && !pdfDocumentId" class="completion-card bordered-card">
+          <span class="completion-mark"><AppIcon name="check" :size="28" /></span>
+          <h2>
+            {{
+              isConfirmationCurrent(active, currentDocument)
+                ? 'Dokuments apstiprināts'
+                : 'Skenējums saglabāts'
+            }}
+          </h2>
+          <BlobImage
+            v-if="documentPages(active, currentDocument)[0]"
+            :blob="documentPages(active, currentDocument)[0].thumbnail"
+            alt="Dokumenta priekšskatījums"
+          />
+          <h3>{{ documentTitle(currentDocument) }}</h3>
+          <p class="small-muted">
+            Fotogrāfijas un dati saglabāti šajā ierīcē. PDF varat izveidot arī vēlāk.
+          </p>
+          <v-btn color="primary" block size="large" :disabled="locked" @click="viewCurrent"
+            >Apskatīt dokumentu</v-btn
+          >
+          <v-btn variant="text" :disabled="locked" @click="startNew">Skenēt nākamo</v-btn>
+          <v-btn variant="text" :disabled="locked" @click="home">Uz sākumu</v-btn>
+        </div>
         <AddToCollection
           v-if="currentDocument"
           :controller="session"
@@ -727,7 +753,7 @@ onUnmounted(() => {
       </section>
     </div>
     <MobileStepFooter
-      v-if="!pdfDocumentId || currentStep !== 4"
+      v-if="currentStep !== 4"
       :state="{ ...state, step: currentStep }"
       :disabled="locked"
       :dirty="dirty"
@@ -792,11 +818,11 @@ onUnmounted(() => {
           color="primary"
           block
           size="x-large"
-          :disabled="locked || validationErrors(currentDocument).length > 0"
+          :disabled="locked"
           @click="confirmCurrent"
-          >{{ t('workflow.confirmNext') }}</v-btn
+          >{{ 'Apstiprināt dokumentu' }}</v-btn
         >
-        <button class="text-link skip-data" :disabled="locked" @click="go(4)">
+        <button class="text-link skip-data" :disabled="locked" @click="skipInformation">
           Izlaist — saglabāt tikai skenējumu
         </button>
       </template>
@@ -824,6 +850,8 @@ onUnmounted(() => {
     />
     <ImagePreviewDialog
       :page="selectedPage"
+      :pages="currentStep === 3 && currentDocument ? documentPages(active, currentDocument) : pages"
+      @select="selectedPage = $event"
       :return-focus="previewTrigger"
       @close="selectedPage = null"
     />

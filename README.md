@@ -1,14 +1,20 @@
 ﻿# GASO Document AI
 
-## Pašreizējā versija: fotoanalīze un saglabāti komplekti
+## Pašreizējā versija: vienkārša pārskatīšana un dokumentu apskate
 
-**Nofotografēt → AI analīze → pārbaudīt datus → saglabāt PDF → pievienot komplektam.** Saglabāts Vue 3 / Vuetify 3, Capacitor un Lovable mobilais dizains, 360–430 px telefonu saskarne, gaišais un tumšais režīms.
+**Nofotografēt → AI analīze → pārskatīt un labot → Apstiprināt dokumentu → apskatīt, izveidot PDF vai pievienot komplektam.** Saglabāts Vue 3 / Vuetify 3, Capacitor un Lovable mobilais dizains, 360–430 px telefonu saskarne, gaišais un tumšais režīms.
 
 OpenAI saņem izvēlētā dokumenta sakārtotās fotogrāfijas kā input_image vienā Responses API pieprasījumā. Ierīce ievēro perspektīvu, pagriezienu un EXIF orientāciju un sagatavo JPEG kopiju līdz 2800 px / 8 MP. Oriģināli un PDF attēli netiek aizstāti ar AI kopijām. Laravel validē attēlu faktisko formātu, apjomu, lapu secību un Structured Outputs atbildi.
 
 Lokālais OCR ir atslēgts: nav OCR pogu, valodu/tehnisko iestatījumu vai automātiskas OCR palaišanas. Tesseract.js un izolētais kods saglabāti; OCR resursu sagatavošana vairs nav dev/build priekšnosacījums. Ja AI nav pieejams, var manuāli aizpildīt datus vai eksportēt skenējumu. Automātiskas OCR alternatīvas nav.
 
-AI piedāvā konkrētajam dokumentam būtiskos dinamiskos atribūtus, arī nestandarta laukus. Lietotājs labo vērtības, pārbauda laukus, pārdēvē/dzēš pielāgotos atribūtus un pievieno savus. Manuālie labojumi un apstiprinātās vērtības atkārtotā analīzē saglabājas. Daļēji caurspīdīgs pārklājums rāda reālus sagatavošanas posmus un nenoteiktu AI gaidīšanas indikatoru; pieejama atcelšana bez datu dzēšanas.
+AI piedāvā konkrētajam dokumentam būtiskos dinamiskos atribūtus, arī nestandarta laukus. Kompaktā tabula sākotnēji rāda lasāmas vērtības; zīmuļa darbība atver viena lauka rediģēšanu. Lietotājs labo vērtības, pārdēvē/dzēš pielāgotos atribūtus un pievieno savus. Viena poga **Apstiprināt dokumentu** atomiski pārbauda aktīvos atribūtus un saglabā apstiprinājuma momentuzņēmumu. Nederīgs lauks saņem fokusu; tukši neobligāti lauki nav jāaizpilda. Manuālie labojumi un apstiprinātās vērtības atkārtotā analīzē saglabājas. Daļēji caurspīdīgs pārklājums rāda reālus sagatavošanas posmus un nenoteiktu AI gaidīšanas indikatoru; pieejama atcelšana bez datu dzēšanas.
+
+### Dokumentu apskate un navigācija
+
+Sadaļa **Dokumenti** rāda konkrētus dokumentus arī vairāku dokumentu sesijā, atsevišķi no nepabeigtiem melnrakstiem. Statusu nosaka aktuālais apstiprinājums, nevis agrāka PDF lejupielāde. Kartīte atver tikai lasāmu apskati ar visiem saglabātajiem atribūtiem un pilna izmēra lapu priekšskatījumu. Apskate neveic AI pieprasījumus. Rediģēšana atver sākotnējo dokumentu, ja tas vēl pastāv.
+
+**Uz sākumu** ir pieejams katrā skenēšanas solī: vispirms saglabā izmaiņas, kļūdas gadījumā atstāj darbu atvērtu. Pēc apstiprināšanas ir atsevišķs pabeigšanas ekrāns; PDF izveido tikai pēc lietotāja darbības un var ģenerēt vēlāk. Kopīgais lapu priekšskatījums saglabā tabulas rediģēšanas stāvokli.
 
 ### Komplekti un PDF
 
@@ -28,7 +34,7 @@ Konfigurējami limiti: DOCUMENT_AI_MAX_PAGES=20, DOCUMENT_AI_MAX_IMAGE_BYTES=400
 
 Attēli tiek nosūtīti tikai pēc piekrišanas; backend tos pastāvīgi neglabā un nežurnalē personas datus vai pilnas AI atbildes. Faktiskais API tokenu patēriņš redzams dokumenta informācijā. store:false neizslēdz visus pakalpojuma glabāšanas režīmus. Produkcijas galapunkts ir bloķēts līdz autentifikācijas un lietotāju kvotu ieviešanai. Atcelšana ierīcē negarantē serverī jau sāktas maksas analīzes apturēšanu.
 
-[Arhitektūra un datu modelis](docs/vision-architecture.md), [faktiskie testu rezultāti](docs/testing/vision-collections.md). Testos izmanto sintētiskus attēlus un imitētas API atbildes, bez maksas pieprasījumiem. MongoDB un Android APK nav veidoti.
+[Arhitektūra un datu modelis](docs/vision-architecture.md), [mobilās UX izmaiņas un aktuālās pārbaudes](docs/testing/mobile-ux-review.md), [iepriekšējās versijas testu pārskats](docs/testing/vision-collections.md). Testos izmanto sintētiskus attēlus un imitētas API atbildes, bez maksas pieprasījumiem. MongoDB un Android APK nav veidoti.
 
 **Tālāk saglabāts vēsturisko posmu pārskats. Apraksti par aktīvu OCR un AI teksta ievadi neattiecas uz pašreizējo versiju.**
 

@@ -1,3 +1,4 @@
+import { aiResult, mockAi, analyze, editField } from '../test-support/uxFixtures.js'
 import { continuePages, acceptSuggestions } from '../test-support/workflowUi.js'
 import { toggleTheme } from '../test-support/workflowUi.js'
 import { test, expect } from '@playwright/test'
@@ -45,6 +46,8 @@ async function one(page) {
   await expect(info(page)).toBeVisible()
 }
 async function pdf(page, scansOnly = false) {
+  if (await page.locator('.completion-card').isVisible())
+    await page.getByRole('button', { name: 'Izveidot PDF', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'PDF eksports', exact: true })
   await expect(dialog).toBeVisible()
   await dialog
@@ -88,7 +91,7 @@ async function stored(page) {
   })
 }
 
-test('first-time user corrects orientation, recognizes two real pages, accepts fields and downloads an information PDF', async ({
+test('first-time user corrects orientation, analyzes two synthetic photos, accepts fields and downloads an information PDF', async ({
   page,
 }, testInfo) => {
   test.setTimeout(90_000)
@@ -116,27 +119,16 @@ test('first-time user corrects orientation, recognizes two real pages, accepts f
   await editor.getByRole('button', { name: 'Apstiprināt izmaiņas', exact: true }).click()
   await expect(editor).toHaveCount(0)
   await one(page)
-  await page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true }).click()
-  await expect(
-    info(page).getByRole('button', {
-      name: 'Izmantot ieteikumu laukam “Kopējā summa”',
-      exact: true,
-    }),
-  ).toBeEnabled({ timeout: 60_000 })
-  for (const field of ['Dokumenta veids', 'Dokumenta numurs', 'Saņēmējs', 'Kopējā summa', 'Valūta'])
-    await info(page)
-      .getByRole('button', { name: `Izmantot ieteikumu laukam “${field}”`, exact: true })
-      .click()
-  await expect(info(page).getByLabel('Saņēmējs', { exact: true })).toHaveValue(
-    /Sintētiska Persona/i,
-  )
-  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('125.50')
-  const recognized = (await stored(page)).pages.map((p) => p.ocr.recognizedAt)
-  await page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true }).click()
-  await expect(page.getByText('Ieteikumi sagatavoti.', { exact: false })).toBeVisible()
-  expect((await stored(page)).pages.map((p) => p.ocr.recognizedAt)).toEqual(recognized)
-  await acceptSuggestions(page)
-  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
+  const result = aiResult()
+  result.attributes.recipient = 'Sintētiska Persona'
+  result.dynamic_attributes.find((field) => field.key === 'recipient').value = 'Sintētiska Persona'
+  await mockAi(page, result)
+  await analyze(page)
+  await expect(info(page).locator('.compact-attributes')).toContainText('Sintētiska Persona')
+  await expect(info(page).locator('.compact-attributes')).toContainText('125.50')
+  expect((await stored(page)).pages.every((page) => !page.ocr)).toBe(true)
+  await analyze(page)
+  await page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }).click()
   await expect(page.getByTestId('workflow-document')).toHaveCount(1)
   const parsed = await pdf(page)
   expect(parsed.pageCount).toBe(3)
@@ -164,16 +156,14 @@ test('six page thumbnails split into three documents whose reviewed values and P
   await page.getByRole('button', { name: 'Visas lapas ir viens dokuments', exact: true }).click()
   await expect(page.getByTestId('document-group')).toHaveCount(3)
   await page.getByRole('button', { name: 'Turpināt uz datiem', exact: true }).click()
+  const documentIds = (await stored(page)).drafts[0].documents.map((item) => item.id)
   for (let index = 0; index < 3; index++) {
-    await expect(info(page)).toBeVisible()
-    await info(page)
-      .getByLabel('Dokumenta nosaukums', { exact: true })
-      .fill(`Dokuments ${index + 1}`)
-    await info(page)
-      .getByLabel('Nosūtītājs', { exact: true })
-      .fill(`Persona ${index + 1}`)
-    await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
-    await expect(page.getByText('Apstrādā…', { exact: true })).toHaveCount(0)
+    if (index) await goStep(page, 3)
+    await page.locator('.workflow-document-select select').selectOption(documentIds[index])
+    await editField(page, 'Dokumenta nosaukums', 'Dokuments ' + (index + 1))
+    await editField(page, 'Nosūtītājs', 'Persona ' + (index + 1))
+    await page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }).click()
+    await expect(page.locator('.completion-card')).toBeVisible()
   }
   const cards = page.getByTestId('workflow-document')
   await expect(cards).toHaveCount(3)
@@ -198,8 +188,8 @@ test('saved work resumes from Home at the correct step and previous steps retain
   await expect(info(page)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Dokumenta dati', exact: true })).toBeFocused()
   await expect(page.getByRole('button', { name: 'Analizēt dokumentu', exact: true })).toBeDisabled()
-  await info(page).getByLabel('Dokumenta nosaukums', { exact: true }).fill('Turpināmais dokuments')
-  await info(page).getByLabel('Saņēmējs', { exact: true }).fill('Saglabāts saņēmējs')
+  await editField(page, 'Dokumenta nosaukums', 'Turpināmais dokuments')
+  await editField(page, 'Saņēmējs', 'Saglabāts saņēmējs')
   await page.getByRole('button', { name: 'Saglabāt melnrakstu', exact: true }).click()
   await expect(page.getByText('Melnraksts sekmīgi saglabāts', { exact: false })).toBeVisible()
   const resumed = await context.newPage()
@@ -211,16 +201,12 @@ test('saved work resumes from Home at the correct step and previous steps retain
     .getByTestId('draft-card')
     .getByRole('button', { name: 'Turpināt', exact: true })
     .click()
-  await expect(info(resumed).getByLabel('Saņēmējs', { exact: true })).toHaveValue(
-    'Saglabāts saņēmējs',
-  )
+  await expect(info(resumed).locator('.compact-attributes')).toContainText('Saglabāts saņēmējs')
   await goStep(resumed, 2)
   await expect(resumed.getByTestId('page-card')).toHaveCount(1)
   await goStep(resumed, 1)
   await goStep(resumed, 3)
-  await expect(info(resumed).getByLabel('Saņēmējs', { exact: true })).toHaveValue(
-    'Saglabāts saņēmējs',
-  )
+  await expect(info(resumed).locator('.compact-attributes')).toContainText('Saglabāts saņēmējs')
   await resumed.close()
 })
 
@@ -290,26 +276,26 @@ test('failed step-transition save stays actionable and a retry preserves pending
 
 test.describe('recognition failure', () => {
   test.use({ serviceWorkers: 'block' })
-  test('a missing OCR model leaves manual entry and confirmed information PDF available', async ({
+  test('unavailable AI leaves manual entry and confirmed information PDF available', async ({
     page,
     context,
   }) => {
-    await context.route('**/lav.traineddata', (route) =>
-      route.fulfill({ status: 404, body: 'Synthetic unavailable model' }),
+    await page.route('**/api/document-analysis', (route) =>
+      route.fulfill({ status: 503, json: { error: { code: 'ai_disabled' } } }),
     )
     await page.goto('/#/scan')
     await upload(page, await blank())
     await one(page)
-    await page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Atpazīt dokumentu', exact: true })).toBeEnabled({
-      timeout: 30000,
-    })
-    expect((await stored(page)).pages[0].ocrAttempt.status).toBe('error')
-    await expect(info(page).getByLabel('Saņēmējs', { exact: true })).toHaveValue('')
-    await info(page).getByLabel('Saņēmējs', { exact: true }).fill('Manuāli pārbaudīta persona')
-    await info(page).getByLabel('Kopējā summa', { exact: true }).fill('125,50')
-    await info(page).getByLabel('Valūta', { exact: true }).fill('EUR')
-    await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
+    await page.getByRole('checkbox', { name: /Piekrītu šī dokumenta/ }).check()
+    await page.getByRole('button', { name: 'Analizēt dokumentu', exact: true }).click()
+    await expect(
+      page.getByRole('alert').filter({ hasText: 'AI analīze serverī nav ieslēgta.' }),
+    ).toBeVisible()
+    await editField(page, 'Saņēmējs', 'Manuāli pārbaudīta persona')
+    await editField(page, 'Kopējā summa', '125,50')
+    await editField(page, 'Valūta', 'EUR')
+    await page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }).click()
+    await expect(page.locator('.completion-card')).toBeVisible()
     const parsed = await pdf(page)
     expect(parsed.pageCount).toBe(2)
     expect(parsed.pages[0].text).toContain('Manuāli pārbaudīta persona')

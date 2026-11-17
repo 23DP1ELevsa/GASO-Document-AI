@@ -1613,3 +1613,58 @@ button:disabled {
     scroll-behavior: auto !important;
   }
 }
+
+.completion-card {
+  padding: 24px;
+  display: grid;
+  gap: 14px;
+  text-align: center;
+  border-radius: 24px;
+  margin-bottom: 20px;
+}
+.completion-card img {
+  width: 90px;
+  height: 120px;
+  object-fit: cover;
+  margin: auto;
+  border-radius: 12px;
+}
+.completion-card h2 {
+  font-size: 21px;
+}
+.completion-mark {
+  display: grid;
+  place-items: center;
+  margin: auto;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.1);
+}
+
+.collection-document-open {
+  display: grid;
+  gap: 10px;
+  min-height: 64px;
+  text-align: left;
+  width: 100%;
+  color: inherit;
+}
+.collection-document-open span {
+  font-size: 13px;
+  color: rgb(var(--v-theme-primary));
+}
+.collection-card:has(.collection-document-open) {
+  position: relative;
+}
+.collection-document-open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+}
+.collection-card .collection-actions {
+  position: relative;
+  z-index: 1;
+}

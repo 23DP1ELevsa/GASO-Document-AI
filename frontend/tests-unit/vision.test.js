@@ -57,7 +57,9 @@ test('dynamic attributes require review; renaming, deletion and manual edits sur
   attach()
   const key = session.documents[0].dynamicAttributes[0].key
   assert.match(key, /^custom_/)
-  assert.throws(() => confirmDocument(session, id))
+  const approved = confirmDocument(session, id)
+  assert.equal(approved.documents[0].dynamicAttributes[0].status, 'reviewed')
+  assert.equal(session.documents[0].dynamicAttributes[0].status, 'unreviewed')
   session = editValue(session, id, key, 'Manual value')
   session = confirmDocument(session, id)
   assert.equal(isConfirmationCurrent(session, session.documents[0]), true)

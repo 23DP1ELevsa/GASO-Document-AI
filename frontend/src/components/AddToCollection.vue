@@ -12,7 +12,8 @@ const open = ref(false),
   name = ref(''),
   error = ref(''),
   status = ref(''),
-  saving = ref(false)
+  saving = ref(false),
+  addedId = ref(null)
 async function show() {
   error.value = ''
   try {
@@ -34,6 +35,7 @@ async function add() {
     await addDocumentToCollection(id, props.controller.active.value.id, props.documentId)
     open.value = false
     status.value = 'Dokuments pievienots komplektam.'
+    addedId.value = id
   } catch (reason) {
     error.value = reason.message || 'Neizdevās saglabāt komplektu.'
   } finally {
@@ -45,6 +47,12 @@ async function add() {
   <div class="collection-add">
     <v-btn variant="tonal" block @click="show">Pievienot komplektam</v-btn>
     <p v-if="status" role="status">{{ status }}</p>
+    <RouterLink
+      v-if="addedId"
+      class="text-link"
+      :to="{ name: 'collections', query: { collection: addedId } }"
+      >Apskatīt komplektu</RouterLink
+    >
     <p v-if="error && !open" role="alert">{{ error }}</p>
     <v-dialog v-model="open" max-width="430" :persistent="saving" aria-label="Pievienot komplektam">
       <v-card class="collection-dialog"

@@ -22,6 +22,7 @@ export default {
       'Pārlūks neļauj saglabāt iestatījumus. Izvēlētais režīms darbosies līdz lapas aizvēršanai.',
   },
   nav: {
+    document: 'Dokuments',
     collections: 'Komplekti',
     home: 'Sākums',
     scan: 'Skenēt',

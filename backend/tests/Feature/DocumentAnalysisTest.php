@@ -124,8 +124,29 @@ class DocumentAnalysisTest extends TestCase
 
     public function test_timeout_is_safe_and_never_retried(): void
     {
-        Http::fake(fn () => throw new ConnectionException('synthetic-test-key PRIVATE OCR'));
+        Http::fake(fn () => throw new ConnectionException('cURL error 28: synthetic-test-key PRIVATE OCR'));
         $this->postJson('/api/document-analysis', $this->payload())->assertStatus(504)->assertJsonPath('error.code', 'timeout');
+    }
+
+    public static function connectionFailures(): array
+    {
+        return [[60, 'upstream_tls'], [7, 'upstream_connection']];
+    }
+
+    #[DataProvider('connectionFailures')]
+    public function test_tls_and_connection_errors_are_not_misreported_as_timeouts(int $errno, string $expected): void
+    {
+        Log::spy();
+        $calls = 0;
+        Http::fake(function () use (&$calls, $errno) {
+            $calls++;
+            throw new ConnectionException('cURL error '.$errno.': synthetic-test-key PRIVATE OCR');
+        });
+        $this->postJson('/api/document-analysis', $this->payload())->assertStatus(502)
+            ->assertExactJson(['error' => ['code' => $expected]]);
+        $this->assertSame(1, $calls);
+        Log::shouldNotHaveReceived('error');
+        Log::shouldNotHaveReceived('warning');
     }
 
     public static function invalidResponses(): array

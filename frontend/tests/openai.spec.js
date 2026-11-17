@@ -1,3 +1,4 @@
+import { editField } from '../test-support/uxFixtures.js'
 import { test, expect } from '@playwright/test'
 import sharp from 'sharp'
 import { ALL_FIELDS } from '../src/features/documents/catalog.js'
@@ -102,17 +103,17 @@ test('AI consent, suggestions, manual edits, IndexedDB reload, confirmation and 
   expect(calls).toBe(0)
   await page.getByRole('checkbox', { name: /Piekrītu šī dokumenta/ }).check()
   const info = page.getByTestId('document-information')
-  await info.getByLabel('Nosūtītājs', { exact: true }).fill('Manuāls pārdevējs')
+  await editField(page, 'Nosūtītājs', 'Manuāls pārdevējs')
   await recognize.click()
-  await expect(page.getByRole('button', { name: 'Analizēt atkārtoti', exact: true })).toBeVisible()
+  await expect(page.locator('.analysis-choice > summary')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Atcelt analīzi' })).toHaveCount(0)
-  await expect(info.getByLabel('Nosūtītājs', { exact: true })).toHaveValue('Manuāls pārdevējs')
+  await expect(info.locator('.compact-attributes')).toContainText('Manuāls pārdevējs')
   expect(calls).toBe(1)
   await acceptSuggestions(page)
-  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
+  await page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }).click()
   await expect(page.getByTestId('workflow-document')).toBeVisible()
   await page.reload()
-  await page.getByTestId('workflow-document').click()
+  await page.getByRole('button', { name: 'Izveidot PDF', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'PDF eksports', exact: true })
   await expect(dialog).toBeVisible()
   await expect(dialog.locator('.pdf-progress')).toHaveCount(0, { timeout: 30000 })
@@ -140,7 +141,7 @@ test('offline AI allows manual entry and scan-only export without local OCR or n
   await expect(
     page.getByRole('button', { name: 'Turpināt ar lokālo analīzi', exact: true }),
   ).toHaveCount(0)
-  await page.getByLabel('Nosūtītājs', { exact: true }).fill('Manuāls ieraksts bezsaistē')
+  await editField(page, 'Nosūtītājs', 'Manuāls ieraksts bezsaistē')
   expect(calls).toBe(0)
   await page.getByRole('button', { name: 'Izlaist — saglabāt tikai skenējumu' }).click()
   await expect(page.getByRole('dialog', { name: 'PDF eksports', exact: true })).toBeVisible()

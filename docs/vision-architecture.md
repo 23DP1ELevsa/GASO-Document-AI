@@ -18,6 +18,8 @@ Manuāli labotie/tukšotie un pārbaudītie lauki ir prioritāri. Dzēsto/pārd�
 
 ## Konfigurācija un drošība
 
+Windows PHP/OpenSSL bez konfigurēta CA faila var atgriezt cURL 60, lai gan pārlūka HTTPS darbojas. `OpenAiTransport` Windows vidē izmanto operētājsistēmas uzticamo sertifikātu krātuvi ar `CURLSSLOPT_NATIVE_CA`, saglabājot `verify=true` un aizliedzot pāradresācijas. SSL pārbaude netiek atslēgta. Skatiet [oficiālo cURL aprakstu](https://curl.se/libcurl/c/CURLOPT_SSL_OPTIONS.html). cURL 28 tiek ziņots kā `timeout`; TLS/sertifikātu kļūmes kā `upstream_tls`, bet DNS/savienojuma kļūmes kā `upstream_connection`. Klientam un žurnāliem netiek nodots pilns izņēmuma teksts vai pieprasījuma dati.
+
 | Mainīgais | Noklusējums |
 |---|---|
 | OPENAI_MODEL | gpt-6-luna |

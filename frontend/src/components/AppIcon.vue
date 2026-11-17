@@ -34,6 +34,7 @@ import {
   Replace,
   Expand,
   X,
+  Pencil,
 } from '@lucide/vue'
 defineProps({
   name: { type: String, required: true },
@@ -74,6 +75,7 @@ const icons = {
   replace: Replace,
   expand: Expand,
   close: X,
+  edit: Pencil,
 }
 </script>
 

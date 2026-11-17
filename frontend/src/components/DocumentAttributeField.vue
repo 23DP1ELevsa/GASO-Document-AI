@@ -25,7 +25,10 @@ const display = computed(() =>
   props.field.key === 'document_type' ? t(`grouping.types.${suggestion.value}`) : suggestion.value,
 )
 const money = computed(
-  () => props.field.key.endsWith('_amount') || props.field.key === 'balance_due',
+  () =>
+    props.field.dataType === 'amount' ||
+    props.field.key.endsWith('_amount') ||
+    props.field.key === 'balance_due',
 )
 const currentValue = computed(() => props.document.values[props.field.key])
 const filled = computed(
@@ -86,7 +89,13 @@ function normalize(event) {
       :id="id"
       :value="shownValue ?? ''"
       :disabled="disabled"
-      :type="field.key.endsWith('_date') || field.key.startsWith('coverage_') ? 'date' : 'text'"
+      :type="
+        field.dataType === 'date' ||
+        field.key.endsWith('_date') ||
+        field.key.startsWith('coverage_')
+          ? 'date'
+          : 'text'
+      "
       :inputmode="money ? 'decimal' : 'text'"
       :placeholder="money ? '0,00' : 'Nav atrasts — ievadiet'"
       maxlength="2000"

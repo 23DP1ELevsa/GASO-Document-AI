@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useScanSession } from '../features/scanning/useScanSession.js'
 import { t } from '../locales'
 import {
@@ -15,6 +15,7 @@ import { readImageRecord } from '../features/scanning/draftRepository.js'
 import { createPdfService } from '../features/pdf/pdfService.js'
 import { collectionSnapshot } from '../features/pdf/collectionSnapshot.js'
 import BlobImage from '../components/BlobImage.vue'
+const route = useRoute()
 const router = useRouter(),
   scanSession = useScanSession()
 async function startScan() {
@@ -132,7 +133,12 @@ async function exportPdf(documentId) {
     progress.value = ''
   })
 }
-onMounted(() => run(refresh))
+onMounted(() =>
+  run(async () => {
+    await refresh()
+    if (typeof route.query.collection === 'string') await open(route.query.collection)
+  }),
+)
 onUnmounted(() => {
   service.dispose()
   clearPdf()
@@ -175,9 +181,9 @@ onUnmounted(() => {
           >Saglabāt nosaukumu</v-btn
         >
       </form>
-      <p>
-        Pievienojiet jaunu dokumentu sadaļā Skenēt. PDF solī izvēlieties “Pievienot komplektam” un
-        šo komplektu.
+      <p v-if="!current.documents.length">
+        Šis komplekts ir tukšs. Pievienojiet jaunu dokumentu sadaļā Skenēt. PDF solī izvēlieties
+        “Pievienot komplektam” un šo komplektu.
       </p>
       <button class="text-link" :disabled="busy" @click="startScan">
         Skenēt un pievienot dokumentu
@@ -192,7 +198,23 @@ onUnmounted(() => {
           :blob="document.pages[0].thumbnail"
           alt="Dokumenta priekšskatījums"
         />
-        <h2>{{ document.values.document_title || 'Dokuments ' + (index + 1) }}</h2>
+        <button
+          class="collection-document-open"
+          :disabled="busy"
+          :aria-label="
+            'Apskatīt dokumentu: ' + (document.values.document_title || 'Dokuments ' + (index + 1))
+          "
+          @click="
+            router.push({
+              name: 'document',
+              params: { id: document.id },
+              query: { collection: current.id },
+            })
+          "
+        >
+          <h3>{{ document.values.document_title || 'Dokuments ' + (index + 1) }}</h3>
+          <span>Apskatīt dokumentu →</span>
+        </button>
         <p>
           {{ document.pageIds.length }} lapas ·
           {{ document.confirmed ? 'Pārbaudīts' : 'Tikai skenējums PDF' }}

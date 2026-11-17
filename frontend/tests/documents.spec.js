@@ -1,3 +1,4 @@
+import { editField } from '../test-support/uxFixtures.js'
 import { acceptSuggestions } from '../test-support/workflowUi.js'
 import { toggleTheme } from '../test-support/workflowUi.js'
 import { test, expect } from '@playwright/test'
@@ -186,68 +187,45 @@ test('create, move, order, split, merge and delete groups preserve exclusive pag
   expect(deleted.pages[0].ocr).toEqual(original.pages[0].ocr)
 })
 
-test('local suggestions, manual values, custom attributes and confirmation remain separate across documents and reload', async ({
+test('AI suggestions, manual values, custom attributes and confirmation remain separate across documents and reload', async ({
   page,
 }, testInfo) => {
   await seed(page, [invoice, 'Invoice No. SYN-002\nGrand total: 50.00 EUR'])
   await create(page, 'Pirmais rēķins', [0])
   await create(page, 'Otrais rēķins', [0])
   await analyzeDocument(page, 0)
-  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('121.00')
-  for (const field of [
-    'Dokumenta veids',
-    'Dokumenta numurs',
-    'Nosūtītājs',
-    'Saņēmējs',
-    'Izdošanas datums',
-    'Apmaksas termiņš',
-    'Kopējā summa',
-    'Valūta',
-  ])
-    await info(page)
-      .getByRole('button', { name: `Izmantot ieteikumu laukam “${field}”`, exact: true })
-      .click()
-  await info(page).getByLabel('Nosūtītājs', { exact: true }).fill('')
-  await info(page)
-    .getByLabel('Nosūtītājs', { exact: true })
-    .pressSequentially('Manuāli pārbaudīts nosūtītājs', { delay: 5 })
-  await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
-    'Manuāli pārbaudīts nosūtītājs',
-  )
+  await expectField(page, 'Kopējā summa', '121.00')
+  await editField(page, 'Nosūtītājs', 'Manuāli pārbaudīts nosūtītājs')
+  await expectField(page, 'Nosūtītājs', 'Manuāli pārbaudīts nosūtītājs')
   await extraFields(page)
   await info(page).getByLabel('Atribūta nosaukums', { exact: true }).fill('Projekta kods')
   await info(page).getByLabel('Atribūta vērtība', { exact: true }).fill('SYNTH-42')
   await info(page).getByRole('button', { name: 'Pievienot atribūtu' }).click()
-  await expect(info(page).getByLabel('Projekta kods', { exact: true })).toHaveValue('SYNTH-42')
+  await expectField(page, 'Projekta kods', 'SYNTH-42')
   await acceptSuggestions(page)
-  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
+  await page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }).click()
   await reviewDocument(page, 0)
   await analysisDetails(page)
   await extraFields(page)
   await expect(
     info(page).getByRole('status').filter({ hasText: 'Informācija apstiprināta' }),
   ).toBeVisible()
-  await info(page).getByRole('button', { name: 'Analizēt lokāli' }).click()
-  await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
-    'Manuāli pārbaudīts nosūtītājs',
-  )
+  await analyzeDocument(page, 0)
+  await expectField(page, 'Nosūtītājs', 'Manuāli pārbaudīts nosūtītājs')
   await save(page)
   await page.reload()
   await reviewDocument(page, 0)
   await extraFields(page)
-  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('121.00')
-  await expect(info(page).getByLabel('Projekta kods', { exact: true })).toHaveValue('SYNTH-42')
+  await expectField(page, 'Kopējā summa', '121.00')
+  await expectField(page, 'Projekta kods', 'SYNTH-42')
   await expect(
     info(page).getByRole('status').filter({ hasText: 'Informācija apstiprināta' }),
   ).toBeVisible()
   await analyzeDocument(page, 1)
-  await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue('')
-  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('50.00')
+  await expectField(page, 'Nosūtītājs', '')
+  await expectField(page, 'Kopējā summa', '50.00')
   await expect(info(page).getByLabel('Projekta kods', { exact: true })).toHaveCount(0)
-  await info(page)
-    .getByRole('button', { name: 'Izmantot ieteikumu laukam “Kopējā summa”', exact: true })
-    .click()
-  await expect(info(page).getByLabel('Kopējā summa', { exact: true })).toHaveValue('50.00')
+  await expectField(page, 'Kopējā summa', '50.00')
   for (const dark of [false, true]) {
     if (dark) await toggleTheme(page)
     await page.waitForFunction(() =>
@@ -273,37 +251,48 @@ test('OCR text changes and page replacement mark analysis stale while retaining 
   await seed(page, [invoice, 'Continuation'])
   await create(page, 'Rēķins', [0, 1])
   await analyzeDocument(page)
-  await info(page).getByLabel('Nosūtītājs', { exact: true }).fill('Saglabāta manuālā vērtība')
+  await editField(page, 'Nosūtītājs', 'Saglabāta manuālā vērtība')
   await acceptSuggestions(page)
-  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
+  await page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }).click()
   await reviewDocument(page, 0)
   await analysisDetails(page)
   await extraFields(page)
   await save(page)
-  await pageTools(page)
-  await page
-    .getByTestId('page-card')
-    .nth(0)
-    .getByRole('button', { name: 'Skatīt tekstu', exact: true })
-    .click()
-  await page.getByTestId('ocr-text').fill(`${invoice}\nLabots OCR`)
-  await page.getByRole('button', { name: 'Saglabāt tekstu', exact: true }).click()
-  await expect(page.getByText('Teksts un sesija saglabāti', { exact: false })).toBeVisible()
-  await page.getByRole('button', { name: 'Aizvērt teksta apskati' }).click()
+  await page.evaluate(
+    (text) =>
+      new Promise((resolve) => {
+        const req = indexedDB.open('gaso-document-ai')
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction('pages', 'readwrite')
+          tx.objectStore('pages').getAll().onsuccess = (e) => {
+            const page = e.target.result[0]
+            tx.objectStore('pages').put({
+              ...page,
+              ocr: { ...page.ocr, editedText: text, editedAt: Date.now() },
+            })
+          }
+          tx.oncomplete = () => {
+            db.close()
+            resolve()
+          }
+        }
+      }),
+    invoice + '\nLabots OCR',
+  )
+  await page.reload()
   await reviewDocument(page)
   await analysisDetails(page)
   await expect(
-    info(page).getByRole('status').filter({ hasText: 'Analizējiet atkārtoti' }),
+    info(page).getByRole('status').filter({ hasText: 'Dokuments ir mainīts' }),
   ).toBeVisible()
-  await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
-    'Saglabāta manuālā vērtība',
-  )
+  await expectField(page, 'Nosūtītājs', 'Saglabāta manuālā vērtība')
   await expect(
     info(page).getByRole('button', { name: 'Izmantot ieteikumu laukam “Kopējā summa”' }),
   ).toHaveCount(0)
-  await info(page).getByRole('button', { name: 'Analizēt lokāli', exact: true }).click()
+  await analyzeDocument(page)
   await expect(
-    info(page).getByRole('status').filter({ hasText: 'Analizējiet atkārtoti' }),
+    info(page).getByRole('status').filter({ hasText: 'Dokuments ir mainīts' }),
   ).toHaveCount(0)
   await goStep(page, 2)
   await page
@@ -316,9 +305,7 @@ test('OCR text changes and page replacement mark analysis stale while retaining 
   await (await chooser).setFiles({ ...fixture, name: 'replacement.png' })
   await expect(groups(page).getByText('Analīze jāatjaunina', { exact: true })).toBeVisible()
   await reviewDocument(page)
-  await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
-    'Saglabāta manuālā vērtība',
-  )
+  await expectField(page, 'Nosūtītājs', 'Saglabāta manuālā vērtība')
   await save(page)
   await page.reload()
   await groupingTools(page)
@@ -351,20 +338,25 @@ test('legacy IndexedDB drafts reopen unassigned without losing original or edite
   expect(stored.images).toBe(2)
 })
 
-test('boundary suggestions require explicit confirmation; repeated invoice numbers keep pages together', async ({
+test('legacy OCR never splits a document automatically; manual boundaries preserve page ownership', async ({
   page,
 }) => {
   await seed(page, ['Invoice No. A1', 'Invoice No. A1', 'Invoice No. A2', 'Invoice No. A3'])
   await create(page, 'Jaukta grupa', [0, 1, 2, 3])
-  const button = groups(page).getByRole('button', {
-    name: 'Pārskatīt robežu ieteikumus (2)',
-    exact: true,
-  })
-  page.once('dialog', (dialog) => dialog.dismiss())
-  await button.click()
-  await expect(groups(page)).toHaveCount(1)
-  page.once('dialog', (dialog) => dialog.accept())
-  await button.click()
+  await expect(
+    groups(page).getByRole('button', { name: /Pārskatīt robežu ieteikumus/ }),
+  ).toHaveCount(0)
+  await editPages(groups(page).first())
+  await groups(page).first().getByRole('checkbox').nth(3).check()
+  await groups(page)
+    .first()
+    .getByRole('button', { name: 'Atdalīt jaunā dokumentā', exact: true })
+    .click()
+  await groups(page).first().getByRole('checkbox').nth(2).check()
+  await groups(page)
+    .first()
+    .getByRole('button', { name: 'Atdalīt jaunā dokumentā', exact: true })
+    .click()
   await expect(groups(page)).toHaveCount(3)
   await save(page)
   const stored = await database(page)
@@ -384,7 +376,7 @@ test('group and attribute writes roll back together on failure and retry keeps t
   await create(page, 'Atomārs dokuments', [0])
   await analyzeDocument(page)
   const before = await database(page)
-  await info(page).getByLabel('Nosūtītājs', { exact: true }).fill('Manuāls nosūtītājs')
+  await editField(page, 'Nosūtītājs', 'Manuāls nosūtītājs')
   await page.evaluate(() => {
     window.originalPut = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function (...args) {
@@ -394,12 +386,10 @@ test('group and attribute writes roll back together on failure and retry keeps t
     }
   })
   await acceptSuggestions(page)
-  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
+  await page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('nepietiek vietas')
   expect((await database(page)).drafts[0].documents).toEqual(before.drafts[0].documents)
-  await expect(info(page).getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
-    'Manuāls nosūtītājs',
-  )
+  await expectField(page, 'Nosūtītājs', 'Manuāls nosūtītājs')
   await page.evaluate(() => {
     IDBObjectStore.prototype.put = window.originalPut
   })
@@ -408,3 +398,11 @@ test('group and attribute writes roll back together on failure and retry keeps t
   expect(stored.drafts[0].documents[0].confirmation.values.sender).toBe('Manuāls nosūtītājs')
   expect(stored.images).toBe(1)
 })
+
+async function expectField(page, label, value) {
+  const row = page
+    .locator('.compact-attribute')
+    .filter({ has: page.getByText(label, { exact: true }) })
+  if (value === '') await expect(row).toHaveCount(0)
+  else await expect(row.locator('dd')).toHaveText(value)
+}

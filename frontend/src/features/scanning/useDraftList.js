@@ -1,5 +1,5 @@
 import { ref, shallowRef, watch, onScopeDispose } from 'vue'
-import { listDrafts } from './draftRepository'
+import { listDrafts, loadDraft } from './draftRepository'
 import { draftsChanged } from './useScanSession'
 import { errorCode } from './errors'
 
@@ -13,7 +13,8 @@ export function useDraftList() {
     loading.value = true
     error.value = ''
     try {
-      const result = await listDrafts()
+      const metadata = await listDrafts()
+      const result = await Promise.all(metadata.map((draft) => loadDraft(draft.id)))
       if (current === generation) drafts.value = result
     } catch (reason) {
       if (current === generation) error.value = errorCode(reason)

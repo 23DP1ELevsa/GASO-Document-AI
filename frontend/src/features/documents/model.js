@@ -208,34 +208,80 @@ export function editValue(session, id, key, raw) {
 export function validationErrors(document) {
   const errors = []
   for (const [key, value] of Object.entries(document.values)) {
-    if (value === null) continue
+    if (value === null || value === '') continue
+    const dataType = document.dynamicAttributes?.find((field) => field.key === key)?.dataType
     if (key === 'document_type' && !DOCUMENT_TYPES.includes(value)) errors.push(key)
-    if ((key.endsWith('_date') || key.startsWith('coverage_')) && normalizeDate(value) !== value)
+    if (
+      (dataType === 'date' || key.endsWith('_date') || key.startsWith('coverage_')) &&
+      normalizeDate(value) !== value
+    )
       errors.push(key)
-    if ((key.endsWith('_amount') || key === 'balance_due') && normalizeAmount(value) !== value)
+    if (
+      (dataType === 'amount' || key.endsWith('_amount') || key === 'balance_due') &&
+      normalizeAmount(value) !== value
+    )
       errors.push(key)
-    if (key === 'currency' && !/^[A-Z]{3}$/.test(value)) errors.push(key)
+    if ((key === 'currency' || dataType === 'currency') && !/^[A-Z]{3}$/.test(value))
+      errors.push(key)
   }
   return [...new Set(errors)]
 }
+export function reviewValues(document) {
+  const values = { ...document.values }
+  // Old drafts may contain suggestions that were displayed but never copied into values.
+  const suggestions = {
+    ...document.analysis?.result.attributes,
+    document_type: document.analysis?.result.document_type,
+  }
+  if (document.analysis?.result.version !== 2)
+    for (const [key, value] of Object.entries(suggestions)) {
+      if (
+        value != null &&
+        !document.editedFields?.includes(key) &&
+        (values[key] == null || values[key] === 'unknown')
+      )
+        values[key] = value
+    }
+  return values
+}
 export function confirmDocument(session, id) {
   const document = requireDocument(session, id)
-  if (
-    !document.pageIds.length ||
-    validationErrors(document).length ||
-    document.dynamicAttributes?.some((field) => field.status !== 'reviewed')
-  )
+  const values = isAnalysisStale(session, document)
+    ? { ...document.values }
+    : reviewValues(document)
+  if (!document.pageIds.length || validationErrors({ ...document, values }).length)
     throw new Error('Invalid information')
-  return updateDocument(session, id, (item) => ({
-    ...item,
-    confirmation: {
-      confirmedAt: Date.now(),
-      source: sourceVersion(session, item),
-      values: { ...item.values },
-      customFields: structuredClone(item.customFields),
-      dynamicAttributes: structuredClone(item.dynamicAttributes || []),
-    },
-  }))
+  const now = Date.now()
+  // Review and confirmation are one immutable model operation, committed by saveDraft in one transaction.
+  return updateDocument(session, id, (item) => {
+    const dynamicAttributes = (item.dynamicAttributes || []).map((field) => ({
+      ...field,
+      value: values[field.key] ?? null,
+      status: 'reviewed',
+      reviewedAt: now,
+    }))
+    const reviewed = {
+      ...item,
+      values,
+      dynamicAttributes,
+      editedFields: [
+        ...new Set([
+          ...(item.editedFields || []),
+          ...Object.keys(values).filter((key) => values[key] !== null),
+        ]),
+      ],
+    }
+    return {
+      ...reviewed,
+      confirmation: {
+        confirmedAt: now,
+        source: sourceVersion(session, reviewed),
+        values: { ...values },
+        customFields: structuredClone(item.customFields),
+        dynamicAttributes: structuredClone(dynamicAttributes),
+      },
+    }
+  })
 }
 export function addCustomField(session, id, label, value = null) {
   if (!label.trim() || label.length > 100) throw new Error('Missing label')

@@ -14,7 +14,7 @@ class OpenAiAnalyzer
         try {
             $response = Http::withToken(config('document_ai.key'))->acceptJson()
                 ->timeout(max(1, min(120, config('document_ai.timeout'))))->connectTimeout(10)
-                ->withOptions(['allow_redirects' => false])
+                ->withOptions(OpenAiTransport::options())
                 ->post('https://api.openai.com/v1/responses', [
                     'model' => config('document_ai.model'), 'store' => false,
                     'max_output_tokens' => max(256, min(8000, config('document_ai.max_output_tokens'))),
@@ -33,8 +33,9 @@ class OpenAiAnalyzer
                     ], $pages))]],
                     'text' => ['format' => ['type' => 'json_schema', 'name' => 'document_analysis', 'strict' => true, 'schema' => AnalysisSchema::make()]],
                 ]);
-        } catch (ConnectionException) {
-            throw new AnalysisFailure('timeout', 504);
+        } catch (ConnectionException $exception) {
+            $reason = OpenAiTransport::failureReason($exception);
+            throw new AnalysisFailure($reason, $reason === 'timeout' ? 504 : 502);
         }
         if (! $response->successful()) {
             $code = match (true) {

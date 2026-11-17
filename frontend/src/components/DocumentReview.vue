@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import BlobImage from './BlobImage.vue'
 import DocumentInformation from './DocumentInformation.vue'
 import { documentPages, isConfirmationCurrent } from '../features/documents/model.js'
@@ -11,6 +11,8 @@ const props = defineProps({
   aiFailed: Boolean,
 })
 const emit = defineEmits(['consent', 'select', 'preview', 'recognize', 'change'])
+const information = ref(null)
+defineExpose({ focusInvalid: () => information.value?.focusInvalid() })
 const pages = computed(() => documentPages(props.session, props.document))
 const documents = computed(() => props.session.documents.filter((item) => item.pageIds.length))
 </script>
@@ -40,7 +42,15 @@ const documents = computed(() => props.session.documents.filter((item) => item.p
         <BlobImage :blob="page.thumbnail" alt="" /><span>{{ index + 1 }}</span>
       </button>
     </div>
-    <div class="bordered-card analysis-choice">
+    <v-btn
+      v-if="pages.length"
+      variant="text"
+      :disabled="disabled"
+      @click="emit('preview', pages[0], $event.currentTarget)"
+      >Apskatīt oriģinālu</v-btn
+    >
+    <component :is="document.analysis ? 'details' : 'div'" class="bordered-card analysis-choice">
+      <summary v-if="document.analysis">Analizēt atkārtoti</summary>
       <h3>AI dokumenta analīze</h3>
       <p>
         Šī dokumenta fotoattēli tiks nosūtīti OpenAI. Izmantojiet tikai dokumentus, kuru nosūtīšana
@@ -60,8 +70,9 @@ const documents = computed(() => props.session.documents.filter((item) => item.p
       <p v-if="aiFailed" role="status">
         Varat aizpildīt informāciju manuāli vai saglabāt tikai skenējumu.
       </p>
-    </div>
+    </component>
     <DocumentInformation
+      ref="information"
       :key="document.id"
       :document="document"
       :session="session"

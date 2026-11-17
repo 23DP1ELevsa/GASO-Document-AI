@@ -1,3 +1,4 @@
+import { editField } from '../test-support/uxFixtures.js'
 import { test, expect } from '@playwright/test'
 import sharp from 'sharp'
 import { continuePages, goStep, toggleTheme, navigate } from '../test-support/workflowUi.js'
@@ -26,44 +27,30 @@ test('Home gallery opens the real file chooser and a single page needs no manual
   await expect(page.locator('.workspace-savebar strong')).toHaveText('Saglabāts ierīcē')
 })
 
-test('manual fields persist, direct PDF download records the correct status, and later edits invalidate it', async ({
+test('manual fields persist and status follows confirmation rather than a past PDF download', async ({
   page,
 }) => {
   await page.goto('/#/scan')
   await page.getByTestId('gallery-input').setInputFiles(await image())
   await continuePages(page)
-  const info = page.getByTestId('document-information')
-  await info.getByLabel('Nosūtītājs', { exact: true }).fill('Sintētisks mobilais dokuments')
-  await page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }).click()
-  const pdf = page.getByRole('dialog', { name: 'PDF eksports', exact: true })
+  await editField(page, 'Nosūtītājs', 'Sintētisks mobilais dokuments')
+  await page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }).click()
+  await expect(page.locator('.completion-card')).toBeVisible()
+  await page.getByRole('button', { name: 'Izveidot PDF', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'PDF eksports', exact: true })
   const download = page.waitForEvent('download')
-  await pdf.getByRole('button', { name: 'Lejupielādēt PDF', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Lejupielādēt PDF', exact: true }).click()
   expect((await download).suggestedFilename()).toMatch(/\.pdf$/)
-  await expect(pdf.getByRole('heading', { name: 'Gatavs!', exact: true })).toBeVisible()
-  await expect(pdf.getByRole('link', { name: 'Uz dokumentiem', exact: true })).toBeEnabled()
-  await pdf.getByRole('link', { name: 'Uz dokumentiem', exact: true }).click()
-  await expect(
-    page.getByTestId('draft-card').getByText('Lejupielādēts', { exact: true }),
-  ).toBeVisible()
-  await page
-    .getByTestId('draft-card')
-    .getByRole('button', { name: 'Turpināt', exact: true })
-    .click()
-  await goStep(page, 3)
-  await info.getByLabel('Nosūtītājs', { exact: true }).fill('Mainīts pēc lejupielādes')
-  await page.getByRole('button', { name: 'Saglabāt melnrakstu', exact: true }).click()
-  await expect(page.locator('.workspace-savebar strong')).toHaveText('Saglabāts ierīcē')
-  await navigate(page, 'Dokumenti')
-  await expect(
-    page.getByTestId('draft-card').getByText('Jāpārbauda dati', { exact: true }),
-  ).toBeVisible()
-  await page
-    .getByTestId('draft-card')
-    .getByRole('button', { name: 'Turpināt', exact: true })
-    .click()
-  await expect(info.getByLabel('Nosūtītājs', { exact: true })).toHaveValue(
-    'Mainīts pēc lejupielādes',
-  )
+  await dialog.getByRole('link', { name: 'Uz dokumentiem', exact: true }).click()
+  await expect(page.getByTestId('document-card')).toContainText('Apstiprināts')
+  await page.getByRole('button', { name: /Apskatīt dokumentu:/ }).click()
+  await page.getByRole('button', { name: 'Rediģēt', exact: true }).click()
+  await editField(page, 'Nosūtītājs', 'Mainīts pēc lejupielādes')
+  await page.getByRole('button', { name: 'Uz sākumu', exact: true }).first().click()
+  await page.goto('/#/documents')
+  await expect(page.getByTestId('document-card')).toContainText('Jāpārbauda dati')
+  await page.getByRole('button', { name: /Apskatīt dokumentu:/ }).click()
+  await expect(page.locator('.compact-attributes')).toContainText('Mainīts pēc lejupielādes')
 })
 
 test('the last editable field and fixed action remain usable in both themes and simulated safe areas', async ({
@@ -78,8 +65,8 @@ test('the last editable field and fixed action remain usable in both themes and 
   })
   for (const theme of ['light', 'dark']) {
     if (theme === 'dark') await toggleTheme(page)
-    const field = page.getByTestId('document-information').getByLabel('Valūta', { exact: true })
-    await field.fill('EUR')
+    if (theme === 'light') await editField(page, 'Valūta', 'EUR')
+    const field = page.locator('[data-field="currency"]')
     await field.scrollIntoViewIfNeeded()
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     const box = await field.boundingBox()
@@ -89,7 +76,7 @@ test('the last editable field and fixed action remain usable in both themes and 
     expect(footer.width).toBeLessThanOrEqual(430)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     await expect(
-      page.getByRole('button', { name: 'Apstiprināt un turpināt', exact: true }),
+      page.getByRole('button', { name: 'Apstiprināt dokumentu', exact: true }),
     ).toBeInViewport()
     await page.screenshot({ path: testInfo.outputPath(`mobile-fields-${theme}.png`) })
   }

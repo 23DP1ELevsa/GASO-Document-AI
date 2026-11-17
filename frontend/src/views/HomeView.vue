@@ -7,10 +7,18 @@ import { t } from '../locales'
 import { useDraftList } from '../features/scanning/useDraftList'
 import { useScanSession } from '../features/scanning/useScanSession'
 import { errorCode } from '../features/scanning/errors'
-import { draftIsDownloaded } from '../features/documents/workflow.js'
+import { draftHasDocuments } from '../features/documents/workflow.js'
+import { isConfirmationCurrent } from '../features/documents/model.js'
 const { drafts, loading, error, refresh } = useDraftList()
 const unfinished = computed(() =>
-  drafts.value.filter((draft) => draft.pageIds.length && !draftIsDownloaded(draft)),
+  drafts.value.filter(
+    (draft) =>
+      draft.pageIds.length &&
+      !(
+        draftHasDocuments(draft) &&
+        draft.documents.every((document) => isConfirmationCurrent(draft, document))
+      ),
+  ),
 )
 const router = useRouter(),
   session = useScanSession(),
