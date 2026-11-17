@@ -1,4 +1,4 @@
-// Keep keys aligned with docs/requirements/document-{types,attributes}.md.
+// Document types and attribute conventions are described in the root README.md.
 export const DOCUMENT_TYPES = [
   'unknown',
   'invoice',

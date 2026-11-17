@@ -1,493 +1,139 @@
-﻿# GASO Document AI
+# GASO Document AI
 
-## Pašreizējā versija: vienkārša pārskatīšana un dokumentu apskate
+GASO Document AI ir dokumentu fotografēšanas, AI analīzes un PDF izveides lietotne ar:
 
-**Nofotografēt → AI analīze → pārskatīt un labot → Apstiprināt dokumentu → apskatīt, izveidot PDF vai pievienot komplektam.** Saglabāts Vue 3 / Vuetify 3, Capacitor un Lovable mobilais dizains, 360–430 px telefonu saskarne, gaišais un tumšais režīms.
+- `backend/` — Laravel 12 API (PHP) un OpenAI attēlu analīzi.
+- `frontend/` — Vue 3 + Vuetify 3 saskarni, PWA un Capacitor Android projektu.
+- `docs/` — datu shēmām un pārbaudes attēliem. Visa projekta dokumentācija ir šajā README.
 
-OpenAI saņem izvēlētā dokumenta sakārtotās fotogrāfijas kā input_image vienā Responses API pieprasījumā. Ierīce ievēro perspektīvu, pagriezienu un EXIF orientāciju un sagatavo JPEG kopiju līdz 2800 px / 8 MP. Oriģināli un PDF attēli netiek aizstāti ar AI kopijām. Laravel validē attēlu faktisko formātu, apjomu, lapu secību un Structured Outputs atbildi.
+Lietotājs pievieno dokumenta fotogrāfijas, pārskata un labo AI atrastos datus un apstiprina dokumentu ar vienu pogu. Saglabātos dokumentus var apskatīt, apvienot komplektos un eksportēt PDF. Fotogrāfijas un dokumentu dati glabājas ierīces IndexedDB; dokumenta apskate neveic AI pieprasījumus. Lokālais OCR lietotnes saskarnē ir atslēgts.
 
-Lokālais OCR ir atslēgts: nav OCR pogu, valodu/tehnisko iestatījumu vai automātiskas OCR palaišanas. Tesseract.js un izolētais kods saglabāti; OCR resursu sagatavošana vairs nav dev/build priekšnosacījums. Ja AI nav pieejams, var manuāli aizpildīt datus vai eksportēt skenējumu. Automātiskas OCR alternatīvas nav.
+## Prasības
 
-AI piedāvā konkrētajam dokumentam būtiskos dinamiskos atribūtus, arī nestandarta laukus. Kompaktā tabula sākotnēji rāda lasāmas vērtības; zīmuļa darbība atver viena lauka rediģēšanu. Lietotājs labo vērtības, pārdēvē/dzēš pielāgotos atribūtus un pievieno savus. Viena poga **Apstiprināt dokumentu** atomiski pārbauda aktīvos atribūtus un saglabā apstiprinājuma momentuzņēmumu. Nederīgs lauks saņem fokusu; tukši neobligāti lauki nav jāaizpilda. Manuālie labojumi un apstiprinātās vērtības atkārtotā analīzē saglabājas. Daļēji caurspīdīgs pārklājums rāda reālus sagatavošanas posmus un nenoteiktu AI gaidīšanas indikatoru; pieejama atcelšana bez datu dzēšanas.
+- PHP 8.2+ un Composer 2+.
+- Node.js 22.13+ un npm.
+- OpenAI API atslēga AI analīzei; manuāla ievade un PDF darbojas arī bez tās.
 
-### Dokumentu apskate un navigācija
+Pašreizējai versijai MySQL un MongoDB nav nepieciešami.
 
-Sadaļa **Dokumenti** rāda konkrētus dokumentus arī vairāku dokumentu sesijā, atsevišķi no nepabeigtiem melnrakstiem. Statusu nosaka aktuālais apstiprinājums, nevis agrāka PDF lejupielāde. Kartīte atver tikai lasāmu apskati ar visiem saglabātajiem atribūtiem un pilna izmēra lapu priekšskatījumu. Apskate neveic AI pieprasījumus. Rediģēšana atver sākotnējo dokumentu, ja tas vēl pastāv.
+## Lokālā palaišana
 
-**Uz sākumu** ir pieejams katrā skenēšanas solī: vispirms saglabā izmaiņas, kļūdas gadījumā atstāj darbu atvērtu. Pēc apstiprināšanas ir atsevišķs pabeigšanas ekrāns; PDF izveido tikai pēc lietotāja darbības un var ģenerēt vēlāk. Kopīgais lapu priekšskatījums saglabā tabulas rediģēšanas stāvokli.
-
-### Komplekti un PDF
-
-Navigācija: **Sākums, Dokumenti, Komplekti**. Dokumenta PDF solī izvēlieties **Pievienot komplektam** un esošu vai jaunu komplektu. Arī nākamajā dienā skenējiet jaunu dokumentu un izvēlieties to pašu komplektu. Var mainīt komplekta nosaukumu, dokumentu secību, izņemt dokumentus un eksportēt atsevišķu vai kopējo PDF.
-
-IndexedDB versija **2** tikai pievieno collections un savedDocuments, saglabājot vecos melnrakstus, attēlus un OCR. Komplekti glabā dokumentu/lapu momentuzņēmumus un attēlu atsauces neatkarīgi no sesijas. Sesijas dzēšana nedzēš komplekta attēlus. Vēlāka apstrādātā attēla maiņa veido jaunu versiju, koplietojot oriģinālu; atkritumu savācējs pārbauda visas atsauces.
-
-Komplektā saglabāts pievienošanas brīža dokumenta stāvoklis. Vēlāki melnraksta labojumi komplektu automātiski nemaina: izņemiet dokumentu un pievienojiet aktuālo versiju no jauna. Pārlūka datu dzēšana dzēš lokālos komplektus; svarīgos PDF lejupielādējiet.
-
-PDF izmanto esošo pdf-lib Worker un lokālo Unicode Noto Sans fontu. Katram dokumentam ir apstiprināto atribūtu divu kolonnu tabula un skenētās lapas; garas tabulas turpinās nākamajās lapās. Komplekta PDF atkārto sadaļas lietotāja secībā. Nepārbaudītiem dokumentiem pievieno tikai attēlus. Katrs eksports rada jaunu failu. Pašreizējie resursu limiti: **20 skenētas lapas visā eksportā, 128 PDF lapas, 80 MiB gala fails**; lielākus komplektus eksportējiet pa dokumentiem.
-
-### Konfigurācija, privātums un pārbaudes
-
-Palaišanas komandas zemāk saglabājas. Tikai backend/.env iestatiet DOCUMENT_AI_PROVIDER=openai, DOCUMENT_AI_ENABLED=true un OPENAI_API_KEY. OPENAI_MODEL paliek konfigurējams (gpt-6-luna). Pēc maiņas izpildiet php artisan config:clear. Esošais lietotāja .env nav pārrakstīts. Atslēgu neievietojiet frontend vai Android.
-
-Konfigurējami limiti: DOCUMENT_AI_MAX_PAGES=20, DOCUMENT_AI_MAX_IMAGE_BYTES=4000000, DOCUMENT_AI_MAX_IMAGE_TOTAL_BYTES=16000000, DOCUMENT_AI_MAX_BODY_BYTES=22000000. Saglabāti pieprasījumu biežuma un testa mēģinājumu ierobežojumi; tie negarantē precīzu **5 USD** naudas slieksni. Kredītus papildus kontrolējiet OpenAI projektā.
-
-Attēli tiek nosūtīti tikai pēc piekrišanas; backend tos pastāvīgi neglabā un nežurnalē personas datus vai pilnas AI atbildes. Faktiskais API tokenu patēriņš redzams dokumenta informācijā. store:false neizslēdz visus pakalpojuma glabāšanas režīmus. Produkcijas galapunkts ir bloķēts līdz autentifikācijas un lietotāju kvotu ieviešanai. Atcelšana ierīcē negarantē serverī jau sāktas maksas analīzes apturēšanu.
-
-[Arhitektūra un datu modelis](docs/vision-architecture.md), [mobilās UX izmaiņas un aktuālās pārbaudes](docs/testing/mobile-ux-review.md), [iepriekšējās versijas testu pārskats](docs/testing/vision-collections.md). Testos izmanto sintētiskus attēlus un imitētas API atbildes, bez maksas pieprasījumiem. MongoDB un Android APK nav veidoti.
-
-**Tālāk saglabāts vēsturisko posmu pārskats. Apraksti par aktīvu OCR un AI teksta ievadi neattiecas uz pašreizējo versiju.**
-
-## Projekta apraksts
-
-GASO Document AI ir topošā Android mobilā lietotne un progresīvā tīmekļa lietotne (PWA) drukātu dokumentu fotografēšanai, digitalizēšanai, automātiskai klasificēšanai, datu iegūšanai un arhivēšanai. Abas platformas izmanto kopīgu Vue koda bāzi. Ar telefona kameru lietotājs vienā sesijā varēs secīgi fotografēt dažādu dokumentu lapas, piemēram, rēķinus, līgumus un iesniegumus.
-
-Projekta uzdevumi tiek pārvaldīti [GASO Document AI Trello dēlī](https://trello.com/b/J6ecDlQE/gaso-document-ai-projekta-izstrade).
-
-Mobilās saskarnes Lovable dizaina pārnesums, ekrānattēli un pārbaudes ir aprakstītas [dizaina pārnesuma pārskatā](docs/mobile-design-transfer.md).
-
-## Projekta mērķis
-
-Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglojot drukātu dokumentu digitalizāciju. Lietotājam būs iespēja pārbaudīt un labot gan dokumentu grupējumu, gan iegūtos datus pirms reģistrēšanas un arhivēšanas.
-
-## Galvenās funkcijas
-
-Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Realizēti 1.–7. posma pamati: Vue mobilā saskarne, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas, lokāls attēlu redaktors, Tesseract.js OCR, manuāla dokumentu grupēšana, rediģējamas informācijas kartītes un lokāls PDF eksports ar priekšskatījumu. Laravel 12 backend pievieno izvēles OpenAI Responses API analīzi ar `gpt-6-luna` (konfigurējams), strukturētiem ieteikumiem un obligātu lietotāja pārbaudi. Lokālā analīze paliek noklusējums. AI nosūta tikai izvēlētā dokumenta OCR tekstu pēc piekrišanas. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija un dokumentu reģistrēšana vēl nav ieviesta. Python OCR komandrindas prototips nav pieslēgts pārlūka lietotnei.
-
-1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
-2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
-3. Ar mākslīgā intelekta (MI) palīdzību noteikt dokumentu sākumu un beigas un automātiski grupēt lapas atsevišķos dokumentos.
-4. Ļaut lietotājam manuāli labot grupējumu: pārvietot lapas starp dokumentiem, apvienot un sadalīt grupas, mainīt lapu secību.
-5. Katram dokumentam ģenerēt atsevišķu vairāku lapu PDF failu pareizajā lapu secībā. PDF jāsaglabā fotografēto lapu vizuālais saturs; to nedrīkst aizstāt tikai ar MI ģenerētu tekstu.
-6. Automātiski noteikt dokumenta veidu, piemēram, rēķinu, līgumu vai iesniegumu.
-7. Izvilkt galvenos atribūtus: dokumenta numuru, datumu, summu, valūtu, nosūtītāju un saņēmēju, kā arī dokumenta tipam raksturīgos laukus.
-8. Normalizēt atribūtu nosaukumus un vērtības: vienādas nozīmes atribūtiem izmantot vienotus nosaukumus, saglabājot elastīgu datu struktūru dažādiem dokumentu tipiem.
-9. Ļaut lietotājam pārbaudīt, labot un apstiprināt dokumenta tipu, atribūtus un sagatavoto PDF pirms reģistrēšanas.
-10. Reģistrēt dokumentu MongoDB datubāzē, piešķirt unikālu identifikatoru un saglabāt PDF failu, sasaistot to ar datubāzes ierakstu.
-
-## Mākslīgā intelekta izmantošana
-
-Lokālajā prototipā klasifikācijai un atribūtu iegūšanai pievienots OpenAI Responses API. Tas pēc noklusējuma ir izslēgts; atslēga glabājas tikai `backend/.env`. Automātiska AI dokumentu grupēšana šajā posmā nav ieviesta. Korporatīvā GASO pakalpojuma specifikācija un atļaujas joprojām jāsaskaņo.
-
-Personīgais OpenAI API paredzēts tikai sintētiskiem vai nosūtīšanai apstiprinātiem izstrādes/testēšanas datiem. Īstu uzņēmuma dokumentu nosūtīšanai vajadzīga atsevišķa atļauja. Pilna lokālā palaišana, konfigurācija, datu plūsma, drošības un izmaksu ierobežojumi aprakstīti [OpenAI integrācijas instrukcijā](docs/openai-integration.md).
-
-## Plānotās tehnoloģijas
-
-| Joma                 | Tehnoloģija vai risinājums                                                                                                        |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Lietotāja saskarne   | Vue 3, Composition API, JavaScript, Vuetify 3, Vue Router 4, Vite                                                                 |
-| Servera puse         | PHP, Laravel 12                                                                                                                   |
-| Datubāze             | MongoDB                                                                                                                           |
-| Mākslīgais intelekts | Lokāli noteikumi vai izvēles OpenAI Responses API ar GPT-6 Luna; korporatīvais pakalpojums vēl jāsaskaņo                         |
-| Attēlu apstrāde      | Pārlūkā: Web Worker, OffscreenCanvas, robežu kandidātu analīze un homogrāfija JavaScript; OpenCV.js izvērtēts, bet nav pievienots |
-| Lokāls OCR           | Tesseract.js 7.0.0, WebAssembly/Web Worker, ar lietotni piegādāti `tessdata_fast` 4.1.0 modeļi `lav`, `eng`, `rus`                |
-| PDF ģenerēšana       | Lokāli: pdf-lib 1.17.1, @pdf-lib/fontkit 1.1.1, iegults Noto Sans fonts un Web Worker                                             |
-| Mobilā lietotne      | Capacitor 8 Android un PWA ar kopīgu Vue koda bāzi                                                                                |
-| Autorizācija         | Laravel Sanctum                                                                                                                   |
-| Izvietošana          | Railway, ja izvietojums tiks saskaņots                                                                                            |
-| Versiju kontrole     | Git un GitHub                                                                                                                     |
-
-## Projekta struktūra
-
-```text
-GASO-Document-AI/
-├── backend/
-│   ├── app/                  # Laravel 12 API, piekļuves aizsardzība un OpenAI adapteris
-│   ├── config/document_ai.php
-│   ├── routes/api.php
-│   ├── tests/                # HTTP imitācijas; maksas izsaukumi aizliegti
-│   ├── composer.json
-│   └── .env.example
-├── frontend/
-│   ├── package.json
-│   ├── capacitor.config.json
-│   ├── vite.config.js
-│   ├── src/                  # Ekrāni, komponentes, navigācija, lokalizācija
-│   ├── public/               # Lokālas prototipa ikonas
-│   ├── android/              # Capacitor ģenerēts Android projekts
-│   ├── scripts/              # Ikonu ģenerēšana un Android būvēšana
-│   └── tests/                # Playwright pārlūka pārbaudes
-├── docs/
-│   ├── requirements/
-│   │   ├── corporate-ai-api.md
-│   │   ├── document-types.md
-│   │   ├── document-attributes.md
-│   │   └── document-analysis.schema.json
-│   ├── diagrams/
-│   │   ├── document-processing-architecture.md
-│   │   └── mobile-architecture.md
-│   └── testing/
-│       ├── test-dataset-plan.md
-│       ├── ocr-comparison.md
-│       ├── preparation-summary.md
-│       ├── mobile-foundation.md
-│       ├── scanning-sessions.md
-│       └── image-processing.md
-├── tools/
-│   └── ocr-evaluation/
-│       ├── README.md
-│       ├── ocr_demo.py
-│       ├── analysis.py
-│       ├── engines.py
-│       ├── benchmark.py
-│       ├── generate_synthetic.py
-│       ├── evaluate_text.py
-│       ├── requirements.txt
-│       └── tests/
-├── .gitignore
-├── .editorconfig
-├── LICENSE
-└── README.md
-```
-
-- `backend/` — vieta servera puses lietotnei un datu apstrādei.
-- `frontend/` — patstāvīgi palaižama Vue mobilā/tīmekļa saskarne, PWA un Android projekts.
-- `docs/requirements/` — projekta prasības un lietošanas scenāriji.
-- `docs/diagrams/` — arhitektūras, datu un procesu diagrammas.
-- `docs/testing/` — testēšanas plāni, scenāriji un rezultāti.
-
-Tukšās mapes saglabā `.gitkeep` faili. `.gitignore` nosaka izslēdzamos lokālos un ģenerētos failus, bet `.editorconfig` — vienotu teksta failu formatējumu.
-
-## Datu drošība
-
-Reāli GASO dokumenti var saturēt personas datus un komercnoslēpumus. Tos drīkst apstrādāt tikai uzņēmumā saskaņotā vidē un atbilstoši noteiktajām datu aizsardzības un piekļuves prasībām. Izstrādes pārbaudēm jāizmanto sintētiski vai izmantošanai atļauti testa dokumenti.
-
-Piekļuves datus, API atslēgas, lietotāju augšupielādes, privātos PDF un datubāzes kopijas nedrīkst pievienot repozitorijam. `.gitignore` paredzēti atbilstoši izņēmumi. AI API darbojas tikai uzticamā localhost vidē; produkcijā tas ir slēgts līdz Sanctum autentifikācijas un pilnvarojuma ieviešanai.
-
-## Tehniskā sagatavošana: #04, #05, #06
-
-- [Korporatīvā MI API jautājumi, konfigurācija un saskaņojamie nosacījumi](docs/requirements/corporate-ai-api.md).
-- [Dokumentu tipi](docs/requirements/document-types.md), [atribūtu katalogs](docs/requirements/document-attributes.md) un [paplašināmā rezultāta JSON shēma](docs/requirements/document-analysis.schema.json).
-- [Testdatu plāns un 11 piemēru struktūras izpēte](docs/testing/test-dataset-plan.md).
-- [OCR, attēlu un PDF bibliotēku salīdzinājums un faktiskie mērījumi](docs/testing/ocr-comparison.md).
-- [Dokumentu apstrādes arhitektūra](docs/diagrams/document-processing-architecture.md).
-- [Lokālā OCR prototipa uzstādīšana un palaišana](tools/ocr-evaluation/README.md).
-- [Paveiktā pārskats un atlikušie priekšnoteikumi](docs/testing/preparation-summary.md).
-
-Tesseract lokāli izmēģināts ar 11 atļautajiem PDF (13 lapas) un trim sintētiskiem LV/EN/RU attēliem. OCR teksts un atribūtu semantika ir atsevišķas darbības. Prototips neizmanto uzņēmumu veidnes vai fiksētas lauku koordinātas; tā ierobežotie apzīmējumu noteikumi vēl nenodrošina universālu dokumentu izpratni. Neskaidras vērtības ir `null`, rezultāti vienmēr jāpārbauda lietotājam.
-
-PaddleOCR un Docling atpazīšanas rezultāti vēl nav iegūti; to priekšnoteikumi ir dokumentēti. Korporatīvā API adapteris paliek slēgts līdz specifikācijas un atļaujas saņemšanai. Privātie dokumenti, rastri, rezultāti, modeļi un lokālās izpildvides ir izslēgtas ar `.gitignore`.
-
-## Mobilās lietotnes palaišana Windows vidē
-
-Visas frontend komandas izpilda `frontend/` mapē. Backend, Python OCR vide un API atslēgas saskarnes palaišanai nav nepieciešamas.
-
-### Priekšnoteikumi
-
-| Rīks                   | Prasība                                                                                                                       |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Node.js                | Vismaz 22.13; 6. posmā pārbaudīta 22.14.0. PDF testu lasītājam vajadzīgs Node.js 22.13 vai jaunāks                            |
-| npm                    | Kopā ar Node.js; atkarību reproducēšanai izmantot `npm ci` un saglabāto `package-lock.json`                                   |
-| Pārlūks                | Aktuāls Chrome, Edge vai cits mūsdienīgs pārlūks; automatizētie testi izmanto instalētu Chrome                                |
-| Android Studio         | Otter 2025.2.1 vai jaunāks, nepieciešams tikai Android palaišanai                                                             |
-| Android SDK            | Platform 36, Build Tools 36.0.0, Platform Tools; emulators pēc vajadzības                                                     |
-| Java Android būvēšanai | JDK 21; Android Studio iestatījumos izvēlēties saderīgu Gradle JDK. Šajā vidē atrastā Java 27 nav validēta ar projekta Gradle |
-| Android ierīce         | Android 7.0 / API 24 vai jaunāka; ieteicams testēt arī API 35/36 un aktuālu Android System WebView                            |
-
-Prasības pārbaudītas [Capacitor vides dokumentācijā](https://capacitorjs.com/docs/getting-started/environment-setup), [Capacitor 8 Android konfigurācijā](https://capacitorjs.com/docs/updating/8-0) un [Vite dokumentācijā](https://vite.dev/guide/). Izmantots tieši [Vuetify 3](https://v3.vuetifyjs.com/en/getting-started/installation/), kā prasīts uzdevumā. Precīzās instalētās atkarību versijas fiksē `frontend/package-lock.json`.
-
-```powershell
-cd C:\Users\eduar\Desktop\GASO-Document-AI\frontend
-npm.cmd ci
-npm.cmd run dev
-```
-
-Atveriet `http://localhost:5173`. `npm.cmd` darbojas arī PowerShell vidē, kur skriptu politika bloķē `npm.ps1`. Izstrādes serveris klausās arī lokālajā tīklā; tālrunī izmantojiet datora LAN adresi. PWA instalēšanai ārpus `localhost` nepieciešams HTTPS. Parasts LAN HTTP savienojums ir piemērots saskarnes apskatei, bet ne PWA instalēšanas pārbaudei.
-
-Pirms atkārtotas `npm.cmd ci` izpildes apturiet šī projekta Vite izstrādes/priekšskatījuma serveri ar **Ctrl+C** tā terminālī. Windows vidē darbojošs Vite process var bloķēt Rolldown `.node` failu un izraisīt `EPERM: operation not permitted, unlink`. Pēc servera apturēšanas atkārtojiet `npm.cmd ci`; administratora režīms šāda faila bloķējuma novēršanai nav nepieciešams.
-
-Produkcijas tīmekļa būvējums un lokāls priekšskatījums:
-
-```powershell
-npm.cmd run build
-npm.cmd run preview
-```
-
-Atveriet `http://localhost:4173`. `dist/` satur izvietošanai paredzēto tīmekļa versiju. Navigācijai izmantots URL fragments (`/#/scan`), tādēļ nav nepieciešami servera maršrutu pārrakstīšanas noteikumi. Pašreizējā PWA bezsaistes navigācijas konfigurācija paredz izvietošanu domēna saknē.
-
-### Android projekta atvēršana un palaišana
-
-`frontend/android/` jau ir pievienots. Atkārtoti palaist `cap add android` nav nepieciešams.
-
-```powershell
-npm.cmd run android:sync
-npm.cmd run android:open
-```
-
-Android Studio var arī izvēlēties **Open** un atvērt `GASO-Document-AI\frontend\android` mapi. Ļaujiet Gradle pabeigt sinhronizāciju. **Tools → SDK Manager** instalējiet Android SDK Platform 36, Build Tools 36.0.0 un Platform Tools; emulatoram arī Emulator un atbilstošu sistēmas attēlu. **Settings → Build, Execution, Deployment → Build Tools → Gradle** izvēlieties JDK 21. SDK atrašanās vietu Android Studio ieraksta lokālajā `android/local.properties`; šo failu nepublicē.
-
-Izveidojiet emulatoru ar **Device Manager** vai pieslēdziet tālruni ar iespējotu USB atkļūdošanu, apstipriniet datora piekļuvi ierīcē un nospiediet **Run** modulim `app`. Alternatīvi:
-
-```powershell
-npm.cmd run android:run
-```
-
-Atkārtoti izpildiet `android:sync` pēc Vue vai Capacitor konfigurācijas izmaiņām. Tas sagatavo native būvējumu bez service worker un kopē to Android projektā. `android:open` pats nepārbūvē Vue saskarni.
-
-Debug APK no komandrindas, kad SDK un JDK ir uzstādīti:
-
-```powershell
-# Ja JAVA_HOME vēl nav iestatīts, norādiet reālo JDK 21 instalācijas ceļu:
-$env:JAVA_HOME = 'C:\Program Files\Java\jdk-21'
-# Norādiet sava Android SDK atrašanās vietu:
-$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
-npm.cmd run android:build
-```
-
-Rezultāts veiksmīgas būvēšanas gadījumā: `frontend/android/app/build/outputs/apk/debug/app-debug.apk`. Tas nav publicēšanai parakstīts release būvējums. Darba beigās šajā datorā ir atrasts Android Studio 2026.2.2 un SDK Build Tools 36.0.0, taču vēl nav `platforms/android-36`. Atrasta Java 27 un Studio JBR 25; šim projektam jāizvēlas JDK 21. APK nav būvēts un darbība Android ierīcē nav pārbaudīta.
-
-Capacitor konfigurācija: nosaukums `GASO Document AI`, `webDir: dist`, pagaidu identifikators **`lv.gaso.documentai.prototype`**. Pirms oficiālas publicēšanas identifikators jāsaskaņo ar GASO. Ikonas un splash izmanto projekta neitrālu dokumenta simbolu, nevis oficiālo GASO logotipu. To avots ir `frontend/public/icon.svg`; pēc izmaiņām izpildiet `npm.cmd run assets` un `npm.cmd run android:sync`.
-
-### Pašreizējās funkcijas
-
-- Četru soļu dokumenta sagatavošana: **Pievienošana → Lapas → Informācija → PDF**. Vienam dokumentam pietiek ar izvēli **Visas lapas ir viens dokuments**; vairākiem dokumentiem sākuma lapas atzīmē priekšskatījumos.
-- **Atpazīt dokumentu** secīgi izmanto vajadzīgo lapu OCR un lokālo rekvizītu analīzi. Ieteikumus pieņem atsevišķi, laukus var aizpildīt arī manuāli. PDF iespējams iegūt arī bez OCR.
-- Sākumlapā pieejama konkrētu melnrakstu turpināšana. Pārejot starp soļiem un apstiprinot rekvizītus, sesija saglabājas; redzams saglabāšanas statuss un kļūmes atkārtošanas darbība.
-- Četri latviski ekrāni: **Sākums**, **Skenēt**, **Dokumenti**, **Iestatījumi**; Vue Router navigācija bez lapas pārlādes.
-- Apakšējā navigācija tālrunī un sānu navigācija darbvirsmā; izkārtojums arī 360 px platumā.
-- Gaišais un tumšais režīms ar ierīcē saglabātu izvēli. Ja pārlūks liedz lokālo glabāšanu, saskarne turpina darboties un paskaidro ierobežojumu.
-- Pārlūka fotografēšanas/failu izvēle, vienlaicīgs vairāku attēlu imports un mazi lapu priekšskatījumi.
-- Lapu pārvietošanas pogas, lielais priekšskatījums, aizstāšana un dzēšana; jaunas sesijas izveide un apstiprināta sesiju dzēšana.
-- Lokāli saglabājami IndexedDB melnraksti ar atjaunošanu pēc pārlādes un turpināšanu dokumentu sadaļā. Melnraksti netiek attēloti kā reģistrēti MongoDB dokumenti.
-- Lokāls skenējuma redaktors: automātisku robežu kandidātu meklēšana ar manuālu izvēli neskaidrībā, četru stūru pārvietošana, perspektīva, pagriešana un četri filtri. Oriģināls saglabājas atsevišķi no apstrādātā PNG.
-- Lokāls OCR vienai vai visām sesijas lapām ar progresu un apturēšanu; vairāku valodu izvēle, sākotnējais un lietotāja labotais teksts, IndexedDB saglabāšana un aktualitātes brīdinājums pēc attēla maiņas.
-- Android atpakaļpogas apstrāde: iepriekšējais lietotnes maršruts; tieši atvērtā sadaļā — sākums; sākumā — lietotnes aizvēršana. Drošās zonas un sistēmas joslu stils pielāgoti Capacitor.
-- Lietotnes versija, lokālā režīma un plānotā MI skaidrojums, GitHub saite.
-- Atsevišķa latviešu tulkojumu vārdnīca; angļu un krievu valoda vēl nav tulkota.
-
-### PWA
-
-[`vite-plugin-pwa` konfigurācija](https://vite-pwa-org.netlify.app/guide/) ģenerē manifestu, service worker un interfeisa bezsaistes kešu tikai tīmekļa produkcijas būvējumam. Kešā ir būvējumā iekļautie JS/CSS, sākuma HTML, manifests un ikonas, arī vēl neatvērto ekrānu koda faili. Publiskie OCR izpildes faili un izvēlēto valodu modeļi tiek kešoti pēc pieprasījuma; tos var iepriekš sagatavot iestatījumos. Nav dokumentu, attēlu augšupielāžu vai API atbilžu runtime kešošanas. Lietotne neielādē ārējus fontus un neizmanto analītiku.
-
-Pēc sākotnējās tiešsaistes ielādes un service worker aktivizācijas interfeiss ir atverams bez interneta. Chrome/Edge piedāvā instalēšanu no pārlūka izvēlnes; ja pārlūks dod instalēšanas notikumu, poga parādās arī iestatījumos. Šis piedāvājums atkarīgs no pārlūka un ierīces. Atjauninājumiem ir apstiprināma poga, nevis automātiska lapas pārlāde darba laikā. Izstrādes režīmā service worker nav ieslēgts. Android native būvējumā tas ir izslēgts, jo interfeiss jau tiek piegādāts APK.
-
-PWA interfeisa kešs nav dokumentu krātuve. Melnraksti, oriģināli un apstrādāto attēlu Blob tiek glabāti atsevišķā IndexedDB datubāzē; tie netiek ievietoti service worker kešā. Lokālā Worker koda fails ietilpst interfeisa kešā, tādēļ arī redaktors darbojas bezsaistē pēc sākotnējās ielādes. Privātuma, glabāšanas termiņu un piekļuves kontroles prasības reāliem uzņēmuma dokumentiem joprojām jāprecizē pirms produkcijas lietošanas.
-
-### 2. posms: attēli un skenēšanas sesijas pārlūkā
-
-Atveriet projekta mapi VS Code un **Terminal → New Terminal**. Ja atkarības jau instalētas, pietiek ar:
-
-```powershell
-cd frontend
-npm.cmd run dev
-```
-
-Atveriet `http://localhost:5173` un sadaļu **Skenēt**. Android Studio šīm darbībām nav vajadzīga.
-
-1. **Fotografēt** izmanto `input type="file"`, `accept="image/*"` un `capture="environment"`. Mobilais pārlūks var piedāvāt aizmugurējo kameru; konkrēto izvēli nosaka pārlūks un ierīce. Datorā vai bez kameras atbalsta var izvēlēties failu. Ja tālrunis izveido HEIC attēlu, to vispirms jāeksportē JPEG/PNG formātā.
-2. **Pievienot no galerijas** ļauj izvēlēties vienu vai vairākus JPEG, PNG vai WebP attēlus. Atkārtota pievienošana saglabā iepriekšējās lapas. Atcelta failu izvēle nemaina sesiju; to pašu failu drīkst pievienot atkārtoti.
-3. Zem katra numurēta priekšskatījuma ir pārvietošanas pogas. Nospiežot attēlu, atveras apstiprinātās attēla versijas lielais priekšskatījums; oriģināls vienmēr pieejams redaktorā. Trīs punktu izvēlnē ir rediģēšana, aizstāšana un lapas dzēšana. Aizstāšana saglabā lapas pozīciju, bet jaunajam attēlam nav iepriekšējās fotogrāfijas apstrādes parametru.
-4. **Saglabāt melnrakstu** ieraksta visu sesiju lokālajā krātuvē. Veiksmes paziņojums parādās tikai pēc IndexedDB transakcijas pabeigšanas. Lapu secība, aizstāšana un dzēšana jāsaglabā ar šo pogu. Līdz tam saglabātā versija paliek neskarta.
-5. **Dokumenti** rāda melnrakstu pirmās lapas priekšskatījumu, izveidošanas/rediģēšanas laiku un lapu skaitu. **Turpināt** atver sesiju. Dzēšana prasa apstiprinājumu un izdzēš arī sesijas attēlus.
-6. **Jauna sesija** sāk tukšu sesiju; ja ir nesaglabātas izmaiņas, tās pirms atmešanas jāapstiprina. Esošais saglabātais melnraksts netiek dzēsts. Atvērta sesija saglabājas atmiņā, pārejot starp lietotnes sadaļām.
-
-Ja sesija saglabāta, tās adrese satur melnraksta ID; pēc pārlādes melnraksts atjaunojas. Pēdējā saglabātā melnraksta ID tiek glabāts arī cilnes `sessionStorage`, lai to atvērtu, atgriežoties skenēšanas sadaļā pēc pārlādes. **Nesaglabātas izmaiņas pēc pārlādes zūd**; pārlūks, ja atbalsta, brīdina par aiziešanu no lapas. Automātiska saglabāšana nav ieslēgta. No jauna tukšu sesiju nevar saglabāt; jau saglabātā melnrakstā drīkst izdzēst visas lapas un saglabāt tukšo sesiju turpmākai papildināšanai.
-
-#### Failu un sesijas ierobežojumi
-
-| Ierobežojums           | Vērtība                                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| Formāti                | JPEG, PNG, WebP, kuru saturs un deklarētais MIME tips atbilst un kurus pārlūks spēj dekodēt |
-| Faila izmērs           | 1 baits līdz 25 MiB katram attēlam                                                          |
-| Izšķirtspēja           | Līdz 40 megapikseļiem un 16 000 px jebkurā malā                                             |
-| Sesijas apjoms         | Līdz 20 lapām un 200 MiB oriģinālu kopā                                                     |
-| Mazais priekšskatījums | Līdz 480 px garākajā malā, JPEG; oriģināla kvalitāti tas nemaina                            |
-| Neatbalstīts           | PDF, HEIC/HEIF, SVG, GIF, bojāti un pārlūkā neatverami attēli                               |
-
-Faila saturs un attēla galvenes izmēri tiek pārbaudīti pirms rastra dekodēšanas. Attēli tiek apstrādāti secīgi; vienlaikus netiek dekodēti visi oriģināli. Saglabājas sākotnējie attēla baiti bez pārkodēšanas, samazināšanas vai EXIF metadatu noņemšanas. Priekšskatījumu orientācijai izmanto pārlūka EXIF atbalstu; liels priekšskatījums ielādē tikai izvēlēto oriģinālu. Animētu attēlu plūsma nav paredzēta skenēšanas funkcija.
-
-#### Lokālās krātuves darbība un robežas
-
-`frontend/src/features/scanning/draftRepository.js` veido atsevišķu glabāšanas moduli. IndexedDB datubāzē `gaso-document-ai` ir trīs krātuves:
-
-- `drafts` — ID, izveidošanas/rediģēšanas laiks, statuss `draft`, revīzija, sakārtots lapu ID saraksts un mazs vāka priekšskatījums;
-- `pages` — lapu ID, attēla nosaukums, sākotnējie izmēri un priekšskatījuma Blob/metadati; apstrādātām lapām arī `processing`, rezultāta izmēri un `modifiedAt`;
-- `images` — oriģinālais `blob` pēc lapas ID un neobligāts apstrādātais `processed` Blob tajā pašā ierakstā.
-
-Saglabāšana un dzēšana ir atomāras transakcijas visās trīs krātuvēs. Dzēstas vai aizstātas lapas pēc saglabāšanas vairs neatstāj neizmantotus attēlus. Ja trūkst vietas vai IndexedDB nav pieejama, lietotne parāda kļūdu, saglabā pašreizējās izmaiņas atmiņā un ļauj mēģināt vēlreiz. Vecāka citā cilnē atvērta versija nevar klusām pārrakstīt jaunāku saglabājumu. Pārskatīšanai izveidotie Object URL tiek atbrīvoti pēc attēla maiņas vai komponentes aizvēršanas.
-
-Melnraksti ir pieejami **tikai tajā pašā pārlūka profilā un origin**: `localhost:5173`, `127.0.0.1:5173` un `localhost:4173` ir atšķirīgas krātuves. Tie nav sinhronizēti vai automātiski dublēti. Pārlūka datu dzēšana, privātā režīma aizvēršana vai pārlūka veikta krātuves atbrīvošana var izdzēst melnrakstus. Krātuve nav atsevišķi šifrēta vai aizsargāta ar lietotnes autentifikāciju. Attēlu saturs un failu nosaukumi netiek sūtīti uz serveri vai rakstīti konsolē. Neizmantojiet šo prototipu kā vienīgo svarīgu dokumentu kopiju.
-
-Failu izvēle, attēlu sagatavošana, sesijas stāvoklis un glabāšana ir nodalīti. Vēlāk Capacitor Camera/Filesystem adapteri varēs pievienot, saglabājot lapu datu struktūru un lietotāja saskarni. Šajā posmā Android atļaujas, spraudņi un projekta struktūra nav mainīti; native kamera un APK nav pārbaudīti.
-
-Pamatā izmantotas pārlūka API: [IndexedDB transakcijas](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB), [attēlu dekodēšana un orientācija](https://developer.mozilla.org/en-US/docs/Web/API/Window/createImageBitmap), [kameras capture atribūts](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Attributes/capture) un [Object URL atbrīvošana](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL_static).
-
-### 3. posms: dokumenta attēla redaktors
-
-Palaidiet `npm.cmd run dev` mapē `frontend/`, atveriet `http://localhost:5173`, pievienojiet attēlu vai atveriet melnrakstu. Lapas trīs punktu izvēlnē izvēlieties **Rediģēt skenējumu**. Atkarības nav papildinātas; aktuālā Chrome/Edge pārlūkā izmanto vietējos Worker, ImageBitmap un OffscreenCanvas API. Android Studio nav vajadzīga.
-
-1. Redaktors parāda oriģinālu ar četriem numurētiem stūriem un atsevišķu rezultāta priekšskatījumu. Vecai, vēl neapstrādātai lapai automātiski tiek meklēts robežu kandidāts. Jau apstrādāta lapa atveras ar saglabātajiem parametriem, tos automātiski nemainot.
-2. **Noteikt robežas** atkārto meklēšanu. Ja kandidāts nav pietiekami skaidrs, parādās manuālas izvēles paziņojums. Pilna fotoattēla rāmis ir sākotnējā atlase, nevis atpazīts dokuments.
-3. Velciet katru stūri ar peli vai pirkstu. **Pietuvinājums** palielina darba attēlu līdz 300%; palielināto attēlu var ritināt. Koordinātas tiek aprēķinātas no faktiskā attēla novietojuma, arī pietuvinājumā.
-4. Ar Tab atlasītam stūrim izmantojiet bulttaustiņus; Shift palielina soli. **Precīzas koordinātas (%)** ļauj ievadīt katra stūra X/Y procentus. Paškrustojoša, apgriezti sakārtota, pārāk maza vai ārpus attēla esoša atlase netiek apstrādāta. **Atiestatīt stūrus** atgriež pilna attēla atlasi.
-5. **Priekšskatīt** piemēro īstu četrpunktu perspektīvas pārveidi. Mainot stūrus, iepriekšējais rezultāts ir atzīmēts kā neatjaunināts. Pirms apstiprināšanas tas jāatjauno.
-6. Pagriešanas pogas darbojas par 90° pa kreisi/pa labi un par 180°. **Atiestatīt pagriezienu** atgriež sākotnējo importētā attēla orientāciju, saglabājot izvēlēto apgabalu un filtru.
-7. Izvēlieties filtru un salīdziniet rezultātu ar oriģinālu. **Atjaunot oriģinālu** atiestata apgriešanu, filtru un pagriezienu. Tas vēl ir tikai redaktora priekšskatījums, līdz izmaiņas apstiprinātas.
-8. **Apstiprināt izmaiņas** sagatavo rezultātu no oriģināla pietiekamā izšķirtspējā un nomaina lapas priekšskatījumu aktīvajā sesijā. Pēc tam nospiediet **Saglabāt melnrakstu**, lai dati būtu pieejami pēc pārlādes. **Atcelt rediģēšanu** atstāj lapas iepriekšējo stāvokli; darbojas arī procesa laikā, apturot Worker.
-
-#### Robežu noteikšana un perspektīva
-
-Robežu meklēšana strādā uz kopijas ar ne vairāk kā 900 px garajā malā: pelēktoņi, 3 × 3 Gausa izlīdzināšana, Sobel gradients un gaišu apgabalu maskas vairākos sliekšņos. Saistīto komponentu robežām veido izliektus apvalkus, meklē četrus stūrus un precizē malas ar līniju pielāgošanu. Kandidātus vērtē pēc izliekuma, laukuma, attāluma no attēla malas, katras malas atbalsta un gaišuma atšķirības abās robežas pusēs. Laukums ir tikai viena vērtējuma daļa; lielākais četrstūris netiek automātiski uzskatīts par dokumentu. Līdzīgi ticami kandidāti nozīmē manuālu izvēli.
-
-**Tas ir heiristisks kandidātu meklētājs, nevis garantēta dokumenta atpazīšana.** Spēcīgas ēnas, mazs kontrasts uz gaiša fona, fona faktūra, atspīdumi, vairāki dokumenti, salocīta lapa, neliels dokuments vai malas pie paša kadra var prasīt manuālu izvēli. Pat piedāvātam kandidātam jāpārbauda visi četri stūri. Vērtējums nav statistiska atpazīšanas varbūtība.
-
-Perspektīvai aprēķina homogrāfiju no taisnstūra uz izvēlēto četrstūri un izmanto apgriezto pikseļu kartēšanu ar bilineāru interpolāciju. Rezultāta malu garumus nosaka izvēlētā četrstūra pretējās malas; **A4 proporcija netiek uzspiesta**. Koordinātas glabā `[0, 1]` diapazonā pret EXIF orientācijai pielāgoto oriģinālu. Reālā lapas izmēra/proporciju atjaunošana no viena foto bez kameras kalibrācijas nav garantēta.
-
-OpenCV.js tika izvērtēts pēc [oficiālās ģeometrisko transformāciju dokumentācijas](https://docs.opencv.org/4.x/dd/d52/tutorial_js_geometric_transformations.html). Šim ierobežotajam darbību kopumam izvēlēts neliels lokāls JavaScript modulis bez papildu WASM izpildvides un asinhronas OpenCV inicializācijas. Tas nav apgalvojums par OpenCV.js nesaderību; bibliotēka nav instalēta vai salīdzinoši mērīta. Esošo algoritmu vēlāk var aizstāt, saglabājot normalizēto stūru un filtru parametru formātu.
-
-#### Filtri
-
-| Režīms            | Darbība                                                                                                 |
-| ----------------- | ------------------------------------------------------------------------------------------------------- |
-| Oriģinālās krāsas | Bez krāsu filtra; izvēlētā perspektīva un pagrieziens joprojām ir spēkā                                 |
-| Uzlabots          | Mērena histogrammā balstīta gaišuma/kontrasta korekcija ar ierobežotu pastiprinājumu, saglabājot krāsas |
-| Pelēktoņi         | Svērts RGB gaišuma pārveidojums                                                                         |
-| Melnbalts         | Adaptīvs lokāls slieksnis, kas seko lēnām apgaismojuma izmaiņām                                         |
-
-Sīkas tabulu līnijas, bāli zīmogi un vāji simboli jāpārbauda priekšskatījumā; īpaši melnbaltais režīms var mainīt to salasāmību. Vienmēr var mainīt filtru vai atjaunot oriģinālu.
-
-#### Oriģināli, saderība un resursi
-
-Redaktors vienmēr sāk ar **oriģinālo Blob**, nevis iepriekš saglabāto rezultātu. Apstiprināto rezultātu glabā PNG, bet oriģināla baiti un EXIF netiek pārrakstīti. JPEG tiek izmantots tikai maziem ekrāna priekšskatījumiem. Saglabājas stūri, algoritma parametru `version: 1`, filtrs, pagrieziens, rezultāta izmēri un pēdējo izmaiņu laiks. Atjaunojot oriģinālu un saglabājot melnrakstu, apstrādātais Blob tiek izņemts.
-
-IndexedDB krātuvju struktūra un datubāzes **versija 1 paliek spēkā**: pievienoti neobligāti ierakstu lauki, neveidojot jaunas krātuves vai indeksus. Nav vajadzīga destruktīva migrācija vai veco attēlu pārrakstīšana. Veciem ierakstiem bez `processing` redaktors izmanto pilnu attēlu, 0° pagriezienu un sākotnējās krāsas. Lapas secības maiņa saglabā parametrus, aizstāšana sāk jaunu neapstrādātu attēlu, dzēšana izņem abus attēlus. Apstiprināta apstrāde un oriģināls tiek saglabāti vienā melnraksta transakcijā; kļūmes gadījumā paliek iepriekšējais saglabājums.
-
-| Apstrādes resurss         | Ierobežojums                                                                         |
-| ------------------------- | ------------------------------------------------------------------------------------ |
-| Importa oriģināls         | Iepriekšējie 25 MiB / 40 MP / 16 000 px ierobežojumi                                 |
-| Darba rastrs              | Līdz 16 MP un 6000 px vienā malā; lielāks oriģināls paliek neskarts                  |
-| Robežu analīze            | Līdz 900 px garākajā malā                                                            |
-| Rezultāta priekšskatījums | Līdz 1200 px garākajā malā                                                           |
-| Saglabājamais rezultāts   | Līdz 8 MP un 5000 px vienā malā; PNG, bez mākslīgas palielināšanas                   |
-| Rezultāta Blob            | Līdz 48 MiB; pārlūka faktiskā IndexedDB kvota var būt mazāka                         |
-| Viens Worker darbs        | Līdz 45 sekundēm, atceļams; vienai redaktora instancei vienlaikus ir viena operācija |
-
-Aprēķini notiek [Web Worker ar OffscreenCanvas](https://developer.mozilla.org/en-US/docs/Web/API/OffscreenCanvas). Katrā darbā rastri un Blob URL tiek atbrīvoti, Worker pēc darba tiek [apturēts](https://developer.mozilla.org/en-US/docs/Web/API/Worker/terminate). Kļūme vai atcelšana nemaina oriģinālu. Lielākā apjoma attēlu veiktspēja fiziskos mazatmiņas tālruņos vēl jāpārbauda.
-
-### 4. posms: lokāls OCR pārlūkā
-
-Tiek izmantots **Tesseract.js 7.0.0** ar **`lav`, `eng`, `rus`** modeļiem no oficiālā `tessdata_fast` 4.1.0 laidiena. Noklusējums ir latviešu valoda; iespējama vairāku valodu izvēle. OCR nav vajadzīgs backend, Python, Android Studio vai API atslēgas.
-
-```powershell
-cd frontend
-npm.cmd ci
-npm.cmd run ocr:prepare
-npm.cmd run dev
-```
-
-`ocr:prepare` kopē worker un sešus WebAssembly kodolus no instalētajām npm pakotnēm, lejupielādē trīs konkrētas versijas valodu modeļus un pārbauda to SHA-256 kontrolsummas. `dev`, `build` un `android:sync` šo sagatavošanu izpilda automātiski. Pirmajai sagatavošanai nepieciešams internets; atkārtoti izmanto jau sagatavotos, pārbaudītos modeļus. Faili `frontend/public/ocr/v7-fast-4-1-0/` un `dist/ocr/` kopā aizņem aptuveni **34,9 MiB**. Tie tiek ģenerēti lokāli; avota kontrolē saglabāts sagatavošanas skripts un versiju/kontrolsummu fails. Licences kopētas `licenses/` apakšmapē.
-
-1. Sadaļā **Skenēt** pievienojiet lapas un vajadzības gadījumā koriģējiet attēlus esošajā redaktorā. OCR izmanto pašreizējo pilna izmēra apstrādāto attēlu; mazais kartītes priekšskatījums netiek izmantots.
-2. Izvēlieties **Dokumenta OCR valodas** sadaļā **Atpazītais teksts** vai iestatījumos. Izvēle saglabājas pārlūkā. Nevajadzīgie modeļi netiek ielādēti OCR atmiņā.
-3. Vienkāršajā plūsmā izmantojiet **Atpazīt dokumentu** informācijas solī. Atsevišķas lapas **Atpazīt tekstu** saglabājas kartītes sadaļā **Papildu darbības**, visas sesijas **Atpazīt visas lapas** — lapu soļa sadaļā **Atpazītais teksts**. Lapas apstrādā secīgi vienā atkārtoti lietojamā OCR worker. Redzams progress, lapu skaits un kļūdas; procesu var apturēt.
-4. Rezultāta dialogā salīdziniet attēlu un tekstu. Var pārslēgt lapu, rediģēt, kopēt un atkārtot OCR. **Saglabāt tekstu** saglabā laboto tekstu un visu sesiju. Sākotnējais OCR teksts paliek atsevišķi apskatāms.
-5. OCR rezultāti tiek automātiski saglabāti pēc katras lapas. Ja saglabāšana neizdodas, kļūda tiek parādīta un rezultāts paliek atmiņā atkārtotai saglabāšanai. Pēc attēla rediģēšanas agrākajam tekstam parādās aktualitātes brīdinājums. Atkārtotai atpazīšanai ar esošu rezultātu vajadzīgs lietotāja apstiprinājums.
-6. **Visu lapu teksts sesijas secībā** parāda katras lapas saglabāto tekstu ar lapu atdalījumiem. Sesijas lapas netiek automātiski uzskatītas par vienu dokumentu.
-
-OCR izpildes laikā attēli un teksts netiek nosūtīti ārējiem serveriem. `workerPath`, `corePath` un `langPath` norāda tikai uz lietotnes paša failiem. Modelis tiek ielasīts pēc vajadzības un papildus kešots Tesseract IndexedDB krātuvē.
-
-**Bezsaistes darbam:** izveidojiet tīmekļa būvējumu (`npm.cmd run build`), palaidiet `npm.cmd run preview` un atveriet `http://localhost:4173`. Sagaidiet PWA aktivizāciju. Iestatījumos izvēlieties vajadzīgās valodas un spiediet **Sagatavot OCR bezsaistei**. Poga saglabā un pārbauda worker, trīs LSTM kodola variantus un izvēlētos modeļus (aptuveni 14–22 MiB). Pēc sagatavošanas OCR nav vajadzīgs savienojums pat ar lietotnes serveri; izstrādes `dev` režīmam nav PWA interfeisa keša. Pārlūka datu dzēšana var noņemt gan resursus, gan melnrakstus.
-
-[OCR integrācijas pārskats, datu struktūra, licences un faktiskie pārbaužu rezultāti](docs/testing/local-ocr.md). OCR dod tekstu un dzinēja ticamības vērtējumu; tas vēl neizprot rēķinu rekvizītus vai līguma saturu. Rezultāts jāpārbauda lietotājam.
-
-### 5. posms: dokumentu grupēšana un informācijas kartītes
-
-Lapu solī izvēlieties **Visas lapas ir viens dokuments** vai **Sadalīt vairākos dokumentos**. Otrajā režīmā dokumentu sākumus atzīmē lapu priekšskatījumos; zem tiem pieejamas **Dokumentu grupas** ar pilnajiem manuālajiem rīkiem. Darbs notiek pārlūkā; nav jaunu atkarību vai API atslēgu.
-
-1. Papildu sadaļā **Manuāla lapu atlase un grupu izveide** var atzīmēt **Nepiesaistītās lapas**, ievadīt nosaukumu un spiest **Izveidot dokumentu**. Bez atlases izveidojas tukša grupa. Vienkāršajā plūsmā šī darbība nav vajadzīga.
-2. **Rediģēt grupējumu un lapu secību** ļauj pārvietot atlasītas lapas uz citu dokumentu vai nepiesaistīto lapu sarakstu. Bultiņas maina dokumenta lapu secību. **Atdalīt jaunā dokumentā** izveido dokumentu no atlasītās lapu daļas ar jaunu, tukšu kartīti.
-3. Grupas **Papildu darbības** ļauj pievienot grupas lapas cita dokumenta beigās. Pirms apvienošanas jāapstiprina, ka saglabāsies mērķa kartītes dati. **Dzēst grupu, saglabājot lapas** izņem grupu un tās kartīti; attēli un OCR paliek nepiesaistīti.
-4. **Dokumenta informācija** atver informācijas soli ar rediģējamu formu. **Atpazīt dokumentu** atpazīst tikai trūkstošu vai novecojušu lapu tekstu un piedāvā rekvizītus. **Izmantot** pārnes vienu ieteikumu laukā; atkārtota analīze nepārraksta lietotāja datus. Avota fragmenti un atsevišķā **Analizēt lokāli** darbība ir izvēršami. Savus atribūtus pievieno sadaļā **Papildu lauki un atribūti**.
-5. **Apstiprināt un turpināt** izveido atsevišķu pārbaudīto vērtību momentuzņēmumu un saglabā sesiju. Vairākiem dokumentiem atver nākamo nepārbaudīto; beigās — PDF soli. Pēc lapu, attēlu vai OCR izmaiņām redzams aktualitātes brīdinājums; manuālās vērtības saglabājas.
-6. Pāreja starp soļiem un **Saglabāt melnrakstu** atomāri ieraksta grupējumu, kartītes, analīzi un apstiprinājumus. OCR turpina saglabāt pēc katras lapas. Nav paralēla fona taimera; pēc atsevišķiem labojumiem, paliekot solī, redzams nesaglabāto izmaiņu statuss un pieejama saglabāšanas poga. Veiksme tiek parādīta tikai pēc transakcijas pabeigšanas.
-
-Lokālā analīze izmanto ierobežotu LV/EN/RU apzīmējumu kopu. Dokumenta tipam vajadzīgs virsraksts un papildu satura pierādījums; nosūtītāju/saņēmēju nosaka tikai pēc skaidras lomas. Kopējo summu, PVN, summu bez PVN, summu ar PVN, samaksāto un atlikumu glabā atsevišķi. Pretrunas vai neskaidrs formāts dod `null`, nenoteikts tips ir `unknown`. Nav uzņēmumu veidņu, koordinātu noteikumu, ārēja MI, valodas noteikšanas vai summu aritmētiskas pārbaudes. Rēķinu robežu ieteikumi balstās uz skaidru virsrakstu lapas sākumā un dokumenta numura maiņu; sadalīšana vienmēr prasa apstiprinājumu.
-
-IndexedDB datubāzes versija **1** un trīs krātuves saglabājas. `drafts` ierakstam pievienoti `schemaVersion: 2` un `documents`; dokumentā glabā sakārtotus lapu ID, tipu/nosaukumu/atribūtus, ieteikumus un atsevišķu apstiprinājumu. Attēli netiek dublēti. Vecie melnraksti atveras ar visām lapām nepiesaistītā stāvoklī, nezaudējot OCR. `documentExportPlan` sagatavo informācijas lapas datus un attēlu ID dokumenta secībā. 5. posmā tas bija sagatavots nākamajam posmam; 6. posmā šo plānu izmanto PDF eksporta adapteris.
-
-[5. posma datu modelis, analīzes ierobežojumi un faktiskās pārbaudes](docs/testing/document-grouping.md).
-
-5. posma galīgās pārbaudes: **34/34 vienību testi**, **135/135 Playwright testi** (360, 412 un 1440 px), sekmīgs `build` un `format:check`. Ietverta visa iepriekšējā skenēšanas, redaktora un īstā lokālā OCR regresija.
-
-### 6. posms: PDF priekšskatījums un eksports
-
-PDF solī atlasiet dokumentu un spiediet **Izveidot PDF**. Priekšskatījums sagatavojas automātiski. Neapstiprinātiem rekvizītiem pieejamas **Pārbaudīt informāciju** un **Saglabāt tikai skenētās lapas** izvēles. Dialoga sadaļā **Papildu PDF iestatījumi** var mainīt:
-
-- **Iekļaut dokumenta informācijas lapu** — PDF sākumā būs atlasāms un kopējams latviešu lauku/atribūtu teksts. Garās vērtības un tabulas turpinās nākamajās lapās. Šis režīms pieejams tikai ar aktuāli apstiprinātu kartīti; neapstiprinātus automātiskos ieteikumus PDF nepievieno.
-- **Tikai skenētās lapas** — noņemiet informācijas lapas atzīmi. Dokumenta lapas saglabāsies tā grupas secībā, arī bez apstiprinātas kartītes.
-- **A4** automātiski izvēlas portreta/ainavas lapu un centrē attēlu, saglabājot proporcijas. **Pielāgots** saglabā attēla proporcijas pašas PDF lapas izmērā.
-- **Augsta** kvalitāte ir noklusējums: JPEG/PNG parasti ievieto bez pārkodēšanas, lielus attēlus pielāgo līdz 16 MP / 6000 px. **Optimizēta** samazina līdz 4 MP / 2400 px un pārkodē JPEG; sīko tekstu pēc tam jāpārbauda.
-
-**Priekšskatīt PDF** vispirms vajadzības gadījumā saglabā sesijas izmaiņas un tad izveido PDF atsevišķā Worker procesā ar progresu. Saglabāšanas kļūmes gadījumā eksports apstājas. Izmanto pilna izmēra apstiprināto apstrādāto attēlu; ja apstrādes nav, oriģinālu. Thumbnail netiek eksportēti. Atbalstīti JPEG, PNG un lokāli konvertēts WebP, tostarp JPEG EXIF orientācija.
-
-Priekšskatījumā redzams lapu skaits, izmērs, informācijas lapas statuss un fails. **Lejupielādēt PDF** saglabā vienu atsevišķu dokumentu. Ja iebūvēts PDF skats nav pieejams, darbojas **Atvērt PDF jaunā cilnē** un lejupielāde. Faila nosaukumu veido no aktuāli apstiprinātiem atribūtiem, citādi `Dokuments_<id>.pdf`; nepieļaujamās rakstzīmes aizstāj. Dialoga aizvēršana aptur izveidi un atbrīvo Blob URL.
-
-Izmantots [pdf-lib 1.17.1](https://pdf-lib.js.org/) un `@pdf-lib/fontkit` 1.1.1 (MIT), lokāls Noto Sans Regular 2.008 (OFL-1.1). Fonts atbalsta latviešu diakritiku un kirilicu; pilnie licenču teksti ir `frontend/public/licenses/`, avots un kontrolsumma — `frontend/src/assets/fonts/source.json`. PDF izveidei nav fontu CDN vai dokumentu augšupielāžu. Produkcijas PWA iepriekš sagatavo arī PDF kodu un fontu darbam bezsaistē. `pdfjs-dist` 6.5.438 izmanto tikai testos PDF teksta, attēlu un lapu pārbaudei.
-
-PDF netiek arhivēts IndexedDB vai PWA kešā. Informācijas lapas teksts ir meklējams; **skenētajām lapām vēl nav OCR teksta slāņa**. Atbalstīts līdz 20 skenētām lapām, 128 PDF lapām kopā, 64 MiB sagatavotu attēlu un 80 MiB gala failam. Lielu failu gadījumā izvēlieties optimizāciju vai sadaliet grupu.
-
-[PDF ģenerēšanas arhitektūra, licences, kvalitātes robežas un faktiskie testu rezultāti](docs/testing/pdf-export.md).
-
-6. posma galīgās pārbaudes: **46/46 vienību testi**, **162/162 Playwright testi**, sekmīgs `build` un `format:check`. PDF saturu papildus nolasa ar neatkarīgu PDF.js lasītāju; pārbaudīts Unicode teksts, attēlu secība, proporcijas, bezsaistes eksports un resursu atbrīvošana.
-
-### UX pārstrāde: dokumenta sagatavošana četros soļos
-
-**Skenēt dokumentu → pievienot lapas → pārbaudīt/pagriezt → visas lapas kā viens dokuments vai vizuāla sadalīšana → atpazīt vai aizpildīt rekvizītus → apstiprināt → izveidot un lejupielādēt PDF.** Bez rekvizītiem informācijas soli var izlaist. Iepriekšējie rīki paliek konteksta papildu sadaļās.
-
-Soļi rāda faktisko lapu, grupējuma un apstiprinājumu stāvokli. Vecajiem melnrakstiem nav vajadzīga datubāzes pārbūve: neobligātie `workflow` metadati norāda pēdējo saglabāto soli un atlasīto dokumentu; ja to nav, turpinājumu nosaka no satura. Sākumlapa piedāvā turpināt saglabātos darbus. Dokumentu sadaļa atšķir iesāktas un sagrupētas sesijas; lejupielādētos PDF lietotne nearhivē.
-
-[UX problēmu analīze, saglabāšanas izvēle, saderība, manuālā pārbaude VS Code pārlūkprogrammā un izpildīto testu rezultāti](docs/testing/ux-workflow.md).
-
-### Pārbaudes un nākamais posms
-
-```powershell
-npm.cmd run build
-npm.cmd run test:unit
-npm.cmd run test:e2e
-npm.cmd run format:check
-# Pēc android:sync — atsevišķa native konfigurācijas pārbaude:
-npm.cmd run android:check
-```
-
-Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē produkcijas priekšskatījumu portā 4173; tam jābūt brīvam. Vispirms jāizpilda tīmekļa `build`, jo `android:sync` tajā pašā `dist/` mapē sagatavo native versiju bez PWA. Rezultāti un ekrānattēli ir lokālajās `frontend/test-results/` un `frontend/playwright-report/` mapēs. [3. posma testu pārskats](docs/testing/image-processing.md), [2. posma pārskats](docs/testing/scanning-sessions.md) un [1. posma pārskats](docs/testing/mobile-foundation.md). Testi izmanto tikai atmiņā ģenerētus sintētiskus attēlus un izolētus pārlūka profilus.
-
-4. posmā sekmīgi izpildīti **18/18 vienību testi**, **117/117 Playwright testi**, produkcijas būvējums un formatējuma pārbaude. Pēc pēdējā kļūdas paziņojuma labojuma atsevišķi izturēti vēl **3/3** regresijas testi. Ar īsto OCR pārbaudītas visas trīs valodas, perspektīvas/pagrieziena/filtra rezultāts, saglabāšana, atcelšana un bezsaistes darbs pēc pārlādes. [Faktiskie OCR mērījumi un ierobežojumi](docs/testing/local-ocr.md).
-
-Nākamajos posmos jāpaplašina dokumentu robežu noteikšana, OCR kvalitātes novērtēšana ar atļautiem dokumentiem un jāizvērtē koordinātām piesaistīts OCR slānis PDF. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, OCR/PDF fiziskās mazatmiņas ierīcēs, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un MongoDB arhīvs. 7. posmā pievienots lokāls Laravel un izvēles OpenAI teksta analīze; MongoDB, servera izvietojums un APK būvēšana nav veikti.
-
-[Mobilās lietotnes arhitektūra un paplašināšanas robežas](docs/diagrams/mobile-architecture.md). Iepriekšējā dokumentācija un `tools/ocr-evaluation/` saglabāta; OCR CLI netiek automātiski palaists pārlūkā vai Android lietotnē.
-
-### 7. posms: Laravel 12 un OpenAI
-
-Nepieciešams **PHP 8.2+**, Composer un frontend prasībām atbilstošs Node.js. Šajā datorā atrasti un pārbaudīti PHP 8.5.6 un Composer 2.9.8. MongoDB nav vajadzīgs.
-
-Pirmajā terminālī no projekta saknes:
+Komandas paredzētas PowerShell. Pirmajā terminālī no projekta saknes:
 
 ```powershell
 cd backend
 composer install
-# Tikai pirmajā uzstādīšanā, ja .env vēl neeksistē:
-Copy-Item .env.example .env
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
 php artisan key:generate
+```
+
+Failā `backend/.env` norādi:
+
+```dotenv
+DOCUMENT_AI_PROVIDER=openai
+DOCUMENT_AI_ENABLED=true
+OPENAI_API_KEY=ievieto_savu_API_atslēgu
+OPENAI_MODEL=gpt-6-luna
+```
+
+API atslēga glabājas tikai servera `.env` failā. Neievieto to frontend kodā un nepublicē. AI analīze izmanto maksas API un tiek sākta tikai pēc lietotāja piekrišanas.
+
+```powershell
+php artisan config:clear
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-Otrajā terminālī no projekta saknes:
+Otrā terminālī no projekta saknes:
 
 ```powershell
 cd frontend
-npm.cmd ci
-npm.cmd run dev
+npm ci
+npm run dev
 ```
 
-Atveriet `http://localhost:5173`. AI ieslēgšanai tikai `backend/.env` ievadiet savu `OPENAI_API_KEY`, iestatiet `DOCUMENT_AI_PROVIDER=openai` un `DOCUMENT_AI_ENABLED=true`; noklusējuma modelis `OPENAI_MODEL=gpt-6-luna` ir maināms. Pēc konfigurācijas maiņas izpildiet `php artisan config:clear`. Atslēgu nekad neievietojiet frontend, `VITE_*` mainīgajos vai Android projektā.
+Atver **http://127.0.0.1:5173**. API darbojas **http://127.0.0.1:8000**; Vite pārsūta `/api` pieprasījumus uz backend. Lokālajai AI analīzei lietotni atver tajā pašā datorā ar šo adresi.
 
-Datu solī izvēlieties **Lokālā analīze** vai **AI analīze (OpenAI)**. Lokālā analīze ir noklusējums un darbojas bez servera. AI prasa piekrišanu un nosūta tikai viena dokumenta sakārtoto lapu OCR tekstu, lapu ID un numurus. Manuāli labotie un apstiprinātie dati netiek pārrakstīti. Bez interneta izvēlieties lokālo turpināšanu; OCR modeļiem iepriekš jābūt pieejamiem ierīcē.
+Ja AI neatbild, pārbaudi API serveri, atslēgu un OpenAI projekta kredītus. Pēc `.env` izmaiņām izpildi `php artisan config:clear` un pārstartē API serveri.
 
-Izmaksas ierobežo 3 pieprasījumi minūtē, 20 testa mēģinājumi, 20 lapas, 60 000 OCR rakstzīmju, 4000 atbildes tokenu un atkārtojumu aizsardzība. Limiti ir konfigurējami serverī, tie negarantē 5 USD naudas griestus; aktuālās cenas un projekta limitus pārbaudiet OpenAI Platform. `store:false` neizslēdz visus pakalpojuma datu glabāšanas režīmus. Personīgais OpenAI API paredzēts tikai nosūtīšanai apstiprinātiem izstrādes/testēšanas datiem.
+## Būvējums un testi
 
-Pilnas prasības, uzstādīšana, drošības modelis, API līgums, kļūdas un kvotas atiestatīšana: [integrācijas instrukcija](docs/openai-integration.md). Faktiskie testu rezultāti: [7. posma pārbaudes](docs/testing/openai-integration.md). Laravel testus palaidiet ar `php artisan test` mapē `backend/`; frontend testus ar iepriekš norādītajām npm komandām. Automatizētie testi neizmanto maksas API.
+Mapē `frontend/`:
 
-## Licence
+```powershell
+npm run build       # Produkcijas būvējums un PWA
+npm run preview     # Priekšskatījums: http://127.0.0.1:4173
+npm run test:unit   # Vienību testi
+npm run test:e2e    # Playwright testi; pirms tiem izveido būvējumu
+```
 
-Projektam ir spēkā [MIT licence](LICENSE). Autortiesību norāde: Copyright (c) 2026 Eduards Levša.
+Playwright testiem nepieciešams Google Chrome; `npm run test:e2e` pats palaiž priekšskatījuma serveri, tāpēc portam 4173 jābūt brīvam. PWA instalēšanu un bezsaistes režīmu pārbaudi produkcijas priekšskatījumā.
+
+Mapē `backend/`:
+
+```powershell
+php artisan test
+```
+
+Automatizētajos AI testos izmanto imitētas atbildes, neveicot maksas API pieprasījumus.
+
+## Darbība un datu modelis
+
+- Fotogrāfijas var kārtot, pagriezt, apgriezt un sadalīt vairākos dokumentos. Saglabājas oriģināli.
+- OpenAI analizē izvēlētā dokumenta attēlus vienā pieprasījumā; Laravel pārbauda atbildes struktūru. Manuāli labotās vērtības saglabājas arī pēc atkārtotas analīzes.
+- Atribūtu tabulā rediģē tikai vajadzīgos laukus; var pievienot, pārdēvēt un dzēst pielāgotus atribūtus. Datumi glabājas `YYYY-MM-DD`, summas — decimālvirknēs, valūta — trīs burtu kodā. Nenoteiktas vērtības ir `null`.
+- Viena poga **Apstiprināt dokumentu** pārbauda visus aktīvos atribūtus un saglabā momentuzņēmumu. Nederīgi dati netiek apstiprināti. Vēlāki datu vai lapu labojumi padara apstiprinājumu neaktuālu.
+- Dokumentu kartītes atver tikai lasāmu apskati ar visām lapām un atribūtiem. **Uz sākumu** vispirms saglabā izmaiņas; saglabāšanas kļūdas gadījumā darbs paliek atvērts.
+- IndexedDB v2 glabā `drafts`, `pages`, `images`, `collections` un `savedDocuments`. Komplektā ir neatkarīgs dokumenta momentuzņēmums; avota labojumi to automātiski nemaina, un avota dzēšana neizdzēš komplekta attēlus.
+- PDF ģenerē lokāli ar pdf-lib Worker un iegultu Noto Sans fontu. Neapstiprinātiem dokumentiem eksportē tikai skenējumu. PDF izveide ir atsevišķa darbība pēc apstiprināšanas, un failu var ģenerēt vēlāk.
+
+Attēlu analīzes līgums: `POST /api/document-analysis` ar `consent=true` un sakārtotām `pages=[{id,number,image}]`, kur `image` ir JPEG/PNG/WebP base64 data URL. [Aktuālā attēlu analīzes shēma](docs/requirements/document-vision.schema.json); [atsevišķā OCR prototipa shēma](docs/requirements/document-analysis.schema.json).
+
+## Limiti un privātums
+
+Noklusējumi ir konfigurējami `backend/.env`:
+
+| Iestatījums | Vērtība |
+| --- | --- |
+| `OPENAI_TIMEOUT` | 60 sekundes |
+| `DOCUMENT_AI_MAX_OUTPUT_TOKENS` | 4000 |
+| `DOCUMENT_AI_MAX_PAGES` | 20 |
+| `DOCUMENT_AI_MAX_IMAGE_BYTES` | 4 000 000 baiti |
+| `DOCUMENT_AI_MAX_IMAGE_TOTAL_BYTES` | 16 000 000 baiti |
+| `DOCUMENT_AI_MAX_BODY_BYTES` | 22 000 000 baiti |
+| `DOCUMENT_AI_REQUESTS_PER_MINUTE` | 3 |
+| `DOCUMENT_AI_TEST_REQUEST_LIMIT` | 20 |
+
+Klients sagatavo AI attēla kopiju līdz 2800 px / 8 MP, nemainot oriģinālu. PDF eksporta robežas: 20 skenētas lapas, 128 PDF lapas un 80 MiB gala fails.
+
+Serveris attēlus pastāvīgi neglabā. Izmanto tikai dokumentus, kuru nosūtīšana OpenAI ir atļauta. Mēģinājumu limiti negarantē konkrētu naudas slieksni; tēriņus kontrolē arī OpenAI projektā. Klienta atcelšana negarantē serverī jau sāktas analīzes apturēšanu. Produkcijas AI piekļuve ir bloķēta līdz autentifikācijas un lietotāju kvotu ieviešanai; korporatīvais GASO API nav pieslēgts.
+
+Pārlūka datu dzēšana izdzēš lokālos dokumentus un komplektus. Svarīgos PDF lejupielādē; lietotne neglabā lejupielādētā PDF arhīvu.
+
+## Atsevišķais OCR eksperiments
+
+`tools/ocr-evaluation/` ir neatkarīgs Python komandrindas prototips, kas nav pieslēgts lietotnes aktīvajai plūsmai. Tam nepieciešams Python 3.11+ un atsevišķi instalēts Tesseract ar `lav`, `eng`, `rus` valodu datiem.
+
+No projekta saknes PowerShell:
+
+```powershell
+python -m venv tools/ocr-evaluation/.venv
+& tools/ocr-evaluation/.venv/Scripts/python.exe -m pip install -r tools/ocr-evaluation/requirements.txt
+& tools/ocr-evaluation/.venv/Scripts/python.exe tools/ocr-evaluation/ocr_demo.py 'C:/dokumenti/piemers.pdf' --tesseract 'C:/Tesseract-OCR/tesseract.exe' --output tools/ocr-evaluation/private/result.json
+& tools/ocr-evaluation/.venv/Scripts/python.exe -m unittest discover -s tools/ocr-evaluation/tests -v
+```
+
+Aizstāj piemēra ceļus ar saviem. Atbalstīti JPEG, PNG, vienkadru TIFF, WebP un PDF; robežas ir 25 MiB failam, 40 MP lapai un 20 PDF lapas. Pilnie OCR rezultāti var saturēt personas datus, tāpēc glabā tos privāti. PaddleOCR adapteris ir eksperimentāls un nav validēts; Docling integrācija nav ieviesta.
+
+## Fonti un licences
+
+Saskarne izmanto lokālu Manrope, PDF — Noto Sans; fontu CDN nav nepieciešams. Saglabāti fontu faili, avotu metadati un licences:
+
+- [Manrope oficiālais avots](https://github.com/google/fonts/tree/main/ofl/manrope) un [SIL OFL licence](frontend/src/assets/fonts/Manrope-OFL.txt).
+- [Noto Sans avota versija un SHA-256](frontend/src/assets/fonts/source.json) un [SIL OFL licence](frontend/public/licenses/NotoSans-OFL.txt).
+- Pārējo piegādāto resursu licences: `frontend/public/licenses/`.
+
+## Pārbaudes un pašreizējais statuss
+
+Pēdējā mobilās UX pārbaudē (2026-11-17) izturēti **68/68 frontend vienību testi** un **234/234 Playwright pārbaudes**; produkcijas būvējums veiksmīgs. Pārbaudīti 360 px, 390 px un darbvirsmas ekrāni, abas tēmas, bezsaistes režīms, validācija, vecie melnraksti, komplekti un PDF. AI atbildes testos ir imitētas.
+
+Android atpakaļpogas notikumu loģika pārbaudīta pārlūkā; fiziskas ierīces pārbaude un APK būvēšana šajā posmā nav veikta. MongoDB, servera dokumentu arhīvs un korporatīvā API integrācija vēl nav ieviesti.
