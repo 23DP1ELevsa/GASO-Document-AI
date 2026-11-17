@@ -2,6 +2,23 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Vite also serves LAN UI previews; never forward their AI requests to loopback.
+const apiProxy = () => ({
+  '/api': {
+    target: 'http://127.0.0.1:8000',
+    changeOrigin: true,
+    bypass(req, res) {
+      const local = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress)
+      const host = /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/.test(req.headers.host || '')
+      if (!local || !host) {
+        res.writeHead(403, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+        res.end(JSON.stringify({ error: { code: 'access_denied' } }))
+        return false
+      }
+    },
+  },
+})
+
 export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [
@@ -54,6 +71,6 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ],
-  server: { port: 5173, strictPort: true },
-  preview: { port: 4173, strictPort: true },
+  server: { port: 5173, strictPort: true, proxy: apiProxy() },
+  preview: { port: 4173, strictPort: true, proxy: apiProxy() },
 }))

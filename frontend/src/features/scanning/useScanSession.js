@@ -6,6 +6,7 @@ import { newId } from './id'
 import { assertTextLength } from '../ocr/model.js'
 import * as documents from '../documents/model.js'
 import { analyzePages } from '../documents/analysis.js'
+import { analysisPayload, requestAiAnalysis, attachAiAnalysis } from '../documents/openai.js'
 import { navigationState, asSingleDocument, groupAtBoundaries } from '../documents/workflow.js'
 
 const active = shallowRef(null)
@@ -227,11 +228,28 @@ export function useScanSession() {
     active.value = operation(active.value, ...args)
     dirty.value = true
   }
-  function analyzeDocument(id) {
+  async function analyzeDocument(id, options = {}) {
     if (busy.value || !active.value) throw new ScanError('busy')
+    if (options.provider === 'openai') {
+      const initial = active.value
+      const document = initial.documents.find((item) => item.id === id)
+      const payload = analysisPayload(initial, id, options.consent)
+      const source = documents.sourceVersion(initial, document)
+      busy.value = true
+      try {
+        const result = await requestAiAnalysis(payload)
+        if (active.value?.id !== initial.id) return
+        active.value = attachAiAnalysis(active.value, id, source, result)
+        dirty.value = true
+      } finally {
+        busy.value = false
+      }
+      return
+    }
     active.value = documents.updateDocument(active.value, id, (document) => ({
       ...document,
       analysis: {
+        provider: 'local_rules',
         analyzedAt: Date.now(),
         source: documents.sourceVersion(active.value, document),
         result: analyzePages(documents.documentPages(active.value, document)),

@@ -76,6 +76,9 @@ function display(key, value) {
     :aria-label="t('grouping.information')"
   >
     <h3>{{ t('grouping.information') }}</h3>
+    <p v-if="document.analysis?.result.provider === 'openai'" class="small-muted" role="status">
+      OpenAI ieteikumi · obligāti pārbaudiet pirms apstiprināšanas.
+    </p>
     <p v-if="stale" class="ocr-warning" role="status">{{ t('grouping.stale') }}</p>
     <p v-if="document.confirmation" class="review-status" role="status">
       {{ t(confirmed ? 'grouping.confirmed' : 'grouping.confirmationChanged') }} ·
@@ -143,7 +146,11 @@ function display(key, value) {
         </p>
         <ul class="analysis-warnings">
           <li v-for="warning in document.analysis.result.warnings" :key="warning">
-            {{ t(`grouping.warnings.${warning}`) }}
+            {{
+              warning === 'invalid_evidence'
+                ? 'Daļa avota fragmentu nebija atrodama OCR tekstā un ir atmesta.'
+                : t(`grouping.warnings.${warning}`)
+            }}
           </li>
         </ul>
         <details

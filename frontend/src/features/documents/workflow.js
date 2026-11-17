@@ -8,6 +8,7 @@ import {
   sourceVersion,
 } from './model.js'
 import { isOcrStale } from '../ocr/model.js'
+import { AiError } from './openai.js'
 
 export function navigationState(value = {}) {
   return {
@@ -113,7 +114,17 @@ export function draftIsDownloaded(draft) {
     )
   )
 }
-export async function recognizeDocument(session, ocr, id, languages, confirmRerun = () => true) {
+export async function recognizeDocument(
+  session,
+  ocr,
+  id,
+  languages,
+  confirmRerun = () => true,
+  options = {},
+) {
+  if (options.provider === 'openai' && options.consent !== true) {
+    throw new AiError('consent_required')
+  }
   const initial = session.active.value
   const document = initial?.documents.find((item) => item.id === id)
   if (!document?.pageIds.length || session.busy.value || ocr.running.value)
@@ -134,7 +145,7 @@ export async function recognizeDocument(session, ocr, id, languages, confirmReru
     JSON.stringify(current.pageIds) !== JSON.stringify(document.pageIds)
   )
     throw new Error('Document changed')
-  session.analyzeDocument(id)
+  await session.analyzeDocument(id, options)
   await session.save()
   return {
     cancelled: false,

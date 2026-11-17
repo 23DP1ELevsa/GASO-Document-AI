@@ -29,7 +29,7 @@ export default {
     allDocuments: 'Visi dokumenti',
     localTitle: 'Jūsu ierīcē. Jūsu pārziņā.',
     localDescription:
-      'Attēli un iesāktie darbi paliek šajā pārlūkprogrammā. Tie netiek nosūtīti ārējiem pakalpojumiem. Pārlūka datu dzēšana izdzēsīs arī iesākto darbu; svarīgos PDF saglabājiet savā ierīcē.',
+      'Attēli un iesāktie darbi paliek šajā pārlūkprogrammā. Izvēloties AI analīzi un piekrītot, dokumenta OCR teksts tiek nosūtīts OpenAI. Pārlūka datu dzēšana izdzēsīs arī iesākto darbu; svarīgos PDF saglabājiet savā ierīcē.',
     localShort: 'Saskarne darbojas neatkarīgi no servera.',
     next: 'Nākamajos posmos',
     learnMore: 'Par lokālo režīmu',
@@ -304,7 +304,7 @@ export default {
     privacy: 'Dati un privātums',
     aiTitle: 'MI integrācija nākotnē',
     aiDescription:
-      'Pēc saskaņošanas paredzēts pievienot GASO korporatīvo MI dokumentu analīzei. Šobrīd MI pakalpojumi nav pieslēgti.',
+      'Lokālā analīze darbojas ierīcē. OpenAI analīze pieejama lokālā izstrādē pēc servera konfigurēšanas un piekrišanas OCR teksta nosūtīšanai. Personīgo API izmantojiet tikai apstiprinātiem testdatiem; reāliem uzņēmuma dokumentiem vajadzīga atsevišķa atļauja.',
     about: 'Par lietotni',
     aboutText: 'Dokumentu digitalizācijas mobilās lietotnes pamats.',
     language: 'Saskarnes valoda',

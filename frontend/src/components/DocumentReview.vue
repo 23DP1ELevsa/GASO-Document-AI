@@ -14,8 +14,14 @@ const props = defineProps({
   languages: Array,
   settingsError: Boolean,
   disabled: Boolean,
+  analysisProvider: { type: String, default: 'local' },
+  aiConsent: Boolean,
+  aiFailed: Boolean,
 })
 const emit = defineEmits([
+  'provider',
+  'consent',
+  'local',
   'select',
   'preview',
   'recognize',
@@ -58,6 +64,36 @@ const documentTitle = (item, index = 0) =>
         <BlobImage :blob="page.thumbnail" alt="" /><span>{{ index + 1 }}</span>
       </button>
     </div>
+    <div class="bordered-card analysis-choice">
+      <label for="analysis-provider">Dokumenta analīze</label>
+      <select
+        id="analysis-provider"
+        :value="analysisProvider"
+        :disabled="disabled"
+        @change="emit('provider', $event.target.value)"
+      >
+        <option value="local">Lokālā analīze</option>
+        <option value="openai">AI analīze (OpenAI)</option>
+      </select>
+      <template v-if="analysisProvider === 'openai'">
+        <p>
+          Šī dokumenta lapu OCR teksts tiks nosūtīts ārējam OpenAI pakalpojumam. Fotogrāfijas netiks
+          nosūtītas. Izmantojiet tikai sintētiskus vai nosūtīšanai apstiprinātus testdatus.
+        </p>
+        <label class="analysis-consent"
+          ><input
+            type="checkbox"
+            :checked="aiConsent"
+            :disabled="disabled"
+            @change="emit('consent', $event.target.checked)"
+          />
+          Piekrītu šī dokumenta OCR teksta nosūtīšanai OpenAI.</label
+        >
+      </template>
+      <v-btn v-if="aiFailed" variant="tonal" :disabled="disabled" @click="emit('local')"
+        >Turpināt ar lokālo analīzi</v-btn
+      >
+    </div>
     <div v-if="!hasSuggestions" class="recognition-panel bordered-card">
       <span class="recognition-icon"><AppIcon name="sparkles" :size="24" /></span>
       <h3>Atrast svarīgos datus</h3>
@@ -66,9 +102,14 @@ const documentTitle = (item, index = 0) =>
         Izlaist — saglabāt tikai skenējumu
       </button>
     </div>
-    <v-btn v-else variant="text" color="primary" :disabled="disabled" @click="emit('recognize')">{{
-      t('workflow.recognize')
-    }}</v-btn>
+    <v-btn
+      v-if="hasSuggestions || document.editedFields?.length"
+      variant="text"
+      color="primary"
+      :disabled="disabled"
+      @click="emit('recognize')"
+      >{{ t('workflow.recognize') }}</v-btn
+    >
     <OcrProgress :ocr="ocr" />
     <div class="review-layout">
       <DocumentInformation

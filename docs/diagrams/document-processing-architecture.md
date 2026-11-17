@@ -58,7 +58,7 @@ PWA, automātiska lapu grupēšana, PDF izveide un MongoDB reģistrācija šajā
 
 Sākotnēji Laravel rindas uzdevums var palaist CLI kā izolētu procesu, argumentus padodot masīvā bez čaulas interpolācijas. JSON lasa no privāta rezultāta faila, pārbauda shēmu, kļūdas kodu un procesa statusu. Web procesa tiesības, darba direktoriju izolācija, paralēlisms, kopējais uzdevuma laika/atmiņas limits un privāto rezultātu glabāšanas termiņš jāievieš pirms produkcijas. Pašreizējais `--timeout` ierobežo katru Tesseract procesu; tas nav visa PDF uzdevuma limits un neattiecas uz Paddle inferenci.
 
-Local Mode neizsauc ārēju API. Corporate AI Mode nav pieejams līdz saskaņošanai; neatbildēšana nerada automātisku ārēju fallback. Vēlāk vietēja dokumentu izpratnes modeļa adapteri var pievienot aiz tā paša interfeisa, atsevišķi pārbaudot modeļa licenci, resursus un kvalitāti.
+Local Mode neizsauc ārēju API. 7. posmā Vue pēc lietotāja piekrišanas var nosūtīt viena dokumenta sakārtotu OCR tekstu uz lokālo Laravel `/api/document-analysis`, kas izsauc OpenAI Responses API un validē ieteikumus. Attēlus nepārsūta. IndexedDB paliek vienīgā melnrakstu glabātuve; serveris neglabā dokumentu saturu. Corporate AI Mode nav pieejams līdz saskaņošanai; kļūme nerada automātisku ārēju fallback. Skatīt [faktisko OpenAI integrāciju](../openai-integration.md).
 
 ## Vispārināmības pārbaude
 

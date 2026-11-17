@@ -232,3 +232,32 @@
     padding-block: 10px;
   }
 }
+.analysis-choice {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+.analysis-choice select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--border-color, #94a3b8);
+  border-radius: 8px;
+  padding: 0.5rem;
+  color: inherit;
+  background: inherit;
+}
+.analysis-choice p,
+.analysis-consent {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.analysis-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.analysis-consent input {
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+}

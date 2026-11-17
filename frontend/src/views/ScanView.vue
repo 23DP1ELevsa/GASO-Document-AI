@@ -27,6 +27,7 @@ import DocumentBoundaryPicker from '../components/DocumentBoundaryPicker.vue'
 import DocumentReview from '../components/DocumentReview.vue'
 import BlobImage from '../components/BlobImage.vue'
 import { workflowState, recognizeDocument } from '../features/documents/workflow.js'
+import { AiError } from '../features/documents/openai.js'
 import {
   documentPages,
   unassignedPages,
@@ -45,6 +46,9 @@ const session = useScanSession()
 const { isDark, setTheme } = useAppearance()
 const { mode: pdfMode } = usePdfPreferences()
 const confirmWarning = ref(false)
+const analysisProvider = ref('local')
+const aiConsent = ref(false)
+const aiFailed = ref(false)
 const sessionMenu = ref(null)
 const pdfBusy = ref(false)
 const exportCompleted = ref(false)
@@ -107,6 +111,10 @@ const currentDocument = computed(
     state.value.documents[0],
 )
 const unassigned = computed(() => (active.value ? unassignedPages(active.value) : []))
+watch([analysisProvider, () => currentDocument.value?.id, () => active.value?.id], () => {
+  aiConsent.value = false
+  aiFailed.value = false
+})
 const hasSuggestions = computed(() => Boolean(currentDocument.value?.analysis))
 const hasManualData = computed(() =>
   Object.entries(currentDocument.value?.values || {}).some(([key, value]) =>
@@ -195,6 +203,7 @@ async function recognizeCurrent() {
   if (locked.value || !currentDocument.value) return
   recognizing.value = true
   clearMessages()
+  aiFailed.value = false
   try {
     const result = await recognizeDocument(
       session,
@@ -202,12 +211,18 @@ async function recognizeCurrent() {
       currentDocument.value.id,
       languages.value,
       () => window.confirm(t('ocr.confirmRerun')),
+      { provider: analysisProvider.value, consent: aiConsent.value },
     )
     if (!result.cancelled) {
       saveFailed.value = false
       success.value = t(result.incomplete ? 'workflow.incomplete' : 'workflow.recognized')
     }
   } catch (reason) {
+    if (reason instanceof AiError) {
+      error.value = reason.message
+      aiFailed.value = true
+      return
+    }
     error.value = reason?.code
       ? t(`scan.errors.${errorCode(reason)}`)
       : t('workflow.processingError')
@@ -215,6 +230,10 @@ async function recognizeCurrent() {
   } finally {
     recognizing.value = false
   }
+}
+function continueLocally() {
+  analysisProvider.value = 'local'
+  recognizeCurrent()
 }
 async function nextPages() {
   if (locked.value) return
@@ -351,11 +370,11 @@ function changeDocuments(action, ...args) {
     error.value = t('grouping.actionError')
   }
 }
-function analyzeDocument(id) {
+async function analyzeDocument(id) {
   if (locked.value) return
   clearMessages()
   try {
-    session.analyzeDocument(id)
+    await session.analyzeDocument(id)
   } catch {
     error.value = t('grouping.actionError')
   }
@@ -657,6 +676,12 @@ onUnmounted(() => window.removeEventListener('gaso:back', deviceBack))
         :languages="languages"
         :settings-error="storageError"
         :disabled="locked"
+        :analysis-provider="analysisProvider"
+        :ai-consent="aiConsent"
+        :ai-failed="aiFailed"
+        @provider="analysisProvider = $event"
+        @consent="aiConsent = $event"
+        @local="continueLocally"
         @select="selectDocument"
         @preview="openPreview"
         @recognize="recognizeCurrent"

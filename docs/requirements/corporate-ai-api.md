@@ -1,5 +1,7 @@
 # GASO korporatīvā MI API sagatavošana — #04
 
+**7. posma aktualizācija (2026-11-17):** Laravel 12 tagad nodrošina atsevišķu izvēles OpenAI Responses API integrāciju ar `gpt-6-luna`, OCR tekstu un skaidru lietotāja piekrišanu. Palaišana, konfigurācija un ierobežojumi: [OpenAI integrācija](../openai-integration.md). Personīgais API izmantojams tikai apstiprinātiem izstrādes/testēšanas datiem; reāliem GASO dokumentiem vajadzīga atsevišķa atļauja. Korporatīvais adapteris nav pieslēgts. Zemāk saglabāts sākotnējais korporatīvā pakalpojuma saskaņošanas plāns un atsevišķā Python prototipa apraksts; tas nav jaunā Laravel adaptera tehniskais līgums.
+
 Statuss 2026-11-10: tehniskais līgums un jautājumi sagatavoti; pakalpojums, piekļuve un datu apstrādes nosacījumi vēl nav saskaņoti. Kartīte #04 nav pilnībā pabeigta. Šis dokuments nav uzņēmuma apstiprinājums.
 
 ## Jautājumi atbildīgajam speciālistam

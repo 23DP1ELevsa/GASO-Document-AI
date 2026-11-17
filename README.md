@@ -14,7 +14,7 @@ Samazināt manuālu dokumentu reģistrēšanu un datu pārrakstīšanu, atvieglo
 
 ## Galvenās funkcijas
 
-Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` ir realizēts 1.–6. posms: četri navigācijas ekrāni, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas, lokāls attēlu redaktors, Tesseract.js OCR, manuāla dokumentu grupēšana, rediģējamas dokumentu informācijas kartītes un lokāls PDF eksports ar priekšskatījumu. Var pievienot attēlus, koriģēt perspektīvu, pagriezt attēlu, piemērot filtrus, atpazīt latviešu/angļu/krievu tekstu un saglabāt labojamus rezultātus IndexedDB. Katru dokumentu var eksportēt atsevišķā PDF ar vai bez apstiprinātas informācijas lapas. Lokālie teksta noteikumi piedāvā pārbaudāmus atribūtus; ārēji MI pakalpojumi nav pieslēgti. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija un dokumentu reģistrēšana vēl nav ieviesta. Atsevišķais Python OCR komandrindas prototips nav pieslēgts pārlūka lietotnei.
+Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Realizēti 1.–7. posma pamati: Vue mobilā saskarne, gaišais/tumšais režīms, PWA, Capacitor Android projekta pamats, skenēšanas sesijas, lokāls attēlu redaktors, Tesseract.js OCR, manuāla dokumentu grupēšana, rediģējamas informācijas kartītes un lokāls PDF eksports ar priekšskatījumu. Laravel 12 backend pievieno izvēles OpenAI Responses API analīzi ar `gpt-6-luna` (konfigurējams), strukturētiem ieteikumiem un obligātu lietotāja pārbaudi. Lokālā analīze paliek noklusējums. AI nosūta tikai izvēlētā dokumenta OCR tekstu pēc piekrišanas. Fotografēšana izmanto pārlūka failu/kameras izvēli; tieša Capacitor Camera integrācija un dokumentu reģistrēšana vēl nav ieviesta. Python OCR komandrindas prototips nav pieslēgts pārlūka lietotnei.
 
 1. Pieņemt vienu vai vairākas dokumentu fotogrāfijas, tostarp vairāku dokumentu lapas vienā fotografēšanas sesijā.
 2. Automātiski noteikt lapu robežas, koriģēt perspektīvu un uzlabot attēlu salasāmību.
@@ -29,9 +29,9 @@ Turpmāk aprakstīta plānotā pilnā dokumentu apstrāde. Pašlaik `frontend/` 
 
 ## Mākslīgā intelekta izmantošana
 
-Dokumentu grupēšanai, klasificēšanai un atribūtu iegūšanai paredzēts izmantot GASO saskaņoto korporatīvo MI API. API vēl nav integrēts. Pakalpojuma tehniskās detaļas, piekļuves nosacījumi un autentifikācijas parametri tiks precizēti ar uzņēmuma atbildīgo speciālistu.
+Lokālajā prototipā klasifikācijai un atribūtu iegūšanai pievienots OpenAI Responses API. Tas pēc noklusējuma ir izslēgts; atslēga glabājas tikai `backend/.env`. Automātiska AI dokumentu grupēšana šajā posmā nav ieviesta. Korporatīvā GASO pakalpojuma specifikācija un atļaujas joprojām jāsaskaņo.
 
-API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Personīgo OpenAI API nav paredzēts izmantot reālu GASO dokumentu apstrādei.
+Personīgais OpenAI API paredzēts tikai sintētiskiem vai nosūtīšanai apstiprinātiem izstrādes/testēšanas datiem. Īstu uzņēmuma dokumentu nosūtīšanai vajadzīga atsevišķa atļauja. Pilna lokālā palaišana, konfigurācija, datu plūsma, drošības un izmaksu ierobežojumi aprakstīti [OpenAI integrācijas instrukcijā](docs/openai-integration.md).
 
 ## Plānotās tehnoloģijas
 
@@ -40,7 +40,7 @@ API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Perso
 | Lietotāja saskarne   | Vue 3, Composition API, JavaScript, Vuetify 3, Vue Router 4, Vite                                                                 |
 | Servera puse         | PHP, Laravel 12                                                                                                                   |
 | Datubāze             | MongoDB                                                                                                                           |
-| Mākslīgais intelekts | GASO saskaņotais korporatīvais MI API; detaļas tiks precizētas                                                                    |
+| Mākslīgais intelekts | Lokāli noteikumi vai izvēles OpenAI Responses API ar GPT-6 Luna; korporatīvais pakalpojums vēl jāsaskaņo                         |
 | Attēlu apstrāde      | Pārlūkā: Web Worker, OffscreenCanvas, robežu kandidātu analīze un homogrāfija JavaScript; OpenCV.js izvērtēts, bet nav pievienots |
 | Lokāls OCR           | Tesseract.js 7.0.0, WebAssembly/Web Worker, ar lietotni piegādāti `tessdata_fast` 4.1.0 modeļi `lav`, `eng`, `rus`                |
 | PDF ģenerēšana       | Lokāli: pdf-lib 1.17.1, @pdf-lib/fontkit 1.1.1, iegults Noto Sans fonts un Web Worker                                             |
@@ -54,6 +54,11 @@ API adreses, modeļi un autentifikācijas parametri šobrīd nav noteikti. Perso
 ```text
 GASO-Document-AI/
 ├── backend/
+│   ├── app/                  # Laravel 12 API, piekļuves aizsardzība un OpenAI adapteris
+│   ├── config/document_ai.php
+│   ├── routes/api.php
+│   ├── tests/                # HTTP imitācijas; maksas izsaukumi aizliegti
+│   ├── composer.json
 │   └── .env.example
 ├── frontend/
 │   ├── package.json
@@ -109,7 +114,7 @@ Tukšās mapes saglabā `.gitkeep` faili. `.gitignore` nosaka izslēdzamos lokā
 
 Reāli GASO dokumenti var saturēt personas datus un komercnoslēpumus. Tos drīkst apstrādāt tikai uzņēmumā saskaņotā vidē un atbilstoši noteiktajām datu aizsardzības un piekļuves prasībām. Izstrādes pārbaudēm jāizmanto sintētiski vai izmantošanai atļauti testa dokumenti.
 
-Piekļuves datus, API atslēgas, lietotāju augšupielādes, privātos PDF un datubāzes kopijas nedrīkst pievienot repozitorijam. `.gitignore` paredzēti atbilstoši izņēmumi, taču pirms failu publicēšanas to saturs jāpārbauda. Lietotnes drošības mehānismi vēl nav ieviesti.
+Piekļuves datus, API atslēgas, lietotāju augšupielādes, privātos PDF un datubāzes kopijas nedrīkst pievienot repozitorijam. `.gitignore` paredzēti atbilstoši izņēmumi. AI API darbojas tikai uzticamā localhost vidē; produkcijā tas ir slēgts līdz Sanctum autentifikācijas un pilnvarojuma ieviešanai.
 
 ## Tehniskā sagatavošana: #04, #05, #06
 
@@ -410,9 +415,40 @@ Testiem nepieciešams datorā instalēts Google Chrome. Playwright pats startē 
 
 4. posmā sekmīgi izpildīti **18/18 vienību testi**, **117/117 Playwright testi**, produkcijas būvējums un formatējuma pārbaude. Pēc pēdējā kļūdas paziņojuma labojuma atsevišķi izturēti vēl **3/3** regresijas testi. Ar īsto OCR pārbaudītas visas trīs valodas, perspektīvas/pagrieziena/filtra rezultāts, saglabāšana, atcelšana un bezsaistes darbs pēc pārlādes. [Faktiskie OCR mērījumi un ierobežojumi](docs/testing/local-ocr.md).
 
-Nākamajos posmos jāpaplašina dokumentu robežu un atribūtu noteikšana, OCR kvalitātes novērtēšana ar atļautiem dokumentiem un jāizvērtē koordinātām piesaistīts OCR slānis PDF. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija un failu saglabāšana, OCR/PDF fiziskās mazatmiņas ierīcēs, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un servera/MongoDB integrācija. Šajā posmā nav Laravel, MongoDB, ārēju MI pieprasījumu, dokumentu augšupielāžu, servera izvietojuma vai APK būvēšanas.
+Nākamajos posmos jāpaplašina dokumentu robežu noteikšana, OCR kvalitātes novērtēšana ar atļautiem dokumentiem un jāizvērtē koordinātām piesaistīts OCR slānis PDF. Atsevišķi jāpielāgo un jāpārbauda native Camera/Filesystem integrācija, OCR/PDF fiziskās mazatmiņas ierīcēs, meklēšana/filtri un pēc infrastruktūras saskaņošanas — korporatīvā MI adapteris un MongoDB arhīvs. 7. posmā pievienots lokāls Laravel un izvēles OpenAI teksta analīze; MongoDB, servera izvietojums un APK būvēšana nav veikti.
 
 [Mobilās lietotnes arhitektūra un paplašināšanas robežas](docs/diagrams/mobile-architecture.md). Iepriekšējā dokumentācija un `tools/ocr-evaluation/` saglabāta; OCR CLI netiek automātiski palaists pārlūkā vai Android lietotnē.
+
+### 7. posms: Laravel 12 un OpenAI
+
+Nepieciešams **PHP 8.2+**, Composer un frontend prasībām atbilstošs Node.js. Šajā datorā atrasti un pārbaudīti PHP 8.5.6 un Composer 2.9.8. MongoDB nav vajadzīgs.
+
+Pirmajā terminālī no projekta saknes:
+
+```powershell
+cd backend
+composer install
+# Tikai pirmajā uzstādīšanā, ja .env vēl neeksistē:
+Copy-Item .env.example .env
+php artisan key:generate
+php artisan serve --host=127.0.0.1 --port=8000
+```
+
+Otrajā terminālī no projekta saknes:
+
+```powershell
+cd frontend
+npm.cmd ci
+npm.cmd run dev
+```
+
+Atveriet `http://localhost:5173`. AI ieslēgšanai tikai `backend/.env` ievadiet savu `OPENAI_API_KEY`, iestatiet `DOCUMENT_AI_PROVIDER=openai` un `DOCUMENT_AI_ENABLED=true`; noklusējuma modelis `OPENAI_MODEL=gpt-6-luna` ir maināms. Pēc konfigurācijas maiņas izpildiet `php artisan config:clear`. Atslēgu nekad neievietojiet frontend, `VITE_*` mainīgajos vai Android projektā.
+
+Datu solī izvēlieties **Lokālā analīze** vai **AI analīze (OpenAI)**. Lokālā analīze ir noklusējums un darbojas bez servera. AI prasa piekrišanu un nosūta tikai viena dokumenta sakārtoto lapu OCR tekstu, lapu ID un numurus. Manuāli labotie un apstiprinātie dati netiek pārrakstīti. Bez interneta izvēlieties lokālo turpināšanu; OCR modeļiem iepriekš jābūt pieejamiem ierīcē.
+
+Izmaksas ierobežo 3 pieprasījumi minūtē, 20 testa mēģinājumi, 20 lapas, 60 000 OCR rakstzīmju, 4000 atbildes tokenu un atkārtojumu aizsardzība. Limiti ir konfigurējami serverī, tie negarantē 5 USD naudas griestus; aktuālās cenas un projekta limitus pārbaudiet OpenAI Platform. `store:false` neizslēdz visus pakalpojuma datu glabāšanas režīmus. Personīgais OpenAI API paredzēts tikai nosūtīšanai apstiprinātiem izstrādes/testēšanas datiem.
+
+Pilnas prasības, uzstādīšana, drošības modelis, API līgums, kļūdas un kvotas atiestatīšana: [integrācijas instrukcija](docs/openai-integration.md). Faktiskie testu rezultāti: [7. posma pārbaudes](docs/testing/openai-integration.md). Laravel testus palaidiet ar `php artisan test` mapē `backend/`; frontend testus ar iepriekš norādītajām npm komandām. Automatizētie testi neizmanto maksas API.
 
 ## Licence
 
