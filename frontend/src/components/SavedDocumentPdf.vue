@@ -26,6 +26,7 @@ const service = createPdfService({
       processingJob,
     }),
 })
+const embeddedViewer = ref(navigator.pdfViewerEnabled === true)
 function clear() {
   if (url.value) URL.revokeObjectURL(url.value)
   url.value = ''
@@ -120,12 +121,14 @@ onUnmounted(() => {
         >
       </div>
       <p v-if="error" class="scan-error" role="alert">{{ error }}</p>
-      <template v-if="url"
-        ><iframe :src="url" title="PDF priekšskatījums" /><a
-          class="collection-download"
-          :href="url"
-          :download="filename"
-          @click="download"
+      <template v-if="url">
+        <iframe
+          v-if="embeddedViewer"
+          :src="`${url}#view=FitH`"
+          title="PDF priekšskatījums"
+          @error="embeddedViewer = false"
+        />
+        <a class="collection-download" :href="url" :download="filename" @click="download"
           >Lejupielādēt PDF</a
         ><a :href="url" target="_blank" rel="noopener noreferrer" @click="download($event, true)"
           >Atvērt PDF jaunā cilnē</a
@@ -146,10 +149,13 @@ onUnmounted(() => {
 }
 .saved-pdf-dialog header {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
   align-items: center;
   justify-content: space-between;
 }
 .saved-pdf-dialog iframe {
+  display: block;
   width: 100%;
   height: 40vh;
   border: 0;

@@ -7,7 +7,11 @@ const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: () => import('../views/HomeView.vue') },
-    { path:'/document/:id', name:'document', component:()=>import('../views/DocumentView.vue') },
+    {
+      path: '/document/:id',
+      name: 'document',
+      component: () => import('../views/DocumentView.vue'),
+    },
     { path: '/scan', name: 'scan', component: () => import('../views/ScanView.vue') },
     {
       path: '/documents',
@@ -22,11 +26,14 @@ const router = createRouter({
     { path: '/settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
-  scrollBehavior: () => ({ top: 0 }),
 })
 router.afterEach(async (to, from) => {
   document.title = `${t(`nav.${to.name}`)} · ${t('app.name')}`
+  if (!from.name || (from.name === 'scan' && to.name === 'scan')) return
   await nextTick()
-  if (from.name) document.querySelector('h1')?.focus({ preventScroll: true })
+  const content = document.getElementById('main-content')
+  content?.scrollTo(0, 0)
+  if (from.name !== to.name || from.path !== to.path)
+    content?.querySelector('.page-heading h1')?.focus({ preventScroll: true })
 })
 export default router

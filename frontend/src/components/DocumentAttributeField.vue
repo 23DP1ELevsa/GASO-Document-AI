@@ -30,6 +30,12 @@ const money = computed(
     props.field.key.endsWith('_amount') ||
     props.field.key === 'balance_due',
 )
+const date = computed(
+  () =>
+    props.field.dataType === 'date' ||
+    props.field.key.endsWith('_date') ||
+    props.field.key.startsWith('coverage_'),
+)
 const currentValue = computed(() => props.document.values[props.field.key])
 const filled = computed(
   () =>
@@ -85,17 +91,11 @@ function normalize(event) {
       </option>
     </select>
     <input
-      v-else
+      v-else-if="date || money || field.key === 'currency'"
       :id="id"
       :value="shownValue ?? ''"
       :disabled="disabled"
-      :type="
-        field.dataType === 'date' ||
-        field.key.endsWith('_date') ||
-        field.key.startsWith('coverage_')
-          ? 'date'
-          : 'text'
-      "
+      :type="date ? 'date' : 'text'"
       :inputmode="money ? 'decimal' : 'text'"
       :placeholder="money ? '0,00' : 'Nav atrasts — ievadiet'"
       maxlength="2000"
@@ -104,6 +104,18 @@ function normalize(event) {
       @input="emit('value', field.key, $event.target.value)"
       enterkeyhint="next"
       @blur="normalize"
+    />
+    <textarea
+      v-else
+      :id="id"
+      :value="shownValue ?? ''"
+      :disabled="disabled"
+      rows="1"
+      placeholder="Nav atrasts — ievadiet"
+      maxlength="2000"
+      :aria-invalid="errors.includes(field.key)"
+      :aria-describedby="errors.includes(field.key) ? `${id}-error` : undefined"
+      @input="emit('value', field.key, $event.target.value)"
     />
     <p v-if="errors.includes(field.key)" :id="`${id}-error`" class="field-error">
       {{ t('grouping.invalidValue') }}

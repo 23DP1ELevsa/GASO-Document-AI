@@ -15,13 +15,24 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile-360',
+      testIgnore: '**/responsive.spec.js',
       use: { viewport: { width: 360, height: 800 }, isMobile: true, hasTouch: true },
     },
     {
       name: 'mobile-390',
+      testIgnore: '**/responsive.spec.js',
       use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
     },
-    { name: 'desktop', use: { viewport: { width: 1440, height: 1000 } } },
+    {
+      name: 'desktop',
+      testIgnore: '**/responsive.spec.js',
+      use: { viewport: { width: 1440, height: 1000 } },
+    },
+    {
+      name: 'responsive',
+      testMatch: '**/responsive.spec.js',
+      use: { isMobile: true, hasTouch: true, reducedMotion: 'reduce', serviceWorkers: 'block' },
+    },
   ],
   webServer: {
     command: 'node node_modules/vite/bin/vite.js preview --host 127.0.0.1',

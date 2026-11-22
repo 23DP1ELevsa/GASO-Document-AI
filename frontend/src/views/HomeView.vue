@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import DraftCard from '../components/DraftCard.vue'
+import PageHeading from '../components/PageHeading.vue'
 import { t } from '../locales'
 import { useDraftList } from '../features/scanning/useDraftList'
 import { useScanSession } from '../features/scanning/useScanSession'
@@ -46,8 +47,9 @@ async function open(id) {
 </script>
 <template>
   <div class="view home-view">
-    <h1 tabindex="-1">Dokuments gatavs<br />dažos soļos</h1>
-    <p class="home-description">Nofotografējiet, pārbaudiet un saglabājiet PDF.</p>
+    <PageHeading hero description="Nofotografējiet, pārbaudiet un saglabājiet PDF.">
+      Dokuments gatavs<br />dažos soļos
+    </PageHeading>
     <button
       class="home-scan-card"
       :disabled="session.busy.value"
@@ -59,7 +61,7 @@ async function open(id) {
       <span>Rēķins, līgums vai iesniegums</span>
     </button>
     <v-btn
-      class="home-gallery secondary-button"
+      class="secondary-button"
       block
       size="x-large"
       variant="outlined"
@@ -85,14 +87,6 @@ async function open(id) {
         />
       </div>
     </section>
-    <div v-else-if="!error" class="home-empty-note">
-      <AppIcon name="file" :size="23" />
-      <p>
-        Jūsu nākamais dokuments sākas šeit.<br /><span
-          >Nofotografējiet to vai pievienojiet no galerijas.</span
-        >
-      </p>
-    </div>
     <p class="home-privacy">
       <AppIcon name="shield" :size="16" />Attēli paliek ierīcē. AI tos saņem tikai ar jūsu
       piekrišanu.

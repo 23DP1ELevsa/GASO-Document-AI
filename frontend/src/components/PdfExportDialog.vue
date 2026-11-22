@@ -324,7 +324,7 @@ onScopeDispose(() => {
             <p v-if="result.resized" class="ocr-warning">{{ t('pdf.resized') }}</p>
             <iframe
               v-if="embeddedViewer && url"
-              :src="url"
+              :src="`${url}#view=FitH`"
               :title="t('pdf.previewTitle')"
               @error="embeddedViewer = false"
             />

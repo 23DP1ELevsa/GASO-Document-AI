@@ -3,6 +3,8 @@ import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import DraftCard from '../components/DraftCard.vue'
 import DocumentCard from '../components/DocumentCard.vue'
+import EmptyState from '../components/EmptyState.vue'
+import PageHeading from '../components/PageHeading.vue'
 import { useDraftList } from '../features/scanning/useDraftList.js'
 import { useScanSession } from '../features/scanning/useScanSession.js'
 import { loadDraft } from '../features/scanning/draftRepository.js'
@@ -122,16 +124,21 @@ async function remove(id) {
 </script>
 <template>
   <div class="view document-list-view">
+    <PageHeading :title="t('nav.documents')" description="Saglabāti tikai šajā ierīcē" />
     <div v-if="error || actionError" class="scan-error" role="alert">
       {{ actionError || t('scan.errors.' + error)
       }}<v-btn variant="text" @click="refresh">Mēģināt vēlreiz</v-btn>
     </div>
     <p v-if="success" role="status">{{ success }}</p>
-    <div class="section-heading">
-      <h2>
-        Mani dokumenti <span class="count-badge">{{ items.length }}</span>
-      </h2>
-      <v-btn color="primary" variant="tonal" :disabled="scanner.busy.value" @click="start"
+    <div class="document-list-tools">
+      <p class="small-muted">
+        Kopā saglabāti <span class="count-badge">{{ items.length }}</span>
+      </p>
+      <v-btn
+        v-if="items.length || partial.length"
+        color="primary"
+        :disabled="scanner.busy.value"
+        @click="start"
         >Skenēt</v-btn
       >
     </div>
@@ -163,25 +170,25 @@ async function remove(id) {
           />
         </div>
       </section>
-      <div v-if="!partial.length && !items.length" class="document-list-empty bordered-card">
-        <h2>Vēl nav saglabātu dokumentu</h2>
-        <p>Nofotografējiet pirmo dokumentu. Pēc saglabāšanas tas būs pieejams šeit.</p>
-        <v-btn color="primary" @click="start">Skenēt dokumentu</v-btn>
-      </div>
+      <EmptyState
+        v-if="!partial.length && !items.length"
+        title="Vēl nav saglabātu dokumentu"
+        description="Nofotografējiet pirmo dokumentu. Pēc saglabāšanas tas būs pieejams šeit."
+      >
+        <v-btn color="primary" :disabled="scanner.busy.value" @click="start"
+          >Skenēt dokumentu</v-btn
+        >
+      </EmptyState>
     </template>
     <p class="small-muted">Šeit glabājas fotogrāfijas un dati. PDF varat izveidot jebkurā laikā.</p>
   </div>
 </template>
 <style>
-.document-list-view {
-  display: grid;
-  gap: 20px;
-}
-.document-list-empty {
-  padding: 24px;
-  display: grid;
-  gap: 16px;
-  text-align: center;
-  border-radius: 22px;
+.document-list-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
 }
 </style>

@@ -23,6 +23,9 @@ test('all screens including saved sets render without overflow, errors or extern
   for (const [route, title] of Object.entries(headings)) {
     await page.goto(`/#${route}`)
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    await expect(page.locator('.app-header')).toHaveCount(1)
+    await expect(page.locator('.app-header-brand')).toHaveText('GASO Document AI')
     await expect(page.locator('.v-application')).toHaveClass(/v-theme--light/)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     const navigation = page
@@ -227,7 +230,7 @@ test('skip link preserves current route and mobile safe zones reserve space', as
     ).toBeGreaterThanOrEqual(32)
     expect(
       await page
-        .locator('.mobile-header')
+        .locator('.app-header')
         .evaluate((el) => parseFloat(getComputedStyle(el).paddingTop)),
     ).toBeGreaterThanOrEqual(24)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

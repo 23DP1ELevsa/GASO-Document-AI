@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => ({
       manifest: {
         id: './',
         name: 'GASO Document AI',
-        short_name: 'Document AI',
+        short_name: 'GASO Document AI',
         description: 'Dokumentu digitalizācijas lietotnes pamats.',
         lang: 'lv',
         start_url: './',

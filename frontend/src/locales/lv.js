@@ -8,7 +8,6 @@ export default {
   workflow,
   app: {
     name: 'GASO Document AI',
-    shortName: 'Document AI',
     brand: 'GASO',
     prototype: 'Izstrādes versija',
     version: 'Versija',
@@ -22,6 +21,7 @@ export default {
       'Pārlūks neļauj saglabāt iestatījumus. Izvēlētais režīms darbosies līdz lapas aizvēršanai.',
   },
   nav: {
+    back: 'Atpakaļ',
     document: 'Dokuments',
     collections: 'Komplekti',
     home: 'Sākums',
@@ -36,7 +36,7 @@ export default {
     allDocuments: 'Visi dokumenti',
     localTitle: 'Jūsu ierīcē. Jūsu pārziņā.',
     localDescription:
-      'Attēli un iesāktie darbi paliek šajā pārlūkprogrammā. Izvēloties AI analīzi un piekrītot, dokumenta fotoatt?li tiek nosūtīts OpenAI. Pārlūka datu dzēšana izdzēsīs arī iesākto darbu; svarīgos PDF saglabājiet savā ierīcē.',
+      'Attēli un iesāktie darbi paliek šajā pārlūkprogrammā. Ar jūsu piekrišanu AI analīzei dokumenta fotoattēli tiek nosūtīti OpenAI. Dzēšot pārlūka datus, tiks dzēsts arī iesāktais darbs. Svarīgos PDF saglabājiet savā ierīcē.',
     localShort: 'Saskarne darbojas neatkarīgi no servera.',
     next: 'Nākamajos posmos',
     learnMore: 'Par lokālo režīmu',
@@ -323,7 +323,7 @@ export default {
   },
   pwa: {
     install: 'Instalēt lietotni',
-    installText: 'Pievienojiet Document AI ierīces sākuma ekrānam.',
+    installText: 'Pievienojiet GASO Document AI ierīces sākuma ekrānam.',
     update: 'Pieejama jauna lietotnes versija.',
     reload: 'Atjaunināt',
     error:

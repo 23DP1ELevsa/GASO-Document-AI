@@ -1,11 +1,16 @@
 <script setup>
-defineProps({ eyebrow: String, title: String, description: String })
+import { ref } from 'vue'
+
+defineProps({ title: String, description: String, hero: Boolean })
+const heading = ref(null)
+defineExpose({ focusHeading: () => heading.value?.focus({ preventScroll: true }) })
 </script>
 
 <template>
-  <header class="page-heading">
-    <p class="eyebrow">{{ eyebrow }}</p>
-    <h1 tabindex="-1">{{ title }}</h1>
-    <p class="page-description">{{ description }}</p>
-  </header>
+  <div class="page-heading" :class="{ 'page-heading-hero': hero }">
+    <h1 ref="heading" tabindex="-1">
+      <slot>{{ title }}</slot>
+    </h1>
+    <p v-if="description" class="page-description">{{ description }}</p>
+  </div>
 </template>

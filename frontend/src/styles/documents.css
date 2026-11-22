@@ -4,29 +4,6 @@
   margin-block: 26px;
   min-width: 0;
 }
-.document-groups .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-.document-groups input:not([type='checkbox']),
-.document-groups select {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  color: rgb(var(--v-theme-on-surface));
-  background: rgb(var(--v-theme-surface));
-  font: inherit;
-}
 .document-groups label {
   display: grid;
   gap: 6px;
@@ -43,6 +20,7 @@
 }
 .group-create {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 .group-actions {
@@ -54,6 +32,7 @@
 }
 .group-actions > label {
   flex: 1 1 180px;
+  min-width: 0;
 }
 .document-group-heading {
   display: flex;
@@ -93,6 +72,7 @@
 }
 .group-page-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--border);
@@ -100,7 +80,7 @@
 }
 .document-groups .group-page-choice {
   display: flex;
-  flex: 1;
+  flex: 1 1 7rem;
   align-items: center;
   min-width: 0;
   gap: 10px;
@@ -119,6 +99,11 @@
 .group-page-order {
   display: flex;
   flex-shrink: 0;
+}
+.group-page-order .v-btn {
+  width: var(--touch-size);
+  min-width: var(--touch-size);
+  padding-inline: 0;
 }
 .document-information {
   border-top: 1px solid var(--border);
@@ -163,6 +148,7 @@
 }
 .custom-field-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   padding-block: 16px;
   border-top: 1px solid var(--border);

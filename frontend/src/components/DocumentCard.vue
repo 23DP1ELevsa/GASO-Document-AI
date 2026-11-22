@@ -38,14 +38,13 @@ defineEmits(['open', 'remove'])
 </template>
 <style>
 .saved-document-card {
-  border-radius: 20px;
   overflow: hidden;
 }
 .saved-document-open {
   display: flex;
-  gap: 16px;
+  gap: var(--space-16);
   text-align: left;
-  padding: 18px;
+  padding: var(--space-16);
   width: 100%;
   min-height: 120px;
   color: inherit;
@@ -73,7 +72,7 @@ defineEmits(['open', 'remove'])
 }
 .saved-document-actions {
   border-top: 1px solid var(--border);
-  padding: 0 18px;
+  padding: 0 var(--space-16);
   display: flex;
   justify-content: flex-end;
 }

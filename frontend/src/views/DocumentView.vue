@@ -11,6 +11,9 @@ import ImagePreviewDialog from '../components/ImagePreviewDialog.vue'
 import BlobImage from '../components/BlobImage.vue'
 import SavedDocumentPdf from '../components/SavedDocumentPdf.vue'
 import AddToCollection from '../components/AddToCollection.vue'
+import AppIcon from '../components/AppIcon.vue'
+import PageHeading from '../components/PageHeading.vue'
+import { t } from '../locales'
 const route = useRoute(),
   router = useRouter(),
   scanner = useScanSession()
@@ -86,7 +89,7 @@ async function load() {
     if (current === generation) loading.value = false
   }
 }
-function back() {
+function goBack() {
   router.push(
     frozen.value
       ? { name: 'collections', query: { collection: route.query.collection } }
@@ -95,6 +98,7 @@ function back() {
         : { name: 'documents' },
   )
 }
+defineExpose({ goBack })
 async function edit() {
   try {
     if (scanner.dirty.value) await scanner.save()
@@ -118,7 +122,7 @@ function deviceBack(event) {
   event.preventDefault()
   if (preview.value) preview.value = null
   else if (pdf.value) pdf.value = false
-  else back()
+  else goBack()
 }
 onMounted(() => window.addEventListener('gaso:back', deviceBack))
 onUnmounted(() => {
@@ -127,16 +131,17 @@ onUnmounted(() => {
 })
 </script>
 <template>
+  <Teleport defer to="#app-header-actions">
+    <RouterLink :to="{ name: 'home' }" class="icon-button" aria-label="Uz sākumu">
+      <AppIcon name="home" size="var(--icon-size)" />
+    </RouterLink>
+  </Teleport>
   <div class="view document-detail" data-testid="document-detail">
-    <nav class="detail-navigation" aria-label="Dokumenta navigācija">
-      <v-btn variant="text" @click="back">Atpakaļ</v-btn
-      ><v-btn variant="text" to="/">Uz sākumu</v-btn>
-    </nav>
+    <PageHeading :title="!loading && !error && item ? documentTitle(item) : t('nav.document')" />
     <p v-if="loading" role="status">Atver dokumentu…</p>
     <p v-if="error" class="scan-error" role="alert">{{ error }}</p>
     <template v-if="!loading && item">
-      <header class="detail-heading">
-        <h2>{{ documentTitle(item) }}</h2>
+      <div class="detail-meta">
         <span class="status-chip" :class="{ 'status-success': confirmed }">{{
           confirmed ? 'Apstiprināts' : 'Jāpārbauda dati'
         }}</span>
@@ -144,9 +149,9 @@ onUnmounted(() => {
           {{
             new Date(item.savedAt || item.updatedAt || item.createdAt).toLocaleDateString('lv-LV')
           }}
-          · {{ pages.length }} lapas
+          · {{ t('scan.pageCount', { count: pages.length }) }}
         </p>
-      </header>
+      </div>
       <div class="detail-pages">
         <button
           v-for="(page, index) in pages"
@@ -195,45 +200,30 @@ onUnmounted(() => {
   </div>
 </template>
 <style>
-.document-detail {
-  display: grid;
-  gap: 18px;
-  padding-bottom: 36px;
-}
-.detail-navigation {
+.detail-meta {
   display: flex;
-  justify-content: space-between;
-}
-.detail-heading {
-  display: grid;
-  gap: 10px;
-}
-.detail-heading h2 {
-  font-size: 23px;
-  overflow-wrap: anywhere;
-}
-.detail-heading .status-chip {
-  width: fit-content;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-12);
 }
 .detail-pages {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 6rem), 1fr));
   gap: 12px;
-  overflow-x: auto;
   padding: 4px;
 }
 .detail-pages button {
-  flex-shrink: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 6px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  min-width: 90px;
 }
 .detail-pages img {
-  width: 95px;
-  height: 126px;
-  object-fit: cover;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: contain;
   border-radius: 8px;
 }
 .detail-memberships {

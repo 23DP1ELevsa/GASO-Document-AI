@@ -40,8 +40,8 @@ export default createVuetify({
     VMenu,
   },
   defaults: {
-    VBtn: { rounded: 'lg', elevation: 0, style: 'text-transform: none; letter-spacing: 0;' },
-    VCard: { rounded: 'xl', elevation: 0 },
+    VBtn: { elevation: 0, style: 'text-transform: none; letter-spacing: 0;' },
+    VCard: { elevation: 0 },
   },
   theme: {
     defaultTheme: readTheme(),

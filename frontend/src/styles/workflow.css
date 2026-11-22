@@ -1,7 +1,3 @@
-.view.guided-workspace {
-  display: block;
-  max-width: 1180px;
-}
 .workspace-heading {
   display: flex;
   align-items: start;
@@ -18,27 +14,6 @@
   color: var(--muted);
   margin-top: 6px;
   max-width: 720px;
-}
-.session-menu {
-  position: relative;
-  flex-shrink: 0;
-  font-size: 0.85rem;
-}
-.session-menu summary {
-  cursor: pointer;
-  padding: 12px 6px;
-}
-.session-menu > div {
-  display: grid;
-  position: absolute;
-  right: 0;
-  z-index: 8;
-  padding: 8px;
-  width: 210px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgb(var(--v-theme-surface));
-  box-shadow: 0 12px 32px #0002;
 }
 .workflow-steps {
   margin-block: 12px 28px;
@@ -260,8 +235,8 @@
 }
 .group-preview-strip {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  overflow-x: auto;
   margin-bottom: 14px;
 }
 .group-preview-strip img {
@@ -339,18 +314,6 @@
   max-width: 520px;
   margin-bottom: 20px;
   font-size: 0.9rem;
-}
-.document-information input:not([type='checkbox']),
-.guided-workspace select {
-  min-width: 0;
-  width: 100%;
-  display: block;
-  padding: 11px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font: inherit;
-  background: rgb(var(--v-theme-surface));
-  color: rgb(var(--v-theme-on-surface));
 }
 .recognition-panel {
   display: flex;
@@ -550,14 +513,14 @@
   width: 180px;
   border-radius: 18px;
   background: rgb(var(--v-theme-surface));
-  box-shadow: 16px 16px 0 var(--paper-back);
+  box-shadow: 16px 16px 0 var(--blue-soft);
   transform: rotate(6deg);
   color: rgb(var(--v-theme-primary));
 }
 .home-document-mark span {
   height: 6px;
   border-radius: 3px;
-  background: var(--paper-line);
+  background: var(--border);
 }
 .home-document-mark span:nth-last-of-type(1) {
   width: 70%;
@@ -628,9 +591,6 @@
   }
   .workspace-heading h1 {
     font-size: 1.5rem;
-  }
-  .session-menu {
-    margin-left: auto;
   }
   .workflow-steps ol {
     gap: 5px;

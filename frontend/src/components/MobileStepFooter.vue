@@ -12,15 +12,12 @@ defineProps({
   hint: String,
 })
 defineEmits(['select', 'save'])
-const names = ['Foto', 'Lapas', 'Dati', 'PDF']
 </script>
 
 <template>
   <footer class="mobile-step-footer">
     <div class="step-footer-meta">
-      <span
-        >Solis {{ state.step }} no 4 · <b>{{ names[state.step - 1] }}</b></span
-      >
+      <span>Solis {{ state.step }} no 4</span>
       <div class="workspace-savebar">
         <span role="status" :class="{ 'save-failed': failed }">
           <AppIcon v-if="saved && !dirty && !saving && !failed" name="check" :size="14" />

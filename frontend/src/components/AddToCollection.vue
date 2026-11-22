@@ -54,8 +54,8 @@ async function add() {
       >Apskatīt komplektu</RouterLink
     >
     <p v-if="error && !open" role="alert">{{ error }}</p>
-    <v-dialog v-model="open" max-width="430" :persistent="saving" aria-label="Pievienot komplektam">
-      <v-card class="collection-dialog"
+    <v-dialog v-model="open" :persistent="saving" aria-label="Pievienot komplektam">
+      <v-card class="collection-dialog app-dialog"
         ><h2>Pievienot komplektam</h2>
         <label
           >Komplekts<select v-model="chosen" :disabled="saving">
@@ -79,21 +79,8 @@ async function add() {
 .collection-add {
   margin-bottom: 16px;
 }
-.collection-dialog {
-  padding: 24px;
-  gap: 18px;
-  border-radius: 24px !important;
-}
 .collection-dialog label {
   display: grid;
-  gap: 8px;
-}
-.collection-dialog input,
-.collection-dialog select {
-  padding: 12px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
-  border-radius: 10px;
-  width: 100%;
-  color: inherit;
+  gap: var(--space-8);
 }
 </style>

@@ -275,8 +275,9 @@ test('saved sets survive reload, later additions, draft deletion, ordering and c
   await page.getByRole('button', { name: 'Pārvietot lejup' }).first().click()
   await page.getByLabel('Komplekta nosaukums', { exact: true }).fill('Atjaunots komplekts')
   await page.getByRole('button', { name: 'Saglabāt nosaukumu' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Atjaunots komplekts')
   await page.reload()
-  await page.getByRole('button', { name: /Atjaunots komplekts/ }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Atjaunots komplekts')
   await expect(page.locator('article.collection-card')).toHaveCount(2)
   await page.getByRole('button', { name: 'Izveidot komplekta PDF', exact: true }).click()
   await expect(page.getByRole('link', { name: 'Lejupielādēt PDF', exact: true })).toBeVisible({

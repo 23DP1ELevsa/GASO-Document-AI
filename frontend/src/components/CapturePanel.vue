@@ -2,7 +2,7 @@
 import AppIcon from './AppIcon.vue'
 import BlobImage from './BlobImage.vue'
 defineProps({ pages: Array, disabled: Boolean })
-defineEmits(['camera', 'gallery', 'continue', 'edit'])
+defineEmits(['edit'])
 </script>
 
 <template>
@@ -13,9 +13,6 @@ defineEmits(['camera', 'gallery', 'continue', 'edit'])
       </div>
       <h2>Novietojiet visu lapu rāmī</h2>
       <p>Pieskarieties fotografēšanas pogai, lai atvērtu ierīces kameru.</p>
-      <button class="capture-gallery-link" :disabled="disabled" @click="$emit('gallery')">
-        <AppIcon name="gallery" :size="18" />Varat arī izvēlēties attēlus no galerijas
-      </button>
     </div>
     <div v-if="pages.length" class="capture-thumbnails" aria-label="Pievienotās lapas">
       <button

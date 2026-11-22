@@ -30,31 +30,6 @@
 .scan-import-actions .v-btn {
   padding: 0 23px;
 }
-.scan-error,
-.scan-success {
-  padding: 17px 20px;
-  border-radius: 12px;
-  line-height: 1.65;
-  font-size: 0.83rem;
-  overflow-wrap: anywhere;
-}
-.scan-error {
-  background: rgba(var(--v-theme-error), 0.1);
-  color: rgb(var(--v-theme-error));
-  border: 1px solid rgba(var(--v-theme-error), 0.25);
-}
-.scan-success {
-  background: var(--green-soft);
-  color: var(--green-text);
-  border: 1px solid var(--green-border);
-}
-.scan-working {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  color: var(--muted);
-  font-size: 0.8rem;
-}
 .session-heading {
   display: flex;
   align-items: center;
@@ -160,9 +135,7 @@
 }
 .page-card-info h3 {
   font-size: 0.82rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .page-card-info p {
   color: var(--muted);
@@ -246,6 +219,16 @@
   min-width: 44px;
   padding: 0;
   flex-shrink: 0;
+}
+.preview-pages {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 4.5rem), 1fr));
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+}
+.preview-pages .v-btn {
+  min-width: var(--touch-size);
+  padding-inline: var(--space-8);
 }
 .image-dialog > img {
   display: block;
@@ -445,10 +428,5 @@
   }
   .draft-home-summary .v-btn {
     width: 100%;
-  }
-  .scan-error,
-  .scan-success {
-    padding: 15px 17px;
-    font-size: 0.78rem;
   }
 }

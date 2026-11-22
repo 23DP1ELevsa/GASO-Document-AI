@@ -17,7 +17,7 @@ import ScanEditorDialog from '../components/ScanEditorDialog.vue'
 import AiAnalysisOverlay from '../components/AiAnalysisOverlay.vue'
 import AddToCollection from '../components/AddToCollection.vue'
 import DocumentGroups from '../components/DocumentGroups.vue'
-import MobileHeader from '../components/MobileHeader.vue'
+import PageHeading from '../components/PageHeading.vue'
 import MobileStepFooter from '../components/MobileStepFooter.vue'
 import CapturePanel from '../components/CapturePanel.vue'
 import { useAppearance } from '../composables/useAppearance'
@@ -72,9 +72,9 @@ async function nextScan() {
   await closePdf()
   await startNew()
 }
-function openGrouping(event) {
+function openGrouping() {
   multiple.value = true
-  event.currentTarget.closest('details').open = false
+  closeSessionMenu()
   go(2)
 }
 function skipUnchecked() {
@@ -105,6 +105,13 @@ const step = ref(1),
   stepHeading = ref(null)
 const state = computed(() => workflowState(active.value))
 const currentStep = computed(() => Math.min(step.value, state.value.maximum))
+const stepTitles = ['Foto', 'Pārbaudiet lapas', 'Dokumenta dati', 'Dokuments gatavs']
+const stepDescription = computed(() => {
+  if (currentStep.value === 1) return undefined
+  const pageCount = t('scan.pageCount', { count: pages.value.length })
+  const count = state.value.documents.length
+  return count > 1 ? `${pageCount} · ${count} dokumenti` : pageCount
+})
 const currentDocument = computed(
   () =>
     state.value.documents.find((item) => item.id === selectedDocumentId.value) ||
@@ -141,6 +148,10 @@ function selectDocument(id) {
   session.setWorkflow({ step: currentStep.value, documentId: id })
   pdfDocumentId.value = null
 }
+function focusStage() {
+  document.getElementById('main-content')?.scrollTo(0, 0)
+  stepHeading.value?.focusHeading()
+}
 async function go(target) {
   if (locked.value || target > state.value.maximum) return
   clearMessages()
@@ -155,7 +166,7 @@ async function go(target) {
     step.value = target
     saveFailed.value = false
     await nextTick()
-    stepHeading.value?.focusHeading()
+    focusStage()
   } catch (reason) {
     saveFailed.value = true
     error.value = t(`scan.errors.${errorCode(reason)}`)
@@ -253,16 +264,19 @@ async function confirmCurrent() {
     info?.focus()
   }
 }
-async function home() {
+async function leaveScan(navigate) {
   if (locked.value) return
   clearMessages()
   try {
     if (dirty.value && (pages.value.length || active.value?.revision)) await session.save()
-    await router.push('/')
+    await navigate()
   } catch (reason) {
     saveFailed.value = true
     error.value = t('scan.errors.' + errorCode(reason))
   }
+}
+function home() {
+  return leaveScan(() => router.push({ name: 'home' }))
 }
 async function viewCurrent() {
   if (locked.value || !currentDocument.value) return
@@ -387,9 +401,14 @@ async function selected(event, replacing = false) {
   if (result.added)
     success.value = t(replacing ? 'scan.replaced' : 'scan.added', { count: result.added })
   if (result.added) {
+    const changedStep = currentStep.value !== 2
     step.value = 2
     session.setWorkflow({ step: 2 })
     if (active.value.documents.length) multiple.value = true
+    if (changedStep) {
+      await nextTick()
+      focusStage()
+    }
   }
 }
 function replace(id) {
@@ -422,7 +441,7 @@ async function startNew() {
   if (dirty.value && !window.confirm(t('scan.confirmDiscard'))) return
   clearMessages()
   session.newSession()
-  if (sessionMenu.value) sessionMenu.value.open = false
+  closeSessionMenu()
   await router.replace({ name: 'scan', query: {} })
 }
 async function deleteSession() {
@@ -432,56 +451,67 @@ async function deleteSession() {
   try {
     await session.discard(active.value.id)
     session.newSession()
-    if (sessionMenu.value) sessionMenu.value.open = false
+    closeSessionMenu()
     await router.replace({ name: 'scan', query: {} })
     success.value = t('scan.deleted')
   } catch (reason) {
     error.value = t(`scan.errors.${errorCode(reason)}`)
   }
 }
+function goBack() {
+  if (locked.value) return
+  if (currentStep.value > 1) return go(currentStep.value - 1)
+  if (router.options.history.state.back) return leaveScan(() => router.back())
+  return home()
+}
+defineExpose({ goBack, backDisabled: locked })
+function closeSessionMenu(restoreFocus = false) {
+  if (!sessionMenu.value?.open) return
+  sessionMenu.value.open = false
+  if (restoreFocus) sessionMenu.value.querySelector('summary')?.focus()
+}
+function dismissSessionMenu(event) {
+  if (!sessionMenu.value?.contains(event.target)) closeSessionMenu()
+}
 function deviceBack(event) {
   event.preventDefault()
   if (editingPage.value) closeEditor()
   else if (selectedPage.value) selectedPage.value = null
   else if (confirmWarning.value) confirmWarning.value = false
-  else if (currentStep.value > 1) go(currentStep.value - 1)
-  else if (!locked.value) home()
+  else if (sessionMenu.value?.open) closeSessionMenu(true)
+  else goBack()
 }
-onMounted(() => window.addEventListener('gaso:back', deviceBack))
+onMounted(() => {
+  window.addEventListener('gaso:back', deviceBack)
+  window.addEventListener('pointerdown', dismissSessionMenu)
+})
 onUnmounted(() => {
   analysisController?.abort()
   window.removeEventListener('gaso:back', deviceBack)
+  window.removeEventListener('pointerdown', dismissSessionMenu)
 })
 </script>
 <template>
   <div class="view scan-workspace guided-workspace">
-    <MobileHeader
-      ref="stepHeading"
-      :title="
-        exportCompleted
-          ? 'Dokuments sagatavots'
-          : currentStep === 1
-            ? 'Foto'
-            : currentStep === 2
-              ? 'Pārbaudiet lapas'
-              : currentStep === 3
-                ? 'Dokumenta dati'
-                : 'Dokuments gatavs'
-      "
-      :subtitle="
-        currentStep > 1
-          ? `${pages.length} lp.${state.documents.length > 1 ? ` ? ${state.documents.length} dokumenti` : ''}`
-          : undefined
-      "
-      back
-      @back="currentStep > 1 ? go(currentStep - 1) : home()"
-    >
-      <button class="icon-button" aria-label="Uz sākumu" :disabled="locked" @click="home">
-        <AppIcon name="home" :size="21" />
+    <Teleport defer to="#app-header-actions">
+      <button
+        type="button"
+        class="icon-button"
+        aria-label="Uz sākumu"
+        :disabled="locked"
+        @click="home"
+      >
+        <AppIcon name="home" size="var(--icon-size)" />
       </button>
-      <details ref="sessionMenu" class="session-menu">
-        <summary aria-label="Dokumenta darbības"><AppIcon name="more" :size="20" /></summary>
-        <div>
+      <details
+        ref="sessionMenu"
+        class="session-menu"
+        @keydown.esc.stop.prevent="closeSessionMenu(true)"
+      >
+        <summary class="icon-button" aria-label="Dokumenta darbības">
+          <AppIcon name="more" size="var(--icon-size)" />
+        </summary>
+        <div class="header-menu">
           <v-btn variant="text" :disabled="locked" @click="startNew">{{
             t('scan.newSession')
           }}</v-btn>
@@ -509,7 +539,12 @@ onUnmounted(() => {
           >
         </div>
       </details>
-    </MobileHeader>
+    </Teleport>
+    <PageHeading
+      ref="stepHeading"
+      :title="stepTitles[currentStep - 1]"
+      :description="stepDescription"
+    />
     <div class="scan-stage-content" :class="{ 'capture-stage': currentStep === 1 }">
       <div v-if="error" class="scan-error" role="alert">{{ error }}</div>
       <div v-if="ocr.saveError.value && !error" class="scan-error" role="alert">
@@ -559,13 +594,7 @@ onUnmounted(() => {
         @cancel="replacementId = null"
       />
 
-      <CapturePanel
-        v-if="currentStep === 1"
-        :pages="pages"
-        :disabled="locked"
-        @gallery="gallery.click()"
-        @edit="openEditor"
-      />
+      <CapturePanel v-if="currentStep === 1" :pages="pages" :disabled="locked" @edit="openEditor" />
 
       <section v-show="currentStep === 2" class="session-section" :aria-busy="busy">
         <div
@@ -688,7 +717,6 @@ onUnmounted(() => {
             >Apskatīt dokumentu</v-btn
           >
           <v-btn variant="text" :disabled="locked" @click="startNew">Skenēt nākamo</v-btn>
-          <v-btn variant="text" :disabled="locked" @click="home">Uz sākumu</v-btn>
         </div>
         <AddToCollection
           v-if="currentDocument"
@@ -752,88 +780,79 @@ onUnmounted(() => {
         />
       </section>
     </div>
-    <MobileStepFooter
-      v-if="currentStep !== 4"
-      :state="{ ...state, step: currentStep }"
-      :disabled="locked"
-      :dirty="dirty"
-      :saving="saving"
-      :saved="Boolean(active?.revision)"
-      :failed="saveFailed"
-      :can-save="Boolean(pages.length || active?.revision)"
-      :hint="
-        currentStep === 2 && pages.length > 1 && !state.grouped
-          ? multiple
-            ? 'Atzīmējiet, kur sākas nākamais dokuments'
-            : 'Vispirms atbildiet uz jautājumu augšā'
-          : undefined
-      "
-      @select="go"
-      @save="save"
-    >
-      <div v-if="currentStep === 1" class="capture-controls">
-        <button
-          class="icon-button"
-          :disabled="locked"
-          aria-label="Pievienot no galerijas"
-          @click="gallery.click()"
-        >
-          <AppIcon name="gallery" :size="23" />
-        </button>
-        <button
-          class="camera-shutter"
-          :disabled="locked"
-          aria-label="Fotografēt"
-          @click="camera.click()"
-        >
-          <span />
-        </button>
-        <button class="capture-continue" :disabled="locked || !pages.length" @click="go(2)">
-          Turpināt <span>{{ pages.length }}</span>
-        </button>
-      </div>
-      <v-btn
-        v-else-if="currentStep === 2"
-        color="primary"
-        block
-        size="x-large"
-        :disabled="locked || !pages.length || (pages.length > 1 && !state.grouped)"
-        @click="nextPages"
-        >Turpināt uz datiem<AppIcon name="arrow" :size="20"
-      /></v-btn>
-      <template v-else-if="currentStep === 3">
+    <Teleport defer to="#app-footer">
+      <MobileStepFooter
+        v-if="currentStep !== 4"
+        :state="{ ...state, step: currentStep }"
+        :disabled="locked"
+        :dirty="dirty"
+        :saving="saving"
+        :saved="Boolean(active?.revision)"
+        :failed="saveFailed"
+        :can-save="Boolean(pages.length || active?.revision)"
+        :hint="
+          currentStep === 2 && pages.length > 1 && !state.grouped
+            ? multiple
+              ? 'Atzīmējiet, kur sākas nākamais dokuments'
+              : 'Vispirms atbildiet uz jautājumu augšā'
+            : undefined
+        "
+        @select="go"
+        @save="save"
+      >
+        <div v-if="currentStep === 1" class="capture-controls">
+          <button
+            class="icon-button"
+            :disabled="locked"
+            aria-label="Pievienot no galerijas"
+            @click="gallery.click()"
+          >
+            <AppIcon name="gallery" :size="23" />
+          </button>
+          <button
+            class="camera-shutter"
+            :disabled="locked"
+            aria-label="Fotografēt"
+            @click="camera.click()"
+          >
+            <span />
+          </button>
+          <button class="capture-continue" :disabled="locked || !pages.length" @click="go(2)">
+            Turpināt <span>{{ pages.length }}</span>
+          </button>
+        </div>
         <v-btn
-          v-if="!hasSuggestions && !hasManualData"
+          v-else-if="currentStep === 2"
           color="primary"
           block
           size="x-large"
-          :disabled="locked || !aiConsent"
-          @click="recognizeCurrent"
-          ><AppIcon name="sparkles" :size="20" />{{
-            t(recognizing ? 'workflow.recognizing' : 'workflow.recognize')
-          }}</v-btn
-        >
-        <v-btn
-          v-else
-          color="primary"
-          block
-          size="x-large"
-          :disabled="locked"
-          @click="confirmCurrent"
-          >{{ 'Apstiprināt dokumentu' }}</v-btn
-        >
-        <button class="text-link skip-data" :disabled="locked" @click="skipInformation">
-          Izlaist — saglabāt tikai skenējumu
-        </button>
-      </template>
-    </MobileStepFooter>
+          :disabled="locked || !pages.length || (pages.length > 1 && !state.grouped)"
+          @click="nextPages"
+          >Turpināt uz datiem<AppIcon name="arrow" :size="20"
+        /></v-btn>
+        <template v-else-if="currentStep === 3">
+          <v-btn
+            v-if="hasSuggestions || hasManualData"
+            color="primary"
+            block
+            size="x-large"
+            :disabled="locked"
+            @click="confirmCurrent"
+            >{{ 'Apstiprināt dokumentu' }}</v-btn
+          >
+          <button class="text-link skip-data" :disabled="locked" @click="skipInformation">
+            Izlaist — saglabāt tikai skenējumu
+          </button>
+        </template>
+      </MobileStepFooter>
+    </Teleport>
     <v-dialog
       v-model="confirmWarning"
       max-width="430"
       class="mobile-sheet"
       aria-label="Daži lauki nav pārbaudīti"
     >
-      <v-card class="confirmation-sheet"
+      <v-card class="confirmation-sheet app-dialog"
         ><h2>Daži lauki nav pārbaudīti</h2>
         <p>
           Pārbaudiet atrastos ieteikumus. Nepārbaudīti dati netiks iekļauti PDF; varat turpināt ar

@@ -94,30 +94,34 @@ function add() {
       >
         <dt>{{ field.label }}</dt>
         <dd>
-          <template v-if="editing !== field.key || readOnly"
-            ><span>{{ displayValue(field) }}</span
-            ><button
-              v-if="!readOnly"
-              type="button"
-              class="icon-button"
-              :disabled="disabled"
-              :aria-label="'Rediģēt: ' + field.label"
-              @click="edit(field.key)"
-            >
-              <AppIcon name="edit" :size="18" />
-            </button>
+          <template v-if="editing !== field.key || readOnly">
+            <div class="attribute-value">
+              <span>{{ displayValue(field) }}</span
+              ><button
+                v-if="!readOnly"
+                type="button"
+                class="icon-button"
+                :disabled="disabled"
+                :aria-label="'Rediģēt: ' + field.label"
+                @click="edit(field.key)"
+              >
+                <AppIcon name="edit" :size="18" />
+              </button>
+            </div>
             <p v-if="errors.includes(field.key) && !readOnly" class="field-error" role="alert">
               {{ t('grouping.invalidValue') }}
-            </p></template
-          >
+            </p>
+          </template>
           <div v-else class="inline-attribute-editor">
             <label v-if="field.custom"
-              >Lauka nosaukums<input
+              >Lauka nosaukums<textarea
                 :value="field.label"
+                rows="1"
                 maxlength="100"
                 :disabled="disabled"
                 @change="emit('rename', field.key, $event.target.value)"
-            /></label>
+              />
+            </label>
             <DocumentAttributeField
               :field="field"
               :document="formDocument"
@@ -159,11 +163,21 @@ function add() {
           </select></label
         >
         <label v-if="standard === 'custom'"
-          >Atribūta nosaukums<input v-model="label" maxlength="100" :disabled="disabled"
-        /></label>
+          >Atribūta nosaukums<textarea
+            v-model="label"
+            rows="1"
+            maxlength="100"
+            :disabled="disabled"
+          />
+        </label>
         <label
-          >Atribūta vērtība<input v-model="value" maxlength="2000" :disabled="disabled"
-        /></label>
+          >Atribūta vērtība<textarea
+            v-model="value"
+            rows="1"
+            maxlength="2000"
+            :disabled="disabled"
+          />
+        </label>
         <v-btn
           type="submit"
           variant="tonal"
@@ -174,12 +188,17 @@ function add() {
     </details>
     <details v-if="document.analysis" class="review-sources">
       <summary>Papildu informācija</summary>
-      <template v-for="field in fields.filter((field) => field.evidence)" :key="field.key"
-        ><p>
-          <strong>{{ field.label }}</strong> · {{ field.page }}. lapa
-        </p>
-        <p>{{ field.evidence }}</p></template
+      <div
+        v-for="field in fields.filter((field) => field.evidence)"
+        :key="field.key"
+        class="review-source"
       >
+        <p>
+          <strong>{{ field.label }}</strong
+          ><span v-if="field.page"> · {{ field.page }}. lapa</span>
+        </p>
+        <p class="attribute-evidence">{{ field.evidence }}</p>
+      </div>
       <p v-if="document.analysis.result.usage" class="small-muted">
         API patēriņš: ievade {{ document.analysis.result.usage.input_tokens ?? '—' }}, izvade
         {{ document.analysis.result.usage.output_tokens ?? '—' }}, kopā
@@ -190,18 +209,19 @@ function add() {
 </template>
 <style>
 .document-information {
+  container-type: inline-size;
   scroll-margin-top: 88px;
+  overflow-wrap: anywhere;
 }
 .compact-attributes {
   margin: 16px 0;
   border: 1px solid var(--border);
   border-radius: 18px;
-  overflow: hidden;
   background: rgb(var(--v-theme-surface));
 }
 .compact-attribute {
   display: grid;
-  grid-template-columns: minmax(85px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 8px;
   align-items: center;
   padding: 12px;
@@ -212,27 +232,28 @@ function add() {
 }
 .compact-attribute dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-small);
 }
 .compact-attribute dd {
+  min-width: 0;
+  margin: 0;
+}
+.attribute-value {
   display: flex;
   gap: 6px;
   align-items: center;
   justify-content: space-between;
-
-  margin: 0;
-  font-size: 14px;
+  font-size: var(--text-label);
   font-weight: 600;
-  overflow-wrap: anywhere;
+}
+.attribute-value > span {
+  min-width: 0;
   white-space: pre-wrap;
 }
-.compact-attribute .field-error,
-.inline-attribute-editor {
-  grid-column: 1 / -1;
-}
-.inline-attribute-editor input {
-  width: 100%;
-  min-width: 0;
+.document-information textarea {
+  field-sizing: content;
+  resize: vertical;
+  max-height: max(8rem, 45dvh);
 }
 .inline-attribute-editor .status-chip,
 .inline-attribute-editor .field-feedback {
@@ -240,6 +261,7 @@ function add() {
 }
 .inline-edit-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
   margin-top: 10px;
@@ -254,18 +276,22 @@ function add() {
   padding: 12px 0;
   cursor: pointer;
 }
-.compact-attribute dd > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
+.review-source {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  padding: var(--space-12);
+  margin-bottom: var(--space-8);
+  background: var(--soft);
+  border-radius: var(--radius-control);
 }
-.compact-attribute dd > button {
-  flex-shrink: 0;
+.compact-attribute.editing {
+  grid-template-columns: minmax(0, 1fr);
 }
-.compact-attribute.editing dt,
-.compact-attribute.editing dd {
-  grid-column: 1/-1;
-}
-.compact-attribute.editing dd {
-  display: block;
+@container (max-width: 24rem) {
+  .compact-attribute {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
 }
 </style>
