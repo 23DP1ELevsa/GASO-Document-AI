@@ -385,9 +385,9 @@ test('IndexedDB v1 migration preserves original images, OCR, attributes and save
         }
       }),
   )
-  expect(version.version).toBe(2)
+  expect(version.version).toBe(3)
   expect(version.stores).toEqual(
-    expect.arrayContaining(['collections', 'savedDocuments', 'drafts', 'images', 'pages']),
+    expect.arrayContaining(['collections', 'savedDocuments', 'drafts', 'images', 'pages', 'storageSync']),
   )
 })
 

@@ -2,6 +2,7 @@ import { ref, shallowRef, watch, onScopeDispose } from 'vue'
 import { listDrafts, loadDraft } from './draftRepository'
 import { draftsChanged } from './useScanSession'
 import { errorCode } from './errors'
+import { storageEvents } from '../storage/queue.js'
 
 export function useDraftList() {
   const drafts = shallowRef([]),
@@ -30,9 +31,11 @@ export function useDraftList() {
     /* Local refresh and navigation still work if cross-tab messaging is blocked. */
   }
   if (channel) channel.onmessage = refresh
+  storageEvents.addEventListener('restored', refresh)
   onScopeDispose(() => {
     generation++
     channel?.close()
+    storageEvents.removeEventListener('restored', refresh)
   })
   return { drafts, loading, error, refresh }
 }

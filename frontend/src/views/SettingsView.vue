@@ -3,6 +3,7 @@ import AppIcon from '../components/AppIcon.vue'
 import LocalNotice from '../components/LocalNotice.vue'
 import OcrSettingsCard from '../components/OcrSettingsCard.vue'
 import PageHeading from '../components/PageHeading.vue'
+import StorageSettings from '../components/StorageSettings.vue'
 import { useAppearance } from '../composables/useAppearance'
 import { usePwa } from '../composables/usePwa'
 import { t } from '../locales'
@@ -55,6 +56,7 @@ const { installEvent, install } = usePwa()
           Neizdevās saglabāt PDF iestatījumu.
         </p>
       </v-card>
+      <StorageSettings />
       <v-card class="settings-card bordered-card"><LocalNotice expanded /></v-card>
       <v-card v-if="installEvent" class="settings-card bordered-card"
         ><h3>{{ t('pwa.install') }}</h3>

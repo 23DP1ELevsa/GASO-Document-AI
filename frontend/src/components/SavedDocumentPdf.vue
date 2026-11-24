@@ -135,9 +135,7 @@ onUnmounted(() => {
         ></template
       >
       <v-btn v-if="error" variant="tonal" :disabled="busy" @click="generate">Mēģināt vēlreiz</v-btn>
-      <p class="small-muted">
-        PDF tiek izveidots no saglabātajām fotogrāfijām un datiem šajā ierīcē.
-      </p>
+      <p class="small-muted">PDF tiek izveidots no saglabātajām fotogrāfijām un atribūtiem.</p>
     </v-card>
   </v-dialog>
 </template>

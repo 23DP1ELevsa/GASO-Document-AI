@@ -36,7 +36,7 @@ export default {
     allDocuments: 'Visi dokumenti',
     localTitle: 'Jūsu ierīcē. Jūsu pārziņā.',
     localDescription:
-      'Attēli un iesāktie darbi paliek šajā pārlūkprogrammā. Ar jūsu piekrišanu AI analīzei dokumenta fotoattēli tiek nosūtīti OpenAI. Dzēšot pārlūka datus, tiks dzēsts arī iesāktais darbs. Svarīgos PDF saglabājiet savā ierīcē.',
+      'Attēli un iesāktie darbi glabājas šajā pārlūkprogrammā. MongoDB glabāšanu varat ieslēgt iestatījumos. Ar jūsu piekrišanu fotoattēli AI analīzei tiek nosūtīti OpenAI. Dzēšot pārlūka datus, tiek izdzēstas lokālās kopijas.',
     localShort: 'Saskarne darbojas neatkarīgi no servera.',
     next: 'Nākamajos posmos',
     learnMore: 'Par lokālo režīmu',

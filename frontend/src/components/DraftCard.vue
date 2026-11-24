@@ -4,6 +4,7 @@ import BlobImage from './BlobImage.vue'
 import { computed } from 'vue'
 import { t, dateTime } from '../locales'
 import { draftHasDocuments, draftIsDownloaded } from '../features/documents/workflow.js'
+import { storageLabel } from '../features/storage/sync.js'
 const props = defineProps({ draft: Object, busy: Boolean, resumableOnly: Boolean })
 defineEmits(['open', 'remove'])
 const status = computed(() => {
@@ -37,6 +38,7 @@ const status = computed(() => {
       <span class="status-chip" :class="{ 'status-success': status === 'Lejupielādēts' }">{{
         status
       }}</span>
+      <p class="small-muted">{{ storageLabel('sessions', draft.id) }}</p>
       <div class="draft-actions">
         <v-btn color="primary" variant="tonal" :disabled="busy" @click="$emit('open', draft.id)"
           >{{ t('documents.continue') }}<AppIcon name="arrow" :size="18" /></v-btn

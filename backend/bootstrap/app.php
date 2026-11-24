@@ -1,9 +1,13 @@
 <?php
 
+use App\DocumentStorage\StorageFailure;
 use App\Http\Middleware\DocumentAiBodyLimit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Validation\ValidationException;
+use MongoDB\Driver\Exception\CommandException;
+use MongoDB\Exception\Exception;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -20,6 +24,28 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(fn ($request) => $request->is('api/*'));
+        $exceptions->render(function (Throwable $error, $request) {
+            if (! $request->is('api/storage/v1', 'api/storage/v1/*')) {
+                return null;
+            }
+            [$status, $code] = match (true) {
+                $error instanceof StorageFailure => [$error->status, $error->errorCode],
+                $error instanceof ValidationException => [422, 'invalid_input'],
+                $error instanceof CommandException && $error->getCode() === 14031 => [507, 'storage_full'],
+                $error instanceof MongoDB\Driver\Exception\Exception,
+                $error instanceof Exception => [503, 'storage_unavailable'],
+                $error instanceof HttpExceptionInterface => [$error->getStatusCode(), match ($error->getStatusCode()) {
+                    404 => 'not_found',
+                    405 => 'method_not_allowed',
+                    413 => 'input_too_large',
+                    429 => 'rate_limit',
+                    default => 'request_failed',
+                }],
+                default => [500, 'server_error'],
+            };
+
+            return response()->json(['error' => ['code' => $code]], $status)->header('Cache-Control', 'no-store');
+        });
         $exceptions->render(function (Throwable $error, $request) {
             if ($request->is('api/*')) {
                 $status = $error instanceof HttpExceptionInterface ? $error->getStatusCode() : 500;

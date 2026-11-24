@@ -36,6 +36,7 @@ import {
 import { useScanSession } from '../features/scanning/useScanSession'
 import { errorCode } from '../features/scanning/errors'
 import { t } from '../locales'
+import { storageLabel } from '../features/storage/sync.js'
 
 const route = useRoute(),
   router = useRouter()
@@ -546,6 +547,9 @@ onUnmounted(() => {
       :description="stepDescription"
     />
     <div class="scan-stage-content" :class="{ 'capture-stage': currentStep === 1 }">
+      <p v-if="active?.revision && !dirty" class="small-muted">
+        {{ storageLabel('sessions', active.id) }}
+      </p>
       <div v-if="error" class="scan-error" role="alert">{{ error }}</div>
       <div v-if="ocr.saveError.value && !error" class="scan-error" role="alert">
         {{ t('scan.errors.' + errorCode(ocr.saveError.value)) }}

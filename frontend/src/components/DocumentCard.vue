@@ -1,6 +1,7 @@
 <script setup>
 import BlobImage from './BlobImage.vue'
 import { documentTitle } from '../features/documents/presentation.js'
+import { storageLabel } from '../features/storage/sync.js'
 import { t } from '../locales'
 defineProps({ item: Object, disabled: Boolean })
 defineEmits(['open', 'remove'])
@@ -24,6 +25,11 @@ defineEmits(['open', 'remove'])
         ><small v-if="item.memberships.length"
           >Komplektā · {{ item.memberships.map((entry) => entry.name).join(', ') }}</small
         ><small>{{ new Date(item.updatedAt).toLocaleDateString('lv-LV') }}</small
+        ><small>{{
+          item.draftId
+            ? storageLabel('sessions', item.draftId)
+            : storageLabel('collections', item.collectionId)
+        }}</small
         ><small v-if="item.confirmed && item.document.values.total_amount"
           >{{ item.document.values.total_amount }} {{ item.document.values.currency }}</small
         ></span

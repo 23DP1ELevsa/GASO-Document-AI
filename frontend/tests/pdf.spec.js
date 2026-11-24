@@ -478,6 +478,7 @@ test('PDF generation works offline after reload and neither generated PDFs nor d
     'images',
     'pages',
     'savedDocuments',
+    'storageSync',
   ])
   await close(page)
 })
@@ -491,6 +492,13 @@ test('a changed saved revision blocks downloading a preview from another tab', a
   await preview(page)
   const other = await context.newPage()
   await other.goto(page.url())
+  await expect(
+    other
+      .locator('.completion-card')
+      .or(other.getByRole('navigation', { name: 'Dokumenta sagatavošanas soļi' }))
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible()
   await groupingTools(other)
   await groups(other)
     .nth(0)

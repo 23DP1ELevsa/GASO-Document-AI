@@ -14,6 +14,7 @@ import AddToCollection from '../components/AddToCollection.vue'
 import AppIcon from '../components/AppIcon.vue'
 import PageHeading from '../components/PageHeading.vue'
 import { t } from '../locales'
+import { storageLabel } from '../features/storage/sync.js'
 const route = useRoute(),
   router = useRouter(),
   scanner = useScanSession()
@@ -152,6 +153,13 @@ onUnmounted(() => {
           · {{ t('scan.pageCount', { count: pages.length }) }}
         </p>
       </div>
+      <p class="small-muted">
+        {{
+          frozen
+            ? storageLabel('collections', route.query.collection)
+            : storageLabel('sessions', saved.id)
+        }}
+      </p>
       <div class="detail-pages">
         <button
           v-for="(page, index) in pages"

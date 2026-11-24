@@ -2,9 +2,12 @@ import { ScanError } from './errors.js'
 import { validateOcr } from '../ocr/model.js'
 import { migrateGrouping, validateDocuments } from '../documents/model.js'
 import { navigationState, currentExports } from '../documents/workflow.js'
+import { SYNC_STORE, queueChange } from '../storage/queue.js'
+import { readRemoteImage } from '../storage/client.js'
 
 export const DATABASE_NAME = 'gaso-document-ai'
-const STORES = ['drafts', 'pages', 'images', 'collections', 'savedDocuments']
+export const DATA_STORES = ['drafts', 'pages', 'images', 'collections', 'savedDocuments']
+const STORES = [...DATA_STORES, SYNC_STORE]
 
 function openDatabase() {
   return new Promise((resolve, reject) => {
@@ -19,7 +22,7 @@ function openDatabase() {
     }
     const timer = setTimeout(() => fail(new ScanError('storageBlocked')), 7000)
     try {
-      request = indexedDB.open(DATABASE_NAME, 2)
+      request = indexedDB.open(DATABASE_NAME, 3)
       request.onupgradeneeded = () => {
         const db = request.result
         for (const name of STORES)
@@ -134,38 +137,61 @@ export function loadDraft(id) {
   }).then(migrateGrouping)
 }
 
-async function readImage(id, display) {
-  const record = await readImageRecord(id)
-  return display ? record.processed || record.blob : record.blob
+export async function readImageRecord(id) {
+  const record = await readLocalImageRecord(id)
+  if (!record.remote || (record.blob && (!record.remote.processed || record.processed)))
+    return record
+  return {
+    ...record,
+    blob: record.blob || (await readRemoteImage(record.remote.original)),
+    processed:
+      record.processed ||
+      (record.remote.processed && (await readRemoteImage(record.remote.processed))),
+  }
 }
-export function readImageRecord(id) {
+
+export function readLocalImageRecord(id) {
   return transaction(['images'], 'readonly', (tx, result, fail) => {
-    const read = (key, seen, complete) => {
-      if (seen.has(key)) {
-        fail(new ScanError('missingImage'))
-        return
-      }
-      const visited = new Set([...seen, key])
-      tx.objectStore('images').get(key).onsuccess = (event) => {
-        const record = event.target.result
-        if (!record) fail(new ScanError('missingImage'))
-        else if (record.reference) read(record.reference, visited, complete)
-        else if (record.originalReference)
-          read(record.originalReference, visited, (original) =>
-            complete({ ...record, blob: original.blob }),
-          )
-        else complete(record)
-      }
-    }
-    read(id, new Set(), result)
+    resolveImageRecord(tx.objectStore('images'), id, result, fail)
   })
 }
 
-export function readOriginal(id) {
-  return readImage(id, false)
+export function resolveImageRecord(store, id, result, fail) {
+  const read = (key, seen, complete) => {
+    if (seen.has(key)) {
+      fail(new ScanError('missingImage'))
+      return
+    }
+    const visited = new Set([...seen, key])
+    store.get(key).onsuccess = (event) => {
+      const record = event.target.result
+      if (!record) fail(new ScanError('missingImage'))
+      else if (record.reference) read(record.reference, visited, complete)
+      else if (record.originalReference)
+        read(record.originalReference, visited, (original) =>
+          complete({
+            ...record,
+            blob: original.blob,
+            remote: original.remote?.original
+              ? { ...record.remote, original: original.remote.original }
+              : record.remote,
+          }),
+        )
+      else complete(record)
+    }
+  }
+  read(id, new Set(), result)
 }
-export function readDisplay(id) {
-  return readImage(id, true)
+
+export async function readOriginal(id) {
+  const record = await readLocalImageRecord(id)
+  if (record.blob) return record.blob
+  if (!record.remote?.original) throw new ScanError('missingImage')
+  return readRemoteImage(record.remote.original)
+}
+export async function readDisplay(id) {
+  const record = await readImageRecord(id)
+  return record.processed || record.blob
 }
 
 export function saveDraft(session) {
@@ -221,6 +247,7 @@ export function saveDraft(session) {
         }
       }
       drafts.put(draft)
+      queueChange(tx, 'sessions', session.id)
       result(draft)
     })
   }).then(async (draft) => {
@@ -237,11 +264,13 @@ export function saveDraft(session) {
 export function deleteDraft(id) {
   return transaction(STORES, 'readwrite', (tx, result, fail) => {
     tx.objectStore('drafts').get(id).onsuccess = guarded(fail, (event) => {
-      for (const pageId of event.target.result?.pageIds || []) {
+      const draft = event.target.result
+      for (const pageId of draft?.pageIds || []) {
         tx.objectStore('pages').delete(pageId)
         tx.objectStore('images').delete(pageId)
       }
       tx.objectStore('drafts').delete(id)
+      if (draft) queueChange(tx, 'sessions', id, true)
     })
   }).then(async () => {
     try {

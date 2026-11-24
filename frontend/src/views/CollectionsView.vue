@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useScanSession } from '../features/scanning/useScanSession.js'
 import { t } from '../locales'
+import { storageLabel } from '../features/storage/sync.js'
 import {
   listCollections,
   createCollection,
@@ -234,9 +235,11 @@ onUnmounted(() => {
           >Dokumenti: {{ item.documentIds.length }} ·
           {{ new Date(item.updatedAt).toLocaleDateString('lv-LV') }}</small
         >
+        <small>{{ storageLabel('collections', item.id) }}</small>
       </button>
     </template>
     <template v-else-if="current">
+      <p class="small-muted">{{ storageLabel('collections', current.id) }}</p>
       <form class="collection-name" @submit.prevent="rename">
         <label
           >Komplekta nosaukums<input

@@ -1,8 +1,9 @@
 import { transaction, loadDraft, collectUnusedImages } from '../scanning/draftRepository.js'
 import { newId } from '../scanning/id.js'
 import { isConfirmationCurrent, documentPages } from './model.js'
+import { SYNC_STORE, queueChange } from '../storage/queue.js'
 
-const stores = ['collections', 'savedDocuments', 'drafts', 'pages', 'images']
+const stores = ['collections', 'savedDocuments', 'drafts', 'pages', 'images', SYNC_STORE]
 // All mutations run in one IDB transaction. Images are immutable while referenced by a saved document.
 export function listCollections() {
   return transaction(['collections'], 'readonly', (tx, result) => {
@@ -23,13 +24,14 @@ export function createCollection(name) {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   }
-  return transaction(['collections'], 'readwrite', (tx, result) => {
+  return transaction(['collections', SYNC_STORE], 'readwrite', (tx, result) => {
     tx.objectStore('collections').add(collection)
+    queueChange(tx, 'collections', collection.id)
     result(collection)
   })
 }
 export function updateCollection(id, revision, transform) {
-  return transaction(['collections'], 'readwrite', (tx, result, fail) => {
+  return transaction(['collections', SYNC_STORE], 'readwrite', (tx, result, fail) => {
     tx.objectStore('collections').get(id).onsuccess = (event) => {
       try {
         const item = event.target.result
@@ -51,6 +53,7 @@ export function updateCollection(id, revision, transform) {
           updatedAt: Date.now(),
         }
         tx.objectStore('collections').put(saved)
+        queueChange(tx, 'collections', id)
         result(saved)
       } catch (error) {
         fail(error)
@@ -114,6 +117,7 @@ export async function addDocumentToCollection(collectionId, sessionId, documentI
                 updatedAt: Date.now(),
               }
               tx.objectStore('collections').put(next)
+              queueChange(tx, 'collections', collectionId)
               result(next)
             }
           }
@@ -151,13 +155,14 @@ export async function removeCollectionDocument(collection, id) {
   return next
 }
 export async function deleteCollection(id, revision) {
-  await transaction(['collections'], 'readwrite', (tx, result, fail) => {
+  await transaction(['collections', SYNC_STORE], 'readwrite', (tx, result, fail) => {
     tx.objectStore('collections').get(id).onsuccess = (event) => {
       if (event.target.result?.revision !== revision) {
         fail(new Error('Komplekts ir mainīts.'))
         return
       }
       tx.objectStore('collections').delete(id)
+      queueChange(tx, 'collections', id, true)
     }
   })
   await collectUnusedImages()

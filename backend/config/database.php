@@ -31,6 +31,18 @@ return [
     */
 
     'connections' => [
+        'mongodb' => [
+            'driver' => 'mongodb',
+            'dsn' => env('MONGODB_URI'),
+            'database' => env('MONGODB_DATABASE', 'gaso_document_ai'),
+            'options' => [
+                'serverSelectionTimeoutMS' => 3000,
+                'connectTimeoutMS' => 3000,
+                'socketTimeoutMS' => 15000,
+                'w' => 'majority',
+                'readPreference' => 'primary',
+            ],
+        ],
 
         'sqlite' => [
             'driver' => 'sqlite',

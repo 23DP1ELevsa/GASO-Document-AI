@@ -7,6 +7,7 @@ import { t } from './locales'
 import { useAppearance } from './composables/useAppearance'
 import { usePwa } from './composables/usePwa'
 import { useScanSession } from './features/scanning/useScanSession'
+import { startStorage } from './features/storage/sync.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,6 +30,7 @@ const connectionChanged = () => {
 }
 const focusMain = () => document.getElementById('main-content')?.focus()
 onMounted(() => {
+  startStorage()
   window.addEventListener('online', connectionChanged)
   window.addEventListener('offline', connectionChanged)
   window.addEventListener('beforeunload', protectChanges)

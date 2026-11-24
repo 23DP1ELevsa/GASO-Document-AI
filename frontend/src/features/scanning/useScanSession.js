@@ -8,6 +8,7 @@ import * as documents from '../documents/model.js'
 import { analyzePages } from '../documents/analysis.js'
 import { analysisPayload, requestAiAnalysis, attachAiAnalysis } from '../documents/openai.js'
 import { navigationState, asSingleDocument, groupAtBoundaries } from '../documents/workflow.js'
+import { storageEvents } from '../storage/queue.js'
 
 const active = shallowRef(null)
 const dirty = ref(false)
@@ -15,6 +16,13 @@ const busy = ref(false)
 const saving = ref(false)
 export const draftsChanged = ref(0)
 const POINTER_KEY = 'gaso-document-ai:active-draft'
+storageEvents.addEventListener('restored', ({ detail }) => {
+  if (detail?.kind !== 'sessions' || active.value?.id !== detail.id || busy.value || dirty.value)
+    return
+  active.value = null
+  if (detail.deleted) remember(null)
+  announce()
+})
 function announce() {
   draftsChanged.value++
   try {

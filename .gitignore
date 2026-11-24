@@ -76,6 +76,7 @@ backups/
 *.bson.gz
 *.archive
 *.archive.gz
+*.gaso-backup
 mongod.lock
 WiredTiger*
 

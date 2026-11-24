@@ -124,7 +124,7 @@ async function remove(id) {
 </script>
 <template>
   <div class="view document-list-view">
-    <PageHeading :title="t('nav.documents')" description="Saglabāti tikai šajā ierīcē" />
+    <PageHeading :title="t('nav.documents')" />
     <div v-if="error || actionError" class="scan-error" role="alert">
       {{ actionError || t('scan.errors.' + error)
       }}<v-btn variant="text" @click="refresh">Mēģināt vēlreiz</v-btn>

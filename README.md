@@ -2,11 +2,11 @@
 
 GASO Document AI ir dokumentu fotografēšanas, AI analīzes un PDF izveides lietotne ar:
 
-- `backend/` — Laravel 12 API (PHP) un OpenAI attēlu analīzi.
+- `backend/` — Laravel 12 API, OpenAI attēlu analīzi un MongoDB dokumentu glabāšanu.
 - `frontend/` — Vue 3 + Vuetify 3 saskarni, PWA un Capacitor Android projektu.
-- `docs/` — datu shēmām un pārbaudes attēliem. Visa projekta dokumentācija ir šajā README.
+- `docs/` — datu shēmām, testiem un MongoDB iestatīšanas instrukciju.
 
-Lietotājs pievieno dokumenta fotogrāfijas, pārskata un labo AI atrastos datus un apstiprina dokumentu ar vienu pogu. Saglabātos dokumentus var apskatīt, apvienot komplektos un eksportēt PDF. Fotogrāfijas un dokumentu dati glabājas ierīces IndexedDB; dokumenta apskate neveic AI pieprasījumus. Lokālais OCR lietotnes saskarnē ir atslēgts.
+Lietotājs pievieno dokumenta fotogrāfijas, pārskata un labo AI atrastos datus un apstiprina dokumentu ar vienu pogu. Saglabātos dokumentus var apskatīt, apvienot komplektos un eksportēt PDF. IndexedDB glabā darba kopiju bezsaistes režīmam. Ieslēdzot servera glabāšanu, dokumentus un komplektus saglabā MongoDB, bet fotoattēlus — MongoDB GridFS. Dokumenta apskate neveic AI pieprasījumus. Lokālais OCR lietotnes saskarnē ir atslēgts.
 
 ## Prasības
 
@@ -14,7 +14,7 @@ Lietotājs pievieno dokumenta fotogrāfijas, pārskata un labo AI atrastos datus
 - Node.js 22.13+ un npm.
 - OpenAI API atslēga AI analīzei; manuāla ievade un PDF darbojas arī bez tās.
 
-Pašreizējai versijai MySQL un MongoDB nav nepieciešami.
+MongoDB glabāšana ir izvēles funkcija. Tai vajag MongoDB PHP paplašinājumu un pieejamu MongoDB serveri. [MongoDB iestatīšana Windows un VS Code](docs/mongodb-windows.md).
 
 ## Lokālā palaišana
 
@@ -23,9 +23,13 @@ Komandas paredzētas PowerShell. Pirmajā terminālī no projekta saknes:
 ```powershell
 cd backend
 composer install
-if (!(Test-Path .env)) { Copy-Item .env.example .env }
-php artisan key:generate
+if (!(Test-Path .env)) {
+    Copy-Item .env.example .env
+    php artisan key:generate
+}
 ```
+
+Ja vēlies darbināt Laravel bez MongoDB PHP paplašinājuma, lieto `composer install --ignore-platform-req=ext-mongodb` un atstāj servera glabāšanu izslēgtu. Esošai konfigurācijai ģenerē lietotnes atslēgu tikai tad, ja `APP_KEY` ir tukša.
 
 Failā `backend/.env` norādi:
 
@@ -47,8 +51,8 @@ Otrā terminālī no projekta saknes:
 
 ```powershell
 cd frontend
-npm ci
-npm run dev
+npm.cmd ci
+npm.cmd run dev
 ```
 
 Atver **http://127.0.0.1:5173**. API darbojas **http://127.0.0.1:8000**; Vite pārsūta `/api` pieprasījumus uz backend. Lokālajai AI analīzei lietotni atver tajā pašā datorā ar šo adresi.
@@ -60,10 +64,10 @@ Ja AI neatbild, pārbaudi API serveri, atslēgu un OpenAI projekta kredītus. P�
 Mapē `frontend/`:
 
 ```powershell
-npm run build       # Produkcijas būvējums un PWA
-npm run preview     # Priekšskatījums: http://127.0.0.1:4173
-npm run test:unit   # Vienību testi
-npm run test:e2e    # Playwright testi; pirms tiem izveido būvējumu
+npm.cmd run build       # Produkcijas būvējums un PWA
+npm.cmd run preview     # Priekšskatījums: http://127.0.0.1:4173
+npm.cmd run test:unit   # Vienību testi
+npm.cmd run test:e2e    # Playwright testi, pirms tiem izveido būvējumu
 ```
 
 Playwright testiem nepieciešams Google Chrome; `npm run test:e2e` pats palaiž priekšskatījuma serveri, tāpēc portam 4173 jābūt brīvam. PWA instalēšanu un bezsaistes režīmu pārbaudi produkcijas priekšskatījumā.
@@ -83,7 +87,7 @@ Automatizētajos AI testos izmanto imitētas atbildes, neveicot maksas API piepr
 - Atribūtu tabulā rediģē tikai vajadzīgos laukus; var pievienot, pārdēvēt un dzēst pielāgotus atribūtus. Datumi glabājas `YYYY-MM-DD`, summas — decimālvirknēs, valūta — trīs burtu kodā. Nenoteiktas vērtības ir `null`.
 - Viena poga **Apstiprināt dokumentu** pārbauda visus aktīvos atribūtus un saglabā momentuzņēmumu. Nederīgi dati netiek apstiprināti. Vēlāki datu vai lapu labojumi padara apstiprinājumu neaktuālu.
 - Dokumentu kartītes atver tikai lasāmu apskati ar visām lapām un atribūtiem. **Uz sākumu** vispirms saglabā izmaiņas; saglabāšanas kļūdas gadījumā darbs paliek atvērts.
-- IndexedDB v2 glabā `drafts`, `pages`, `images`, `collections` un `savedDocuments`. Komplektā ir neatkarīgs dokumenta momentuzņēmums; avota labojumi to automātiski nemaina, un avota dzēšana neizdzēš komplekta attēlus.
+- IndexedDB v3 pievieno `storageSync` rindu esošajām `drafts`, `pages`, `images`, `collections` un `savedDocuments` glabātuvēm. Komplektā ir neatkarīgs dokumenta momentuzņēmums, kas paliek pieejams arī pēc avota labošanas vai dzēšanas.
 - PDF ģenerē lokāli ar pdf-lib Worker un iegultu Noto Sans fontu. Neapstiprinātiem dokumentiem eksportē tikai skenējumu. PDF izveide ir atsevišķa darbība pēc apstiprināšanas, un failu var ģenerēt vēlāk.
 
 Attēlu analīzes līgums: `POST /api/document-analysis` ar `consent=true` un sakārtotām `pages=[{id,number,image}]`, kur `image` ir JPEG/PNG/WebP base64 data URL. [Aktuālā attēlu analīzes shēma](docs/requirements/document-vision.schema.json); [atsevišķā OCR prototipa shēma](docs/requirements/document-analysis.schema.json).
@@ -136,4 +140,4 @@ Saskarne izmanto lokālu Manrope, PDF — Noto Sans; fontu CDN nav nepieciešams
 
 Pēdējā mobilās UX pārbaudē (2026-11-17) izturēti **68/68 frontend vienību testi** un **234/234 Playwright pārbaudes**; produkcijas būvējums veiksmīgs. Pārbaudīti 360 px, 390 px un darbvirsmas ekrāni, abas tēmas, bezsaistes režīms, validācija, vecie melnraksti, komplekti un PDF. AI atbildes testos ir imitētas.
 
-Android atpakaļpogas notikumu loģika pārbaudīta pārlūkā; fiziskas ierīces pārbaude un APK būvēšana šajā posmā nav veikta. MongoDB, servera dokumentu arhīvs un korporatīvā API integrācija vēl nav ieviesti.
+Android atpakaļpogas notikumu loģika pārbaudīta pārlūkā. Fiziskas ierīces pārbaude, APK būvēšana un korporatīvās API integrācija paredzēta nākamajiem posmiem.
