@@ -95,6 +95,9 @@ WiredTiger*
 # IDE lokālie iestatījumi
 .idea/
 .vscode/
+!/.vscode/
+/.vscode/*
+!/.vscode/tasks.json
 *.sublime-workspace
 *.code-workspace
 

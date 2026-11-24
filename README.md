@@ -16,17 +16,27 @@ Lietotājs pievieno dokumenta fotogrāfijas, pārskata un labo AI atrastos datus
 
 MongoDB glabāšana ir izvēles funkcija. Tai vajag MongoDB PHP paplašinājumu un pieejamu MongoDB serveri. [MongoDB iestatīšana Windows un VS Code](docs/mongodb-windows.md).
 
-## Lokālā palaišana
+## Palaišana no VS Code
 
-Komandas paredzētas PowerShell. Pirmajā terminālī no projekta saknes:
+Atver projekta sakni Windows VS Code logā. Uzdevums izmanto WSL2 distribūciju `Ubuntu` ar PHP un Composer, kā arī Windows Node.js un npm. Pirmajai palaišanai sagatavo atkarības un `backend/.env`, izmantojot zemāk norādītās komandas.
 
-```powershell
+1. Atver komandu paleti ar `Ctrl+Shift+P` un izvēlies **Tasks: Run Task** → **Start GASO Document AI**.
+2. Laravel un Vue startē paralēli atsevišķos integrētajos termināļos. Kad abi serveri ir gatavi, atver **http://127.0.0.1:5173** vai turpini lietot līdzšinējo lokālo adresi, lai piekļūtu tajā pašā pārlūkā saglabātajiem dokumentiem.
+3. Serveru apturēšanai izmanto **Tasks: Terminate Task** → **All running tasks** vai apturi katru serveri tā terminālī ar `Ctrl+C`.
+
+Ja portu `8000` vai `5173` jau izmanto iepriekš palaists GASO serveris, apturi to pirms kopīgā uzdevuma palaišanas. Laravel izmanto esošo `backend/.env`, tostarp MongoDB un OpenAI iestatījumus.
+
+## Lokālā sagatavošana un manuāla palaišana
+
+Laravel sagatavo Ubuntu WSL2 terminālī, sākot no projekta saknes:
+
+```bash
 cd backend
 composer install
-if (!(Test-Path .env)) {
-    Copy-Item .env.example .env
+if [ ! -f .env ]; then
+    cp .env.example .env
     php artisan key:generate
-}
+fi
 ```
 
 Ja vēlies darbināt Laravel bez MongoDB PHP paplašinājuma, lieto `composer install --ignore-platform-req=ext-mongodb` un atstāj servera glabāšanu izslēgtu. Esošai konfigurācijai ģenerē lietotnes atslēgu tikai tad, ja `APP_KEY` ir tukša.
@@ -42,18 +52,20 @@ OPENAI_MODEL=gpt-6-luna
 
 API atslēga glabājas tikai servera `.env` failā. Neievieto to frontend kodā un nepublicē. AI analīze izmanto maksas API un tiek sākta tikai pēc lietotāja piekrišanas.
 
-```powershell
-php artisan config:clear
-php artisan serve --host=127.0.0.1 --port=8000
+Lai palaistu Laravel manuāli no `backend/` mapes Ubuntu terminālī:
+
+```bash
+PHP_CLI_SERVER_WORKERS=4 php artisan serve --host=127.0.0.1 --port=8000 --no-reload
 ```
 
-Otrā terminālī no projekta saknes:
+Vue atkarības sagatavo Windows PowerShell terminālī, sākot no projekta saknes:
 
 ```powershell
 cd frontend
 npm.cmd ci
-npm.cmd run dev
 ```
+
+Manuālai palaišanai tajā pašā Windows terminālī izpildi `npm.cmd run dev`.
 
 Atver **http://127.0.0.1:5173**. API darbojas **http://127.0.0.1:8000**; Vite pārsūta `/api` pieprasījumus uz backend. Lokālajai AI analīzei lietotni atver tajā pašā datorā ar šo adresi.
 

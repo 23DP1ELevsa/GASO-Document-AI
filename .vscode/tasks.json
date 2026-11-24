@@ -1,0 +1,49 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "GASO Laravel Backend (WSL2)",
+      "type": "process",
+      "command": "wsl.exe",
+      "args": [
+        "--distribution",
+        "Ubuntu",
+        "--exec",
+        "env",
+        "PHP_CLI_SERVER_WORKERS=4",
+        "php",
+        "artisan",
+        "serve",
+        "--host=127.0.0.1",
+        "--port=8000",
+        "--no-reload"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "presentation": {
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "GASO Vue Frontend (Windows)",
+      "type": "process",
+      "command": "cmd.exe",
+      "args": ["/d", "/c", "npm.cmd", "run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "presentation": {
+        "panel": "dedicated"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Start GASO Document AI",
+      "dependsOn": ["GASO Laravel Backend (WSL2)", "GASO Vue Frontend (Windows)"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}
