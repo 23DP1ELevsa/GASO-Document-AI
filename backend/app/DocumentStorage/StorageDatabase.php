@@ -10,6 +10,8 @@ use MongoDB\Laravel\Connection;
 
 final class StorageDatabase
 {
+    public const BATCH_SIZE = 200;
+
     private const TYPE_MAP = ['root' => 'array', 'document' => 'object', 'array' => 'array'];
 
     public function database(): Database
@@ -31,6 +33,11 @@ final class StorageDatabase
     public function collection(string $name): Collection
     {
         return $this->database()->selectCollection($name, ['typeMap' => self::TYPE_MAP]);
+    }
+
+    public function gridFiles(): Collection
+    {
+        return $this->bucket()->getFilesCollection();
     }
 
     public function bucket(): Bucket

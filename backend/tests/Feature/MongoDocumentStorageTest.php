@@ -80,6 +80,26 @@ class MongoDocumentStorageTest extends TestCase
         $this->assertSame($png, $image->streamedContent());
     }
 
+    public function test_batch_lookup_distinguishes_missing_assets_and_inconsistent_gridfs_metadata(): void
+    {
+        $png = base64_decode(self::PNG);
+        $sha = hash('sha256', $png);
+        $other = $png."\0";
+        $changed = hash('sha256', $other);
+        $missing = str_repeat('0', 64);
+        $first = $this->upload($png)->assertOk()->json();
+        $this->upload($other)->assertOk();
+
+        $check = fn () => $this->postJson(self::PREFIX.'/assets/check', ['hashes' => [$sha, $missing, $changed]], self::HEADERS);
+        $check()->assertOk()->assertJsonCount(2, 'assets')->assertJsonCount(0, 'invalid');
+        $this->mongo->selectCollection('document_images.files')->updateOne(
+            ['filename' => $changed], ['$set' => ['metadata.mime' => 'image/jpeg']],
+        );
+        $check()->assertOk()->assertExactJson(['assets' => [$first], 'invalid' => [$changed]]);
+        $this->getJson(self::PREFIX.'/images/'.$changed, self::HEADERS)
+            ->assertUnprocessable()->assertJsonPath('error.code', 'image_integrity_error');
+    }
+
     public function test_revisions_pages_and_collection_snapshots_survive_source_deletion(): void
     {
         $png = base64_decode(self::PNG);
@@ -100,6 +120,8 @@ class MongoDocumentStorageTest extends TestCase
         $this->upload($png)->assertOk();
         $this->commit('sessions', 'session-a', 0, 's1', $payload)->assertCreated()->assertJsonPath('revision', 1);
         $this->commit('sessions', 'session-a', 0, 's1', $payload)->assertCreated()->assertJsonPath('revision', 1);
+        $this->commit('sessions', 'session-a', 0, 's1', array_replace($payload, ['documents' => []]))
+            ->assertConflict()->assertJsonPath('error.code', 'mutation_mismatch');
         $this->commit('sessions', 'session-a', 0, 'stale', $payload)->assertConflict()->assertJsonPath('error.code', 'revision_conflict');
         $this->getJson(self::PREFIX.'/sessions/session-a/documents/document-a', self::HEADERS)
             ->assertOk()->assertJsonPath('pageIds', ['page-b', 'page-a'])

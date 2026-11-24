@@ -76,6 +76,19 @@ php artisan serve --host=127.0.0.1 --port=8000
 
 Veiksmīgs savienojums parāda `mongodb: connected`. `storage_not_configured` norāda uz nepilnīgu konfigurāciju, `storage_driver_missing` — uz neielādētu PHP draiveri, `storage_unavailable` — uz savienojuma kļūmi. Atlas gadījumā pārbaudi IP sarakstu, datubāzes lietotāju un URI.
 
+Ubuntu WSL2 izstrādes vidē palaid Laravel ar vairākiem PHP darbiniekiem, lai attēlu pieprasījumi varētu izpildīties vienlaikus. Laravel opcija `--no-reload` ļauj izmantot `PHP_CLI_SERVER_WORKERS`. PHP iebūvētā servera vairāku darbinieku režīms ir pieejams Linux, tostarp WSL2. [PHP iebūvētā servera dokumentācija](https://www.php.net/manual/en/features.commandline.webserver.php)
+
+Ja MongoDB paplašinājums ir uzstādīts Ubuntu WSL2, Laravel palaid Ubuntu terminālī. Pirms palaišanas apturi šī projekta Windows Laravel procesu, ja tas izmanto portu `8000`. Pārlūka Vite starpnieks izmanto šo portu, un Windows process bez paplašinājuma atgriež `storage_driver_missing`.
+
+```bash
+cd backend
+PHP_CLI_SERVER_WORKERS=4 php artisan serve --host=127.0.0.1 --port=8000 --no-reload
+```
+
+MongoDB PHP draiveris atkārtoti izmanto tā paša darbinieka savienojumu, ja savienojuma virkne un opcijas sakrīt. [MongoDB PHP klienta dokumentācija](https://www.mongodb.com/docs/php-library/current/connect/client/#client-persistence)
+
+Vue pēc noklusējuma izmanto līdz četriem vienlaicīgiem attēlu pieprasījumiem. Vite izstrādes vai būvēšanas vidē ar `VITE_STORAGE_IMAGE_CONCURRENCY=2` vai `3` var iestatīt mazāku robežu.
+
 Citā VS Code terminālī no projekta saknes palaid Vue.
 
 ```powershell
@@ -96,6 +109,8 @@ Atver **http://127.0.0.1:5173**. Ja esošie dokumenti saglabāti, piemēram, **h
 6. Atjaunošanas pārbaudei atver lietotni jaunā pārlūka profilā un nospied **Atjaunot no MongoDB**. Atver dokumentu vai komplektu un izveido PDF. Attēli pirms ierakstīšanas IndexedDB tiek pārbaudīti, tāpēc pēc atjaunošanas PDF var veidot arī bez servera.
 
 Atjaunošana pievieno trūkstošās sesijas un komplektus. Atšķirīgas esošo ierakstu revīzijas parādās sadaļā **Datu konflikti**. Izvēlies ierīces vai servera versiju. Pirms aizstāšanas vari izveidot rezerves kopiju. Dzēšana ar izslēgtu sinhronizāciju attiecas uz ierīces kopiju.
+
+Sinhronizācijas josla skaita apstiprinātos attēlus un publicētās revīzijas. Baitu skaitītājs rāda servera apstiprināto augšupielādēto attēlu apjomu. **Apturēt sinhronizāciju** saglabā pauzi arī pēc lapas pārlādēšanas. Ar **Turpināt sinhronizāciju** lietotne pārbauda, kuri attēli jau ir serverī, un apstrādā atlikušos ierakstus. Dokumentus var rediģēt arī pārsūtīšanas laikā.
 
 ## 7. Rezerves kopijas
 
@@ -133,6 +148,7 @@ API prefikss ir `/api/storage/v1`. Pieprasījumiem vajag `X-GASO-Storage: 1`, ra
 | `GET /sessions/{id}/documents`, `GET /sessions/{id}/documents/{documentId}` | Ielādēt sesijas dokumentus. |
 | `PUT /sessions/{id}/documents/{documentId}` | Saglabāt dokumenta metadatus jaunā sesijas revīzijā. |
 | `PUT /collections/{id}/documents/{snapshotId}`, `DELETE /collections/{id}/documents/{snapshotId}` | Pievienot vai izņemt momentuzņēmumu. |
+| `POST /assets/check` | Pārbaudīt līdz 200 unikālām SHA-256 kontrolsummām laukā `hashes`. Atbildē `assets` satur pārbaudītos deskriptorus, `invalid` satur bojāto atsauču kontrolsummas. Trūkstošās kontrolsummas nav nevienā sarakstā. |
 | `POST /assets/{sha256}` | Augšupielādēt attēlu laukā `image` ar `multipart/form-data`. |
 | `GET /assets/{sha256}`, `GET /images/{sha256}` | Pārbaudīt deskriptoru vai straumēt attēlu. |
 | `DELETE /sessions/{id}`, `DELETE /collections/{id}` | Publicēt dzēšanas atzīmi ar revīziju. |

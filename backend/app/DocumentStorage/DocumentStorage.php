@@ -43,9 +43,11 @@ final class DocumentStorage
         $session = $kind === 'sessions';
         $documents = $this->children($session ? 'documents' : 'saved_documents', $root['documentKeys']);
         if (! $session) {
+            $keys = array_merge([], ...array_column($documents, 'pageKeys'));
+            $pages = $this->childrenByKey('document_pages', $keys);
             $documents = array_map(fn ($document) => (object) [
                 'metadata' => $document['data'],
-                'pages' => array_column($this->children('document_pages', $document['pageKeys']), 'data'),
+                'pages' => array_map(fn ($key) => $this->requireChild($pages, $key)['data'], $document['pageKeys']),
             ], $documents);
         }
         $result['payload'] = [
@@ -97,27 +99,28 @@ final class DocumentStorage
                 'documentKeys' => [],
                 'pageKeys' => [],
             ];
-            $verified = [];
+            $verified = $this->verifyImages($kind, $payload);
+            $children = [];
             if ($kind === 'sessions') {
                 $owners = [];
                 foreach ($payload->documents as $document) {
                     foreach ($document->pageIds as $pageId) {
                         $owners[$pageId] = $document->id;
                     }
-                    $root['documentKeys'][] = $this->child('documents', [
+                    $root['documentKeys'][] = $this->child($children, 'documents', [
                         'id' => $document->id, 'sessionId' => $id,
                         'revision' => $revision,
                         'updatedAt' => $document->updatedAt ?? $now,
                         'data' => $document,
                     ]);
                 }
-                $root['pageKeys'] = $this->savePages($id, $payload->pages, $owners, $verified);
+                $root['pageKeys'] = $this->stagePages($children, $id, $payload->pages, $owners, $verified);
             } else {
                 $previous = array_column($this->children('saved_documents', $current['documentKeys'] ?? []), null, 'id');
                 foreach ($payload->documents as $snapshot) {
                     $document = $snapshot->metadata;
-                    $pageKeys = $this->savePages($document->id, $snapshot->pages, array_fill_keys($document->pageIds, $document->id), $verified);
-                    $key = $this->child('saved_documents', [
+                    $pageKeys = $this->stagePages($children, $document->id, $snapshot->pages, array_fill_keys($document->pageIds, $document->id), $verified);
+                    $key = $this->child($children, 'saved_documents', [
                         'id' => $document->id, 'collectionId' => $id, 'savedAt' => $document->savedAt,
                         'pageKeys' => $pageKeys, 'data' => $document,
                     ]);
@@ -128,6 +131,7 @@ final class DocumentStorage
                     $root['documentKeys'][] = $key;
                 }
             }
+            $this->saveChildren($children);
         }
 
         // The root is the commit point. Children are immutable and can be reused after a failed write.
@@ -154,7 +158,39 @@ final class DocumentStorage
         throw new StorageFailure('revision_conflict', 409);
     }
 
-    private function savePages(string $scope, array $pages, array $owners, array &$verified): array
+    private function verifyImages(string $kind, object $payload): array
+    {
+        $groups = $kind === 'sessions' ? [$payload->pages] : array_column($payload->documents, 'pages');
+        $sizes = [];
+        foreach ($groups as $pages) {
+            foreach ($pages as $page) {
+                foreach (['original', 'processed', 'thumbnail'] as $variant) {
+                    $image = $page->{$variant} ?? null;
+                    if ($image === null) {
+                        continue;
+                    }
+                    if (isset($sizes[$image->sha256]) && $sizes[$image->sha256] !== $image->size) {
+                        throw new StorageFailure('image_integrity_error', 422);
+                    }
+                    $sizes[$image->sha256] = $image->size;
+                }
+            }
+        }
+        ['assets' => $assets, 'invalid' => $invalid] = $this->images->lookup(array_keys($sizes));
+        foreach ($sizes as $sha => $size) {
+            if (isset($invalid[$sha])) {
+                throw new StorageFailure('image_integrity_error', 422);
+            }
+            $asset = $assets[$sha] ?? throw new StorageFailure('image_missing', 404);
+            if ($asset['size'] !== $size) {
+                throw new StorageFailure('image_integrity_error', 422);
+            }
+        }
+
+        return $assets;
+    }
+
+    private function stagePages(array &$children, string $scope, array $pages, array $owners, array $verified): array
     {
         $keys = [];
         foreach ($pages as $index => $page) {
@@ -167,13 +203,9 @@ final class DocumentStorage
                 if ($image === null) {
                     continue;
                 }
-                $asset = $verified[$image->sha256] ??= $this->images->verify($image->sha256, $image->size);
-                if ($asset['size'] !== $image->size) {
-                    throw new StorageFailure('image_integrity_error', 422);
-                }
-                $data[$variant] = $asset;
+                $data[$variant] = $verified[$image->sha256];
             }
-            $keys[] = $this->child('document_pages', [
+            $keys[] = $this->child($children, 'document_pages', [
                 'scopeId' => $scope, 'id' => $id, 'documentId' => $owners[$id] ?? null, 'position' => $index,
                 'original' => $data['original'], 'processed' => $data['processed'] ?? null,
                 'thumbnail' => $data['thumbnail'] ?? null, 'data' => (object) $data,
@@ -183,29 +215,60 @@ final class DocumentStorage
         return $keys;
     }
 
-    private function child(string $collection, array $value): string
+    private function child(array &$children, string $collection, array $value): string
     {
         $id = $this->fingerprint($value);
-        try {
-            $this->database->collection($collection)->updateOne(['_id' => $id], ['$setOnInsert' => $value], ['upsert' => true]);
-        } catch (BulkWriteException $error) {
-            if ($error->getCode() !== 11000) {
-                throw $error;
-            }
-        }
+        $children[$collection][$id] = ['updateOne' => [['_id' => $id], ['$setOnInsert' => $value], ['upsert' => true]]];
 
         return $id;
     }
 
+    private function saveChildren(array $children): void
+    {
+        foreach ($children as $name => $operations) {
+            $collection = $this->database->collection($name);
+            foreach (array_chunk($operations, StorageDatabase::BATCH_SIZE) as $batch) {
+                try {
+                    $collection->bulkWrite($batch, ['ordered' => false]);
+                } catch (BulkWriteException $error) {
+                    $result = $error->getWriteResult();
+                    $errors = $result->getWriteErrors();
+                    if ($result->getWriteConcernError() || $errors === []) {
+                        throw $error;
+                    }
+                    foreach ($errors as $writeError) {
+                        if ($writeError->getCode() !== 11000) {
+                            throw $error;
+                        }
+                    }
+                    // Identical immutable children may be inserted by a concurrent request.
+                }
+            }
+        }
+    }
+
     private function children(string $collection, array $keys): array
     {
-        if ($keys === []) {
-            return [];
-        }
-        $rows = $this->database->collection($collection)->find(['_id' => ['$in' => $keys]])->toArray();
-        $byKey = array_column($rows, null, '_id');
+        $byKey = $this->childrenByKey($collection, $keys);
 
-        return array_map(fn ($key) => $byKey[$key] ?? throw new StorageFailure('storage_integrity_error', 503), $keys);
+        return array_map(fn ($key) => $this->requireChild($byKey, $key), $keys);
+    }
+
+    private function childrenByKey(string $collection, array $keys): array
+    {
+        $byKey = [];
+        foreach (array_chunk(array_unique($keys), StorageDatabase::BATCH_SIZE) as $batch) {
+            foreach ($this->database->collection($collection)->find(['_id' => ['$in' => $batch]]) as $row) {
+                $byKey[$row['_id']] = $row;
+            }
+        }
+
+        return $byKey;
+    }
+
+    private function requireChild(array $byKey, string $key): array
+    {
+        return $byKey[$key] ?? throw new StorageFailure('storage_integrity_error', 503);
     }
 
     private function summary(array $root): array

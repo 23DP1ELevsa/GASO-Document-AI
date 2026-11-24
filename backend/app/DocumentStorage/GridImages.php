@@ -40,8 +40,9 @@ final class GridImages
             $id = new ObjectId;
             $bucket = $this->storage->bucket();
             $bucket->uploadFromStream($sha, $stream, ['_id' => $id, 'metadata' => $descriptor]);
+            $record = ['_id' => $sha, 'gridId' => $id, ...$descriptor];
             try {
-                $assets->insertOne(['_id' => $sha, 'gridId' => $id, ...$descriptor]);
+                $assets->insertOne($record);
             } catch (BulkWriteException $error) {
                 if ($error->getCode() !== 11000) {
                     throw $error;
@@ -52,9 +53,11 @@ final class GridImages
                 } catch (\Exception) {
                     // The offline inspection command can remove an unpublished upload.
                 }
+
+                return $this->verify($sha, $size);
             }
 
-            return $this->verify($sha, $size);
+            return $this->verify($sha, $size, $record);
         } finally {
             fclose($stream);
         }
@@ -124,14 +127,68 @@ final class GridImages
 
     public function verify(string $sha, ?int $size = null, ?array $record = null): array
     {
-        $record ??= $this->storage->collection('image_assets')->findOne(['_id' => $sha]);
-        if (! $record) {
-            throw new StorageFailure('image_missing', 404);
+        $record ??= $this->record($sha);
+        $file = $this->storage->gridFiles()->findOne(['_id' => $this->gridId($record)]);
+
+        return $this->descriptor($record, $file, $size);
+    }
+
+    public function lookup(array $hashes): array
+    {
+        $assets = $invalid = [];
+        foreach (array_chunk($hashes, StorageDatabase::BATCH_SIZE) as $batch) {
+            $records = $this->storage->collection('image_assets')->find(['_id' => ['$in' => $batch]])->toArray();
+            $ids = [];
+            foreach ($records as $record) {
+                if (($record['gridId'] ?? null) instanceof ObjectId) {
+                    $ids[] = $record['gridId'];
+                }
+            }
+            $files = [];
+            if ($ids !== []) {
+                foreach ($this->storage->gridFiles()->find(['_id' => ['$in' => $ids]]) as $file) {
+                    $files[(string) $file['_id']] = $file;
+                }
+            }
+            foreach ($records as $record) {
+                $sha = $record['_id'];
+                try {
+                    $file = $files[(string) $this->gridId($record)] ?? null;
+                    $assets[$sha] = $this->descriptor($record, $file);
+                } catch (StorageFailure) {
+                    $invalid[$sha] = true;
+                }
+            }
         }
-        $file = $this->storage->bucket()->findOne(['_id' => $record['gridId']]);
-        if (! $file || (int) $file['length'] !== $record['size']
-            || ($file['metadata']['sha256'] ?? null) !== $sha || ($size !== null && $record['size'] !== $size)) {
+
+        return ['assets' => $assets, 'invalid' => $invalid];
+    }
+
+    private function record(string $sha): array
+    {
+        return $this->storage->collection('image_assets')->findOne(['_id' => $sha])
+            ?? throw new StorageFailure('image_missing', 404);
+    }
+
+    private function gridId(array $record): ObjectId
+    {
+        if (! (($record['gridId'] ?? null) instanceof ObjectId)) {
             throw new StorageFailure('image_integrity_error', 422);
+        }
+
+        return $record['gridId'];
+    }
+
+    private function descriptor(array $record, ?array $file, ?int $size = null): array
+    {
+        if (! $file || ! is_int($record['size'] ?? null) || (int) ($file['length'] ?? -1) !== $record['size']
+            || ($record['sha256'] ?? null) !== $record['_id'] || ($size !== null && $record['size'] !== $size)) {
+            throw new StorageFailure('image_integrity_error', 422);
+        }
+        foreach (['sha256', 'size', 'mime', 'width', 'height'] as $field) {
+            if (! isset($record[$field]) || ($file['metadata'][$field] ?? null) !== $record[$field]) {
+                throw new StorageFailure('image_integrity_error', 422);
+            }
         }
 
         unset($record['_id']);
@@ -142,11 +199,18 @@ final class GridImages
 
     public function download(string $sha): StreamedResponse
     {
-        $image = $this->verify($sha);
+        $record = $this->record($sha);
+        $bucket = $this->storage->bucket();
         try {
-            $stream = $this->storage->bucket()->openDownloadStream(new ObjectId($image['gridId']));
+            $stream = $bucket->openDownloadStream($this->gridId($record));
         } catch (FileNotFoundException) {
-            throw new StorageFailure('image_missing', 404);
+            throw new StorageFailure('image_integrity_error', 422);
+        }
+        try {
+            $image = $this->descriptor($record, $bucket->getFileDocumentForStream($stream));
+        } catch (\Throwable $error) {
+            fclose($stream);
+            throw $error;
         }
 
         return response()->stream(function () use ($stream) {

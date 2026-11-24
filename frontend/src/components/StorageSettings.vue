@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import AppIcon from './AppIcon.vue'
 import { createBackup, restoreBackup } from '../features/storage/backup.js'
 import { setSyncEnabled } from '../features/storage/queue.js'
 import {
@@ -8,13 +7,17 @@ import {
   checkStorage,
   conflictingEntries,
   migrateLocal,
+  pauseSync,
   resolveConflict,
   restoreFromServer,
+  resumeSync,
   serverStorageEnabled,
   storageAction,
   storageConnection,
   syncEntries,
   syncNow,
+  syncPaused,
+  syncProgress,
 } from '../features/storage/sync.js'
 
 const feedback = ref('')
@@ -23,7 +26,37 @@ const checking = ref(false)
 const backupBusy = ref(false)
 const backupInput = ref(null)
 const running = computed(() => Boolean(storageAction.value) || backupBusy.value || checking.value)
-const modal = computed(() => ['migration', 'restore'].includes(storageAction.value))
+const syncing = computed(() => ['sync', 'migration'].includes(storageAction.value))
+const stages = {
+  prepare: 'Sagatavo dokumentus un aprēķina attēlu kontrolsummas…',
+  check: 'Pārbauda, kuri attēli jau ir serverī…',
+  images: 'Augšupielādē attēlus…',
+  publish: 'Saglabā dokumentu revīzijas…',
+  done: 'Sinhronizācija pabeigta.',
+  partial: 'Sinhronizācija pabeigta daļēji. Pārbaudiet rindu un datu konfliktus.',
+  interrupted: 'Sinhronizācija pārtrūka. Ieraksti paliek rindā.',
+  paused: 'Sinhronizācija apturēta. Ieraksti paliek rindā.',
+}
+const stage = computed(() =>
+  syncPaused.value
+    ? stages.paused
+    : stages[syncProgress.value?.phase] || (syncing.value ? stages.prepare : ''),
+)
+const progressValue = computed(() => {
+  const progress = syncProgress.value
+  if (progress?.totalImages == null) return null
+  return (
+    (100 * (progress.roots + progress.uploaded + progress.reused)) /
+    (progress.totalRoots + progress.totalImages)
+  )
+})
+const remainingImages = computed(() => {
+  const progress = syncProgress.value
+  return progress?.totalImages == null
+    ? null
+    : progress.totalImages - progress.uploaded - progress.reused
+})
+const formatBytes = new Intl.NumberFormat('lv-LV')
 const details = {
   connected: 'Savienots ar MongoDB',
   unchecked: 'Pārbauda savienojumu…',
@@ -39,7 +72,9 @@ const details = {
   invalid_input:
     'Serveris noraidīja nosūtītos datus. Pārbaudiet faila izmēru un PHP augšupielādes iestatījumus.',
   invalid_image: 'Serveris noraidīja attēla formātu vai izmērus.',
+  image_missing: 'Serverī trūkst dokumentam piesaistīta attēla.',
   image_integrity_error: 'Attēla izmērs, formāts vai kontrolsumma nesakrīt.',
+  storage_integrity_error: 'Datu krātuves atbilde neatbilst gaidītajai revīzijai vai attēliem.',
   local_data_missing: 'Lokālajam ierakstam trūkst datu vai attēlu.',
   invalid_backup: 'Rezerves kopijas fails ir nederīgs.',
   backup_requires_empty: 'Rezerves kopiju var atvērt tukšā pārlūka profilā.',
@@ -170,10 +205,24 @@ function importBackup(event) {
         >Atvērt lokālo rezerves kopiju</v-btn
       >
       <input ref="backupInput" hidden type="file" accept=".gaso-backup" @change="importBackup" />
-      <v-btn variant="tonal" :disabled="running || !serverStorageEnabled" @click="migrate"
+      <v-btn
+        variant="tonal"
+        :disabled="running || !serverStorageEnabled || syncPaused"
+        @click="migrate"
         >Migrēt lokālos dokumentus</v-btn
       >
-      <v-btn variant="text" :disabled="running || !serverStorageEnabled" @click="run(syncNow)"
+      <v-btn
+        v-if="syncPaused"
+        variant="text"
+        :disabled="running || !serverStorageEnabled"
+        @click="run(resumeSync)"
+        >Turpināt sinhronizāciju</v-btn
+      >
+      <v-btn
+        v-else
+        variant="text"
+        :disabled="running || !serverStorageEnabled"
+        @click="run(syncNow)"
         >Sinhronizēt tagad</v-btn
       >
       <v-btn
@@ -182,9 +231,41 @@ function importBackup(event) {
         @click="run(restoreFromServer, (count) => 'Atjaunoti ' + count + ' ieraksti.')"
         >Atjaunot no MongoDB</v-btn
       >
-      <v-btn v-if="storageAction === 'sync'" variant="text" @click="cancelStorage"
+      <v-btn v-if="syncing && !syncPaused" variant="text" @click="run(pauseSync)"
         >Apturēt sinhronizāciju</v-btn
       >
+      <v-btn v-if="storageAction === 'restore'" variant="text" @click="cancelStorage"
+        >Apturēt atjaunošanu</v-btn
+      >
+    </div>
+    <section v-if="stage && storageAction !== 'restore'" class="storage-progress">
+      <p role="status">{{ stage }}</p>
+      <v-progress-linear
+        v-if="syncing || progressValue !== null"
+        :model-value="progressValue ?? 0"
+        :indeterminate="syncing && progressValue === null"
+        rounded
+        height="6"
+        color="primary"
+        aria-label="Sinhronizācijas progress"
+      />
+      <p v-if="syncProgress" aria-live="off">
+        Sinhronizēti dokumenti un komplektu kopijas: {{ syncProgress.documents }}.<br />
+        Augšupielādēti attēli: {{ syncProgress.uploaded }}.
+        <template v-if="remainingImages !== null">Atlikuši attēli: {{ remainingImages }}.</template
+        ><br />
+        Servera apstiprināts attēlu apjoms: {{ formatBytes.format(syncProgress.bytes) }} B.
+      </p>
+    </section>
+    <div v-if="storageAction === 'restore'" class="storage-progress">
+      <p role="status">Atjauno dokumentus un pārbauda attēlus…</p>
+      <v-progress-linear
+        indeterminate
+        rounded
+        height="6"
+        color="primary"
+        aria-label="Atjaunošanas progress"
+      />
     </div>
     <p v-if="feedback" :role="failed ? 'alert' : 'status'">{{ feedback }}</p>
     <section v-if="conflictingEntries.length">
@@ -203,28 +284,6 @@ function importBackup(event) {
       </article>
     </section>
   </v-card>
-  <v-dialog
-    :model-value="modal"
-    persistent
-    max-width="370"
-    class="ai-overlay"
-    aria-labelledby="storage-operation"
-  >
-    <v-card class="ai-progress-card" role="status" aria-live="polite" aria-busy="true">
-      <span class="ai-orbit"><AppIcon name="documents" :size="32" /></span>
-      <h2 id="storage-operation">
-        {{ storageAction === 'restore' ? 'Atjauno dokumentus…' : 'Augšupielādē dokumentus…' }}
-      </h2>
-      <v-progress-linear
-        indeterminate
-        rounded
-        height="6"
-        color="primary"
-        aria-label="Datu glabāšanas progress"
-      />
-      <v-btn variant="text" @click="cancelStorage">Apturēt</v-btn>
-    </v-card>
-  </v-dialog>
 </template>
 
 <style scoped>
@@ -236,5 +295,9 @@ function importBackup(event) {
 .storage-conflict {
   padding-block: var(--space-8);
   overflow-wrap: anywhere;
+}
+.storage-progress {
+  display: grid;
+  gap: var(--space-8);
 }
 </style>

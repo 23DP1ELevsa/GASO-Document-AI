@@ -2,6 +2,7 @@ import { newId } from '../scanning/id.js'
 
 export const SYNC_STORE = 'storageSync'
 export const SYNC_PREFERENCE = 'gaso-document-ai:server-storage'
+export const SYNC_PAUSE_PREFERENCE = 'gaso-document-ai:storage-paused'
 export const storageEvents = new EventTarget()
 export const syncKey = (kind, id) => kind + '/' + id
 
@@ -16,6 +17,20 @@ export function syncEnabled() {
 export function setSyncEnabled(enabled) {
   localStorage.setItem(SYNC_PREFERENCE, enabled ? 'enabled' : 'disabled')
   storageEvents.dispatchEvent(new Event('mode'))
+}
+
+export function isSyncPaused() {
+  try {
+    return localStorage.getItem(SYNC_PAUSE_PREFERENCE) === 'yes'
+  } catch {
+    return false
+  }
+}
+
+export function setSyncPaused(paused) {
+  if (paused) localStorage.setItem(SYNC_PAUSE_PREFERENCE, 'yes')
+  else localStorage.removeItem(SYNC_PAUSE_PREFERENCE)
+  storageEvents.dispatchEvent(new Event('pause'))
 }
 
 export function queueChange(tx, kind, id, deleted = false) {

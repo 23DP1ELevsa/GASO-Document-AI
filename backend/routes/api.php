@@ -12,6 +12,7 @@ Route::post('/document-analysis', DocumentAnalysisController::class)
 Route::prefix('storage/v1')->middleware(DocumentStorageAccess::class)
     ->controller(DocumentStorageController::class)->group(function () {
         Route::get('status', 'status');
+        Route::post('assets/check', 'checkAssets');
         Route::get('assets/{sha}', 'asset')->where('sha', '[a-f0-9]{64}');
         Route::post('assets/{sha}', 'upload')->where('sha', '[a-f0-9]{64}')->name('document-storage.upload');
         Route::get('images/{sha}', 'image')->where('sha', '[a-f0-9]{64}');

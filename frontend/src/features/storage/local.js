@@ -7,7 +7,7 @@ import {
   collectUnusedImages,
 } from '../scanning/draftRepository.js'
 import { SYNC_STORE, storageEvents, syncKey } from './queue.js'
-import { StorageError } from './client.js'
+import { sameImage, StorageError } from './client.js'
 
 const stores = [...DATA_STORES, SYNC_STORE]
 const rootStore = (kind) => (kind === 'sessions' ? 'drafts' : 'collections')
@@ -122,6 +122,93 @@ export function inspectLocal(kind, id) {
   })
 }
 
+export function findLocalImages(pages, snapshots) {
+  return transaction(['images', 'pages', 'savedDocuments'], 'readonly', (tx, result) => {
+    const candidates = new Map()
+    const records = new Map()
+    result({ candidates, records })
+    const add = (image, blob) => {
+      if (!image || !blob || blob.size !== image.size || blob.type !== image.mime) return
+      if (!candidates.has(image.sha256)) candidates.set(image.sha256, new Set())
+      candidates.get(image.sha256).add(blob)
+    }
+    const images = tx.objectStore('images')
+    for (const { metadata, imageRecordId, original, processed, thumbnail } of pages) {
+      const read = () =>
+        resolveImageRecord(
+          images,
+          imageRecordId,
+          (record) => {
+            if (snapshots) records.set(imageRecordId, record)
+            add(original, record.blob)
+            add(processed, record.processed)
+          },
+          () => {},
+        )
+      if (snapshots) {
+        images.getKey(imageRecordId).onsuccess = ({ target }) => {
+          if (!target.result) return
+          records.set(imageRecordId, null)
+          read()
+        }
+      } else read()
+      if (thumbnail) {
+        tx.objectStore('pages').get(metadata.id).onsuccess = ({ target }) => {
+          add(thumbnail, target.result?.thumbnail)
+        }
+      }
+    }
+    for (const snapshot of snapshots || []) {
+      tx.objectStore('savedDocuments').get(snapshot.metadata.id).onsuccess = ({ target }) => {
+        const local = new Map(
+          target.result?.pages?.map((page) => [page.imageRecordId, page.thumbnail]),
+        )
+        for (const page of snapshot.pages) add(page.thumbnail, local.get(page.imageRecordId))
+      }
+    }
+  })
+}
+
+export function rememberLocalAsset(index, image, location) {
+  if (!image) return
+  index.delete(image.sha256)
+  if (index.size >= 4096) index.delete(index.keys().next().value)
+  index.set(image.sha256, location)
+}
+
+export function indexLocalAssets() {
+  return transaction(['images'], 'readonly', (tx, result) => {
+    const index = new Map()
+    result(index)
+    tx.objectStore('images').openCursor().onsuccess = ({ target }) => {
+      const cursor = target.result
+      if (!cursor) return
+      const { id, blob, processed, remote } = cursor.value
+      for (const [image, value, variant] of [
+        [remote?.original, blob, 'blob'],
+        [remote?.processed, processed, 'processed'],
+      ]) {
+        if (!image || !value || image.size !== value.size || image.mime !== value.type) continue
+        rememberLocalAsset(index, image, { id, variant })
+      }
+      cursor.continue()
+    }
+  })
+}
+
+export function readLocalThumbnail({ store, id, imageRecordId }) {
+  return transaction([store], 'readonly', (tx, result) => {
+    tx.objectStore(store).get(id).onsuccess = ({ target }) => {
+      const record = target.result
+      result(
+        store === 'pages'
+          ? record?.thumbnail
+          : record?.pages?.find((page) => page.imageRecordId === imageRecordId)?.thumbnail,
+      )
+    }
+  })
+}
+
 export async function putRestored(kind, remote, hydrated, previous) {
   const { id, revision, deleted, mutationId } = remote
   if (kind === 'sessions' && !deleted)
@@ -142,15 +229,26 @@ export async function putRestored(kind, remote, hydrated, previous) {
             current?.revision !== previous.root?.revision
           )
             return result(false)
+          const savedImageIds = new Set()
           const savePages = (pages, snapshots) =>
-            pages.map(({ image, metadata, imageRecordId }) => {
+            pages.map(({ image, metadata, imageRecordId, hadImage, repair }) => {
               const images = tx.objectStore('images')
-              if (snapshots) {
+              if (snapshots && !savedImageIds.has(imageRecordId)) {
+                savedImageIds.add(imageRecordId)
                 // A snapshot image ID is immutable and can be shared across collections.
                 images.get(imageRecordId).onsuccess = ({ target }) => {
-                  if (!target.result) images.add(image)
+                  const current = target.result
+                  if (!current) images.add(image)
+                  else if (repair) images.put(image)
+                  else if (
+                    !hadImage &&
+                    ['original', 'processed'].some(
+                      (variant) => !sameImage(image.remote[variant], current.remote?.[variant]),
+                    )
+                  )
+                    fail(new StorageError('local_revision_conflict', 409))
                 }
-              } else {
+              } else if (!snapshots) {
                 images.put(image)
                 tx.objectStore('pages').put(metadata)
               }
@@ -202,7 +300,7 @@ export async function putRestored(kind, remote, hydrated, previous) {
     }
   })
   if (changed) {
-    await collectUnusedImages().catch(() => {})
+    if (previous.root) await collectUnusedImages().catch(() => {})
     storageEvents.dispatchEvent(new CustomEvent('restored', { detail: { kind, id, deleted } }))
   }
   return changed

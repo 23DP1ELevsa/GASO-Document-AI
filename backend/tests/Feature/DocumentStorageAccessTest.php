@@ -44,6 +44,8 @@ class DocumentStorageAccessTest extends TestCase
         $this->getJson($asset, $headers + ['Sec-Fetch-Site' => 'cross-site'])->assertForbidden()->assertExactJson($denied);
         $this->getJson('http://example.com'.$asset, $headers)->assertForbidden()->assertExactJson($denied);
         $this->putJson('/api/storage/v1/sessions/a', [], $headers)->assertForbidden()->assertExactJson($denied);
+        $this->postJson('/api/storage/v1/assets/check', ['hashes' => [str_repeat('a', 64)]], $headers)
+            ->assertForbidden()->assertExactJson($denied);
         $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.8'])->getJson('/api/storage/v1/collections', $headers)
             ->assertForbidden()->assertExactJson($denied);
     }
@@ -56,6 +58,16 @@ class DocumentStorageAccessTest extends TestCase
         ])->assertUnprocessable()->assertExactJson(['error' => ['code' => 'invalid_input']]);
         $this->getJson('/api/storage/v1/unknown')
             ->assertNotFound()->assertExactJson(['error' => ['code' => 'not_found']]);
+    }
+
+    public function test_checksum_lookup_bounds_and_validates_the_entire_batch(): void
+    {
+        $headers = ['X-GASO-Storage' => '1', 'Origin' => 'http://127.0.0.1:5173'];
+        $hash = str_repeat('a', 64);
+        foreach ([[], ['invalid'], [$hash, $hash], ['key' => $hash], array_fill(0, 201, $hash)] as $input) {
+            $this->postJson('/api/storage/v1/assets/check', ['hashes' => $input], $headers)
+                ->assertUnprocessable()->assertJsonPath('error.code', 'invalid_input');
+        }
     }
 
     public function test_multipart_rejects_corrupt_images_and_invalid_checksums_before_storage(): void

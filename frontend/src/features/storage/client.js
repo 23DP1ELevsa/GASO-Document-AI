@@ -41,6 +41,7 @@ export async function storageJson(path, options) {
   try {
     return await response.json()
   } catch {
+    options?.signal?.throwIfAborted()
     throw new StorageError('storage_unavailable', response.status)
   }
 }
@@ -50,9 +51,27 @@ export async function sha256(blob) {
   return Array.from(new Uint8Array(hash), (value) => value.toString(16).padStart(2, '0')).join('')
 }
 
+export function checkImage(image, hash, blob) {
+  if (
+    image?.sha256 !== hash ||
+    image.size !== blob.size ||
+    image.mime !== (blob.type === 'image/jpg' ? 'image/jpeg' : blob.type)
+  )
+    throw new StorageError('image_integrity_error')
+}
+
+export function sameImage(first, second) {
+  return (
+    first?.sha256 === second?.sha256 && first?.size === second?.size && first?.mime === second?.mime
+  )
+}
+
 export async function readRemoteImage(image, signal) {
   const response = await storageRequest('/images/' + image.sha256, { signal })
-  const blob = await response.blob()
+  const blob = await response.blob().catch(() => {
+    signal?.throwIfAborted()
+    throw new StorageError('storage_unavailable', response.status)
+  })
   if (
     blob.size !== image.size ||
     blob.type !== image.mime ||
@@ -63,21 +82,32 @@ export async function readRemoteImage(image, signal) {
   return blob
 }
 
-export async function uploadImage(blob, assets, signal) {
-  const hash = await sha256(blob)
-  let result = assets.get(hash)
-  if (!result) {
-    try {
-      result = await storageJson('/assets/' + hash, { signal })
-    } catch (error) {
-      if (error.code !== 'image_missing') throw error
-      const original = new FormData()
-      original.append('image', blob, hash)
-      result = await storageJson('/assets/' + hash, { method: 'POST', body: original, signal })
-    }
-    if (result.sha256 !== hash || result.size !== blob.size)
-      throw new StorageError('image_integrity_error')
-    assets.set(hash, result)
+export async function lookupImages(hashes, signal) {
+  const result = await storageJson('/assets/check', { method: 'POST', body: { hashes }, signal })
+  if (!Array.isArray(result?.assets) || !Array.isArray(result.invalid))
+    throw new StorageError('storage_integrity_error')
+  const requested = new Set(hashes)
+  const assets = new Map()
+  const invalid = new Set()
+  for (const asset of result.assets) {
+    if (!requested.delete(asset?.sha256)) throw new StorageError('storage_integrity_error')
+    assets.set(asset.sha256, asset)
   }
-  return { sha256: hash, size: blob.size }
+  for (const hash of result.invalid) {
+    if (!requested.delete(hash)) throw new StorageError('storage_integrity_error')
+    invalid.add(hash)
+  }
+  return { assets, invalid }
+}
+
+export async function uploadImage(hash, blob, requests, signal) {
+  if (!requests.has(hash)) {
+    const original = new FormData()
+    original.append('image', blob, hash)
+    const request = storageJson('/assets/' + hash, { method: 'POST', body: original, signal })
+    requests.set(hash, request)
+  }
+  const result = await requests.get(hash)
+  checkImage(result, hash, blob)
+  return result
 }

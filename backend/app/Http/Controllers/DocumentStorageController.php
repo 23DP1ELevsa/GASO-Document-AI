@@ -126,6 +126,17 @@ final class DocumentStorageController extends Controller
         return response()->json($this->images->verify($sha));
     }
 
+    public function checkAssets(Request $request)
+    {
+        $values = $request->validate([
+            'hashes' => ['required', 'array', 'list', 'max:'.StorageDatabase::BATCH_SIZE],
+            'hashes.*' => ['required', 'string', 'distinct', 'regex:/^[a-f0-9]{64}$/D'],
+        ]);
+        $result = $this->images->lookup($values['hashes']);
+
+        return response()->json(['assets' => array_values($result['assets']), 'invalid' => array_keys($result['invalid'])]);
+    }
+
     public function image(string $sha)
     {
         return $this->images->download($sha);
