@@ -3,6 +3,7 @@ import { listDrafts, loadDraft } from './draftRepository'
 import { draftsChanged } from './useScanSession'
 import { errorCode } from './errors'
 import { storageEvents } from '../storage/queue.js'
+import { accountKey } from '../auth/scope.js'
 
 export function useDraftList() {
   const drafts = shallowRef([]),
@@ -26,7 +27,8 @@ export function useDraftList() {
   watch(draftsChanged, refresh, { immediate: true })
   let channel = null
   try {
-    if (typeof BroadcastChannel === 'function') channel = new BroadcastChannel('gaso-drafts')
+    const key = accountKey('gaso-drafts')
+    if (key && typeof BroadcastChannel === 'function') channel = new BroadcastChannel(key)
   } catch {
     /* Local refresh and navigation still work if cross-tab messaging is blocked. */
   }

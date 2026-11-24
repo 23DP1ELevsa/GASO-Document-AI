@@ -7,7 +7,11 @@ use MongoDB\Driver\Exception\BulkWriteException;
 
 final class DocumentStorage
 {
-    public function __construct(private readonly StorageDatabase $database, private readonly GridImages $images) {}
+    public function __construct(
+        private readonly StorageDatabase $database,
+        private readonly GridImages $images,
+        private readonly StorageOwner $owner,
+    ) {}
 
     private function roots(string $kind): Collection
     {
@@ -16,23 +20,23 @@ final class DocumentStorage
 
     public function list(string $kind, ?string $after, bool $includeDeleted): array
     {
-        $filter = $includeDeleted ? [] : ['deleted' => false];
+        $filter = $this->owner->filter($includeDeleted ? [] : ['deleted' => false]);
         if ($after !== null) {
-            $filter['_id'] = ['$gt' => $after];
+            $filter['_id'] = ['$gt' => StorageOwner::key($this->owner->id, $after)];
         }
         $items = $this->roots($kind)->find($filter, [
             'sort' => ['_id' => 1],
             'limit' => 101,
             'projection' => ['metadata' => 0, 'pageKeys' => 0, 'documentKeys' => 0],
         ])->toArray();
-        $next = count($items) > 100 ? $items[99]['_id'] : null;
+        $next = count($items) > 100 ? $items[99]['id'] : null;
 
         return ['items' => array_map($this->summary(...), array_slice($items, 0, 100)), 'next' => $next];
     }
 
     public function get(string $kind, string $id, bool $summary = false): array
     {
-        $root = $this->roots($kind)->findOne(['_id' => $id]);
+        $root = $this->roots($kind)->findOne($this->rootFilter($id));
         if (! $root) {
             throw new StorageFailure('not_found', 404);
         }
@@ -67,22 +71,23 @@ final class DocumentStorage
         $mutation = $change->mutationId;
         $payload = $change->payload;
         $roots = $this->roots($kind);
-        $current = $roots->findOne(['_id' => $id]);
+        $filter = $this->rootFilter($id);
+        $current = $roots->findOne($filter);
         $fingerprint = $this->fingerprint([$expected, $command ?? $payload]);
         if ($current && $current['mutationId'] === $mutation) {
             return $this->replay($current, $fingerprint);
         }
+        if (! $current && ($payload === null || $expected !== 0)) {
+            throw new StorageFailure('not_found', 404);
+        }
         if (($current['revision'] ?? 0) !== $expected) {
             throw new StorageFailure('revision_conflict', 409);
-        }
-        if ($payload === null && ! $current) {
-            throw new StorageFailure('not_found', 404);
         }
 
         $revision = $expected + 1;
         $now = (int) floor(microtime(true) * 1000);
-        $root = [
-            '_id' => $id,
+        $root = $filter + [
+            'id' => $id,
             'revision' => $revision,
             'mutationId' => $mutation,
             'fingerprint' => $fingerprint,
@@ -117,6 +122,7 @@ final class DocumentStorage
                 $root['pageKeys'] = $this->stagePages($children, $id, $payload->pages, $owners, $verified);
             } else {
                 $previous = array_column($this->children('saved_documents', $current['documentKeys'] ?? []), null, 'id');
+                $this->verifyCollectionSources($payload->documents, $previous);
                 foreach ($payload->documents as $snapshot) {
                     $document = $snapshot->metadata;
                     $pageKeys = $this->stagePages($children, $document->id, $snapshot->pages, array_fill_keys($document->pageIds, $document->id), $verified);
@@ -125,8 +131,16 @@ final class DocumentStorage
                         'pageKeys' => $pageKeys, 'data' => $document,
                     ]);
                     $prior = $previous[$document->id] ?? null;
-                    if ($prior && $prior['savedAt'] === $document->savedAt && $prior['_id'] !== $key) {
-                        throw new StorageFailure('snapshot_immutable', 409);
+                    if ($prior && $prior['savedAt'] === $document->savedAt) {
+                        if ($prior['_id'] !== $key) {
+                            $previousPages = array_column($this->children('document_pages', $prior['pageKeys']), 'data');
+                            $submittedPages = array_map(fn ($pageKey) => $children['document_pages'][$pageKey]['updateOne'][1]['$setOnInsert']['data'], $pageKeys);
+                            if ($prior['data'] != $document || array_map($this->comparablePage(...), $previousPages)
+                                != array_map($this->comparablePage(...), $submittedPages)) {
+                                throw new StorageFailure('snapshot_immutable', 409);
+                            }
+                        }
+                        $key = $prior['_id'];
                     }
                     $root['documentKeys'][] = $key;
                 }
@@ -136,7 +150,7 @@ final class DocumentStorage
 
         // The root is the commit point. Children are immutable and can be reused after a failed write.
         if ($current) {
-            if ($roots->replaceOne(['_id' => $id, 'revision' => $expected], $root)->getMatchedCount() === 1) {
+            if ($roots->replaceOne($filter + ['revision' => $expected], $root)->getMatchedCount() === 1) {
                 return $this->summary($root);
             }
         } else {
@@ -150,12 +164,81 @@ final class DocumentStorage
                 }
             }
         }
-        $winner = $roots->findOne(['_id' => $id]);
+        $winner = $roots->findOne($filter);
         if ($winner && $winner['mutationId'] === $mutation) {
             return $this->replay($winner, $fingerprint);
         }
 
         throw new StorageFailure('revision_conflict', 409);
+    }
+
+    public function counts(): array
+    {
+        $filter = $this->owner->filter(['deleted' => false]);
+        $counts = $this->roots('sessions')->aggregate([
+            ...$this->documentIdentities('documents', '$document.id', $filter),
+            ['$unionWith' => [
+                'coll' => 'document_collections',
+                'pipeline' => $this->documentIdentities('saved_documents', '$document.data.originalDocumentId', $filter),
+            ]],
+            ['$group' => ['_id' => ['session' => '$session', 'document' => '$id']]],
+            ['$count' => 'total'],
+        ])->toArray();
+
+        return [
+            'documents' => (int) ($counts[0]['total'] ?? 0),
+            'collections' => $this->roots('collections')->countDocuments($filter),
+        ];
+    }
+
+    private function documentIdentities(string $collection, string $id, array $filter): array
+    {
+        return [
+            ['$match' => $filter],
+            ['$lookup' => [
+                'from' => $collection, 'localField' => 'documentKeys', 'foreignField' => '_id',
+                'as' => 'document', 'pipeline' => [['$match' => $this->owner->filter()]],
+            ]],
+            ['$unwind' => '$document'],
+            ['$match' => ['document.data.pageIds.0' => ['$exists' => true]]],
+            ['$project' => ['_id' => 0, 'session' => '$document.data.sessionId', 'id' => $id]],
+        ];
+    }
+
+    private function rootFilter(string $id): array
+    {
+        return $this->owner->filter(['_id' => StorageOwner::key($this->owner->id, $id)]);
+    }
+
+    private function verifyCollectionSources(array $snapshots, array $previous): void
+    {
+        $sources = [];
+        foreach ($snapshots as $snapshot) {
+            $document = $snapshot->metadata;
+            $prior = $previous[$document->id]['data'] ?? null;
+            if ($prior && $prior->sessionId === $document->sessionId && $prior->originalDocumentId === $document->originalDocumentId) {
+                continue;
+            }
+            $sources[serialize([$document->sessionId, $document->originalDocumentId])] = [
+                'sessionId' => $document->sessionId,
+                'id' => $document->originalDocumentId,
+            ];
+        }
+        $documents = $this->database->collection('documents');
+        foreach (array_chunk(array_values($sources), StorageDatabase::BATCH_SIZE) as $batch) {
+            $found = $documents->aggregate([
+                ['$match' => $this->owner->filter(['$or' => $batch])],
+                ['$group' => ['_id' => ['sessionId' => '$sessionId', 'id' => '$id']]],
+            ])->toArray();
+            if (count($found) !== count($batch)) {
+                throw new StorageFailure('not_found', 404);
+            }
+        }
+    }
+
+    private function comparablePage(object $page): array
+    {
+        return json_decode(json_encode($page, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
     }
 
     private function verifyImages(string $kind, object $payload): array
@@ -184,6 +267,16 @@ final class DocumentStorage
             $asset = $assets[$sha] ?? throw new StorageFailure('image_missing', 404);
             if ($asset['size'] !== $size) {
                 throw new StorageFailure('image_integrity_error', 422);
+            }
+        }
+        foreach ($groups as $pages) {
+            foreach ($pages as $page) {
+                foreach (['original', 'processed', 'thumbnail'] as $variant) {
+                    $image = $page->{$variant} ?? null;
+                    if (isset($image->gridId) && $image->gridId !== $assets[$image->sha256]['gridId']) {
+                        throw new StorageFailure('image_missing', 404);
+                    }
+                }
             }
         }
 
@@ -217,8 +310,9 @@ final class DocumentStorage
 
     private function child(array &$children, string $collection, array $value): string
     {
+        $value = $this->owner->filter($value);
         $id = $this->fingerprint($value);
-        $children[$collection][$id] = ['updateOne' => [['_id' => $id], ['$setOnInsert' => $value], ['upsert' => true]]];
+        $children[$collection][$id] = ['updateOne' => [$this->owner->filter(['_id' => $id]), ['$setOnInsert' => $value], ['upsert' => true]]];
 
         return $id;
     }
@@ -258,7 +352,7 @@ final class DocumentStorage
     {
         $byKey = [];
         foreach (array_chunk(array_unique($keys), StorageDatabase::BATCH_SIZE) as $batch) {
-            foreach ($this->database->collection($collection)->find(['_id' => ['$in' => $batch]]) as $row) {
+            foreach ($this->database->collection($collection)->find($this->owner->filter(['_id' => ['$in' => $batch]])) as $row) {
                 $byKey[$row['_id']] = $row;
             }
         }
@@ -274,7 +368,7 @@ final class DocumentStorage
     private function summary(array $root): array
     {
         return [
-            'id' => $root['_id'], 'revision' => $root['revision'], 'mutationId' => $root['mutationId'],
+            'id' => $root['id'], 'revision' => $root['revision'], 'mutationId' => $root['mutationId'],
             'deleted' => $root['deleted'], 'updatedAt' => $root['updatedAt'], 'label' => $root['label'] ?? null,
         ];
     }

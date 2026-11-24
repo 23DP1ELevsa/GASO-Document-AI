@@ -35,6 +35,7 @@ import {
   Expand,
   X,
   Pencil,
+  UserRound,
 } from '@lucide/vue'
 defineProps({
   name: { type: String, required: true },
@@ -76,6 +77,7 @@ const icons = {
   expand: Expand,
   close: X,
   edit: Pencil,
+  profile: UserRound,
 }
 </script>
 

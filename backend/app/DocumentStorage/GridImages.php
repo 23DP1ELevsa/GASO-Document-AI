@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class GridImages
 {
-    public function __construct(private readonly StorageDatabase $storage) {}
+    public function __construct(private readonly StorageDatabase $storage, private readonly StorageOwner $owner) {}
 
     public function save(UploadedFile $file, string $sha): array
     {
@@ -34,13 +34,13 @@ final class GridImages
         try {
             $this->checkContainer($stream, $mime, $size);
             $assets = $this->storage->collection('image_assets');
-            if ($existing = $assets->findOne(['_id' => $sha])) {
+            if ($existing = $assets->findOne($this->owner->filter(['sha256' => $sha]))) {
                 return $this->verify($sha, $size, $existing);
             }
             $id = new ObjectId;
             $bucket = $this->storage->bucket();
-            $bucket->uploadFromStream($sha, $stream, ['_id' => $id, 'metadata' => $descriptor]);
-            $record = ['_id' => $sha, 'gridId' => $id, ...$descriptor];
+            $bucket->uploadFromStream($sha, $stream, ['_id' => $id, 'metadata' => $this->owner->filter($descriptor)]);
+            $record = $this->owner->filter(['_id' => StorageOwner::key($this->owner->id, $sha), 'gridId' => $id, ...$descriptor]);
             try {
                 $assets->insertOne($record);
             } catch (BulkWriteException $error) {
@@ -128,7 +128,7 @@ final class GridImages
     public function verify(string $sha, ?int $size = null, ?array $record = null): array
     {
         $record ??= $this->record($sha);
-        $file = $this->storage->gridFiles()->findOne(['_id' => $this->gridId($record)]);
+        $file = $this->storage->gridFiles()->findOne(['_id' => $this->gridId($record), 'metadata.ownerId' => $this->owner->id]);
 
         return $this->descriptor($record, $file, $size);
     }
@@ -137,7 +137,7 @@ final class GridImages
     {
         $assets = $invalid = [];
         foreach (array_chunk($hashes, StorageDatabase::BATCH_SIZE) as $batch) {
-            $records = $this->storage->collection('image_assets')->find(['_id' => ['$in' => $batch]])->toArray();
+            $records = $this->storage->collection('image_assets')->find($this->owner->filter(['sha256' => ['$in' => $batch]]))->toArray();
             $ids = [];
             foreach ($records as $record) {
                 if (($record['gridId'] ?? null) instanceof ObjectId) {
@@ -146,12 +146,12 @@ final class GridImages
             }
             $files = [];
             if ($ids !== []) {
-                foreach ($this->storage->gridFiles()->find(['_id' => ['$in' => $ids]]) as $file) {
+                foreach ($this->storage->gridFiles()->find(['_id' => ['$in' => $ids], 'metadata.ownerId' => $this->owner->id]) as $file) {
                     $files[(string) $file['_id']] = $file;
                 }
             }
             foreach ($records as $record) {
-                $sha = $record['_id'];
+                $sha = $record['sha256'];
                 try {
                     $file = $files[(string) $this->gridId($record)] ?? null;
                     $assets[$sha] = $this->descriptor($record, $file);
@@ -166,7 +166,7 @@ final class GridImages
 
     private function record(string $sha): array
     {
-        return $this->storage->collection('image_assets')->findOne(['_id' => $sha])
+        return $this->storage->collection('image_assets')->findOne($this->owner->filter(['sha256' => $sha]))
             ?? throw new StorageFailure('image_missing', 404);
     }
 
@@ -181,8 +181,11 @@ final class GridImages
 
     private function descriptor(array $record, ?array $file, ?int $size = null): array
     {
-        if (! $file || ! is_int($record['size'] ?? null) || (int) ($file['length'] ?? -1) !== $record['size']
-            || ($record['sha256'] ?? null) !== $record['_id'] || ($size !== null && $record['size'] !== $size)) {
+        $sha = $record['sha256'] ?? '';
+        if (! $file || ($file['metadata']['ownerId'] ?? null) !== $this->owner->id
+            || ($record['ownerId'] ?? null) !== $this->owner->id || ! is_int($record['size'] ?? null)
+            || ! is_string($sha) || ! in_array($record['_id'] ?? null, [$sha, StorageOwner::key($this->owner->id, $sha)], true)
+            || (int) ($file['length'] ?? -1) !== $record['size'] || ($size !== null && $record['size'] !== $size)) {
             throw new StorageFailure('image_integrity_error', 422);
         }
         foreach (['sha256', 'size', 'mime', 'width', 'height'] as $field) {
@@ -191,7 +194,7 @@ final class GridImages
             }
         }
 
-        unset($record['_id']);
+        unset($record['_id'], $record['ownerId']);
         $record['gridId'] = (string) $record['gridId'];
 
         return $record;

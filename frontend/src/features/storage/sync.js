@@ -1,5 +1,6 @@
 import { computed, ref, shallowRef } from 'vue'
 import { newId } from '../scanning/id.js'
+import { accountEvents, accountKey, accountScope } from '../auth/scope.js'
 import {
   checkImage,
   lookupImages,
@@ -38,6 +39,7 @@ export const syncProgress = shallowRef(null)
 let controller
 let retryTimer
 let started = false
+let requestsSuspended = false
 let queuedDuringAction = false
 const endpoint = (kind, id) => '/' + kind + '/' + encodeURIComponent(id)
 
@@ -57,15 +59,18 @@ export function storageLabel(kind, id) {
 }
 
 async function refreshEntries() {
-  syncEntries.value = await listEntries()
+  const entries = await listEntries()
+  if (accountScope().id) syncEntries.value = entries
 }
 
 export async function checkStorage(signal) {
+  const lifetime = accountScope().signal
   try {
     await storageJson('/status', { signal })
+    lifetime.throwIfAborted()
     storageConnection.value = 'connected'
   } catch (error) {
-    if (signal?.aborted) throw error
+    if (signal?.aborted || lifetime.aborted) throw error
     storageConnection.value = error.code || 'storage_unavailable'
   }
   return storageConnection.value === 'connected'
@@ -196,10 +201,11 @@ function acknowledge(entry, mutationId, revision) {
 }
 
 function updateProgress(fields) {
-  syncProgress.value = { ...syncProgress.value, ...fields }
+  if (accountScope().id) syncProgress.value = { ...syncProgress.value, ...fields }
 }
 
 function published(documents) {
+  if (!syncProgress.value) return
   updateProgress({
     roots: syncProgress.value.roots + 1,
     documents: syncProgress.value.documents + documents,
@@ -277,6 +283,7 @@ async function transferImages(files, signal) {
   for (let index = 0; index < hashes.length; index += IMAGE_BATCH_SIZE) {
     const batch = hashes.slice(index, index + IMAGE_BATCH_SIZE)
     const { assets, invalid } = await lookupImages(batch, signal)
+    signal.throwIfAborted()
     for (const hash of batch) {
       const blob = files.get(hash)
       try {
@@ -296,6 +303,7 @@ async function transferImages(files, signal) {
   await mapConcurrent(uploads, signal, async ([hash, blob]) => {
     try {
       await uploadImage(hash, blob, requests, signal)
+      signal.throwIfAborted()
       updateProgress({
         uploaded: syncProgress.value.uploaded + 1,
         bytes: syncProgress.value.bytes + blob.size,
@@ -355,14 +363,30 @@ async function flush(signal) {
     const errors = await transferImages(files, signal)
     files.clear()
     updateProgress({ phase: 'publish' })
-    await mapConcurrent(planned, signal, async (plan) => {
+    const publishPlan = async (plan) => {
       try {
         for (const hash of plan.hashes) if (errors.has(hash)) throw errors.get(hash)
         await publish(plan, signal)
       } catch (error) {
         await recordError(plan.entry, error, signal)
       }
-    })
+    }
+    // Publish sources first, then their snapshots, then any session tombstones.
+    await mapConcurrent(
+      planned.filter(({ entry }) => entry.kind === 'sessions' && !entry.deleted),
+      signal,
+      publishPlan,
+    )
+    await mapConcurrent(
+      planned.filter(({ entry }) => entry.kind === 'collections'),
+      signal,
+      publishPlan,
+    )
+    await mapConcurrent(
+      planned.filter(({ entry }) => entry.kind === 'sessions' && entry.deleted),
+      signal,
+      publishPlan,
+    )
     updateProgress({ phase: syncProgress.value.roots === entries.length ? 'done' : 'partial' })
   } catch (error) {
     if (error.code === 'storage_unavailable') storageConnection.value = error.code
@@ -372,13 +396,16 @@ async function flush(signal) {
 }
 
 async function perform(action, work) {
+  if (!accountScope().id || requestsSuspended) throw new StorageError('unauthenticated', 401)
   if (controller) throw new StorageError('sync_busy')
   controller = new AbortController()
   storageAction.value = action
   const { signal } = controller
   try {
     if (navigator.locks)
-      return await navigator.locks.request('gaso-document-storage', { signal }, () => work(signal))
+      return await navigator.locks.request(accountKey('gaso-document-storage'), { signal }, () =>
+        work(signal),
+      )
     return await work(signal)
   } finally {
     await refreshEntries().catch(() => {})
@@ -516,7 +543,14 @@ export const conflictingEntries = computed(() =>
 function schedule(delay = 400) {
   clearTimeout(retryTimer)
   retryTimer = undefined
-  if (!serverStorageEnabled.value || syncPaused.value || !navigator.onLine) return
+  if (
+    requestsSuspended ||
+    !accountScope().id ||
+    !serverStorageEnabled.value ||
+    syncPaused.value ||
+    !navigator.onLine
+  )
+    return
   retryTimer = setTimeout(async () => {
     retryTimer = undefined
     if (!controller) await syncNow().catch(() => {})
@@ -527,6 +561,22 @@ function schedule(delay = 400) {
 export function startStorage() {
   if (started) return
   started = true
+  accountEvents.addEventListener('cancel-requests', () => {
+    requestsSuspended = true
+    clearTimeout(retryTimer)
+    cancelStorage()
+  })
+  accountEvents.addEventListener('resume-requests', () => {
+    requestsSuspended = false
+    schedule()
+  })
+  accountEvents.addEventListener('locked', () => {
+    syncEntries.value = []
+    syncProgress.value = null
+    serverStorageEnabled.value = false
+    syncPaused.value = false
+    storageConnection.value = 'unchecked'
+  })
   const update = () => {
     refreshEntries().catch(() => {})
     schedule()
@@ -548,9 +598,11 @@ export function startStorage() {
   storageEvents.addEventListener('mode', mode)
   storageEvents.addEventListener('pause', pause)
   window.addEventListener('storage', (event) => {
-    if (event.key === SYNC_PREFERENCE) mode()
-    if (event.key === SYNC_PAUSE_PREFERENCE) pause()
+    if (event.key === accountKey(SYNC_PREFERENCE)) mode()
+    if (event.key === accountKey(SYNC_PAUSE_PREFERENCE)) pause()
   })
   window.addEventListener('online', update)
+  serverStorageEnabled.value = syncEnabled()
+  syncPaused.value = isSyncPaused()
   update()
 }

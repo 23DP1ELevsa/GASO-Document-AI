@@ -28,6 +28,8 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
+        <env name="MONGODB_URI" value="mongodb://127.0.0.1:27289" force="true"/>
+        <env name="MONGODB_DATABASE" value="gaso_test_unconfigured" force="true"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
     </php>
 </phpunit>

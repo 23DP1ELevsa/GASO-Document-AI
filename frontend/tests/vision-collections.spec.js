@@ -1,5 +1,5 @@
 import { editField } from '../test-support/uxFixtures.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import sharp from 'sharp'
 import { readFile } from 'node:fs/promises'
 import { ALL_FIELDS } from '../src/features/documents/catalog.js'
@@ -94,7 +94,7 @@ async function dbRead(page, store) {
   return page.evaluate(
     (store) =>
       new Promise((resolve, reject) => {
-        const request = indexedDB.open('gaso-document-ai')
+        const request = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         request.onerror = () => reject(request.error)
         request.onsuccess = () => {
           const db = request.result
@@ -234,7 +234,7 @@ test('saved sets survive reload, later additions, draft deletion, ordering and c
   await page.evaluate(
     (id) =>
       new Promise((resolve) => {
-        const request = indexedDB.open('gaso-document-ai')
+        const request = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         request.onsuccess = () => {
           const db = request.result
           const tx = db.transaction(['drafts', 'pages', 'images'], 'readwrite')
@@ -320,7 +320,7 @@ test('IndexedDB v1 migration preserves original images, OCR, attributes and save
   await page.goto('/migration-seed')
   await page.evaluate(async () => {
     await new Promise((resolve, reject) => {
-      const request = indexedDB.open('gaso-document-ai', 1)
+      const request = indexedDB.open('gaso-document-ai:account:000000000000000000000001', 1)
       request.onupgradeneeded = () => {
         for (const store of ['drafts', 'pages', 'images'])
           request.result.createObjectStore(store, { keyPath: 'id' })
@@ -360,7 +360,7 @@ test('IndexedDB v1 migration preserves original images, OCR, attributes and save
   const stored = await dbRead(page, 'pages')
   expect(stored[0].ocr.editedText).toBe('Corrected old text')
   const original = await page.evaluate(async () => {
-    const request = indexedDB.open('gaso-document-ai')
+    const request = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
     return new Promise((resolve) => {
       request.onsuccess = () => {
         const db = request.result
@@ -377,7 +377,7 @@ test('IndexedDB v1 migration preserves original images, OCR, attributes and save
   const version = await page.evaluate(
     () =>
       new Promise((resolve) => {
-        const request = indexedDB.open('gaso-document-ai')
+        const request = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         request.onsuccess = () => {
           const db = request.result
           resolve({ version: db.version, stores: [...db.objectStoreNames] })
@@ -385,9 +385,16 @@ test('IndexedDB v1 migration preserves original images, OCR, attributes and save
         }
       }),
   )
-  expect(version.version).toBe(3)
+  expect(version.version).toBe(4)
   expect(version.stores).toEqual(
-    expect.arrayContaining(['collections', 'savedDocuments', 'drafts', 'images', 'pages', 'storageSync']),
+    expect.arrayContaining([
+      'collections',
+      'savedDocuments',
+      'drafts',
+      'images',
+      'pages',
+      'storageSync',
+    ]),
   )
 })
 

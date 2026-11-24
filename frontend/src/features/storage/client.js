@@ -1,3 +1,5 @@
+import { accountHeaders, accountRequestSignal, checkAccountResponse } from '../auth/scope.js'
+
 const prefix = '/api/storage/v1'
 
 export class StorageError extends Error {
@@ -9,30 +11,34 @@ export class StorageError extends Error {
 }
 
 export async function storageRequest(path, { method = 'GET', body, signal } = {}) {
-  const headers = { Accept: 'application/json', 'X-GASO-Storage': '1' }
+  const headers = { Accept: 'application/json', 'X-GASO-Storage': '1', ...accountHeaders() }
   if (body !== undefined && !(body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(body)
   }
-  const timeout = AbortSignal.timeout(60_000)
+  const lifetime = accountRequestSignal()
+  const signals = [lifetime, AbortSignal.timeout(60_000)]
+  if (signal) signals.push(signal)
   let response
   try {
     response = await fetch(prefix + path, {
       method,
       headers,
       body,
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+      signal: AbortSignal.any(signals),
       cache: 'no-store',
-      credentials: 'omit',
+      credentials: 'same-origin',
     })
   } catch (error) {
-    if (signal?.aborted) throw error
+    if (signal?.aborted || lifetime.aborted) throw error
     throw new StorageError('storage_unavailable')
   }
   if (!response.ok) {
+    checkAccountResponse(response)
     const payload = await response.json().catch(() => null)
     throw new StorageError(payload?.error?.code || 'storage_unavailable', response.status)
   }
+  lifetime.throwIfAborted()
   return response
 }
 

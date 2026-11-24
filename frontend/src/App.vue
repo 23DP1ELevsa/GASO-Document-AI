@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppIcon from './components/AppIcon.vue'
 import AppHeader from './components/AppHeader.vue'
@@ -8,6 +8,8 @@ import { useAppearance } from './composables/useAppearance'
 import { usePwa } from './composables/usePwa'
 import { useScanSession } from './features/scanning/useScanSession'
 import { startStorage } from './features/storage/sync.js'
+import { account } from './features/auth/scope.js'
+import { checkingSession } from './features/auth/session.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -29,8 +31,15 @@ const connectionChanged = () => {
   online.value = navigator.onLine
 }
 const focusMain = () => document.getElementById('main-content')?.focus()
+watch(
+  account,
+  (user, previous) => {
+    if (user) startStorage()
+    else if (previous && !navigator.onLine) router.replace({ name: 'login' })
+  },
+  { immediate: true },
+)
 onMounted(() => {
-  startStorage()
   window.addEventListener('online', connectionChanged)
   window.addEventListener('offline', connectionChanged)
   window.addEventListener('beforeunload', protectChanges)
@@ -49,11 +58,11 @@ const isScanning = computed(() => route.name === 'scan')
 const showNavigation = computed(() => navigation.some((item) => item.name === route.name))
 const showBack = computed(
   () =>
-    ['scan', 'document', 'settings'].includes(route.name) ||
+    ['scan', 'document', 'settings', 'profile'].includes(route.name) ||
     (route.name === 'collections' && typeof route.query.collection === 'string'),
 )
 function goBack() {
-  if (route.name !== 'settings') return activeView.value?.goBack?.()
+  if (!['settings', 'profile'].includes(route.name)) return activeView.value?.goBack?.()
   if (router.options.history.state.back) router.back()
   else router.replace({ name: 'home' })
 }
@@ -71,14 +80,21 @@ function goBack() {
       >
         <template v-if="!isScanning">
           <RouterLink
-            v-if="route.name !== 'settings'"
+            v-if="account && route.name !== 'profile'"
+            :to="{ name: 'profile' }"
+            class="icon-button"
+            :aria-label="t('nav.profile')"
+            ><AppIcon name="profile" size="var(--icon-size)"
+          /></RouterLink>
+          <RouterLink
+            v-if="account && route.name !== 'settings'"
             :to="{ name: 'settings' }"
             class="icon-button"
             :aria-label="t('nav.settings')"
             ><AppIcon name="settings" size="var(--icon-size)"
           /></RouterLink>
           <button
-            v-else
+            v-if="!account || route.name === 'settings'"
             type="button"
             class="icon-button theme-toggle"
             :aria-label="t(isDark ? 'settings.light' : 'settings.dark')"
@@ -99,11 +115,19 @@ function goBack() {
         <v-alert v-if="offlineError" type="warning" variant="tonal" class="mb-4">{{
           t('pwa.error')
         }}</v-alert>
-        <RouterView v-slot="{ Component }"
-          ><component :is="Component" ref="activeView"
-        /></RouterView>
+        <div v-if="checkingSession" class="account-loading" role="status">
+          <v-progress-circular indeterminate size="26" color="primary" />
+          <span>Pārbauda sesiju…</span>
+        </div>
+        <RouterView v-else-if="account || route.meta.guest" v-slot="{ Component }">
+          <component
+            :is="Component"
+            :key="route.meta.guest ? route.name : 'workspace'"
+            ref="activeView"
+          />
+        </RouterView>
       </v-main>
-      <nav v-if="showNavigation" class="bottom-nav" :aria-label="t('app.navigation')">
+      <nav v-if="account && showNavigation" class="bottom-nav" :aria-label="t('app.navigation')">
         <RouterLink v-for="item in navigation" :key="item.name" :to="{ name: item.name }">
           <span class="bottom-icon"><AppIcon :name="item.icon" size="var(--icon-nav)" /></span>
           <span>{{ t(`nav.${item.name}`) }}</span>
@@ -113,3 +137,13 @@ function goBack() {
     </div>
   </v-app>
 </template>
+
+<style scoped>
+.account-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding-block: 3rem;
+}
+</style>

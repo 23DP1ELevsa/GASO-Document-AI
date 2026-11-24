@@ -1,6 +1,6 @@
 import { navigate } from '../test-support/workflowUi.js'
 import { toggleTheme } from '../test-support/workflowUi.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import AxeBuilder from '@axe-core/playwright'
 import sharp from 'sharp'
 import { createHash } from 'node:crypto'
@@ -90,7 +90,7 @@ async function save(page) {
 async function state(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const r = indexedDB.open('gaso-document-ai')
+      const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
       r.onsuccess = () => resolve(r.result)
       r.onerror = () => reject(r.error)
     })
@@ -179,7 +179,7 @@ test('automatic corners, manual coordinates, perspective and parameters survive 
   await expect(page.getByTestId('page-card')).toContainText('Apstrādāts')
   await save(page)
   let stored = await state(page)
-  expect(stored.version).toBe(3)
+  expect(stored.version).toBe(4)
   expect(stored.pages[0].processing.filter).toBe('original')
   stored.pages[0].processing.corners.forEach((p, i) => {
     expect(p.x).toBeCloseTo(corners[i].x, 4)
@@ -332,7 +332,7 @@ test('legacy v1 records remain readable and editing is non-destructive when canc
   await page.evaluate(
     async ({ original, small }) => {
       const db = await new Promise((resolve, reject) => {
-        const r = indexedDB.open('gaso-document-ai')
+        const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         r.onupgradeneeded = () => {
           for (const name of ['drafts', 'pages', 'images'])
             r.result.createObjectStore(name, { keyPath: 'id' })
@@ -388,7 +388,7 @@ test('legacy v1 records remain readable and editing is non-destructive when canc
   await page.reload()
   await expect(page.getByTestId('page-card')).toContainText('Apstrādāts')
   const stored = await state(page)
-  expect(stored.version).toBe(3)
+  expect(stored.version).toBe(4)
   expect(stored.images[0].originalHash).toBe(before.images[0].originalHash)
 })
 
@@ -485,7 +485,7 @@ test('worker failure and cancellation preserve the session, with no overlapping 
   expect(await state(page)).toEqual(before)
 })
 
-test('editor remains accessible in both themes and can process saved images offline', async ({
+test('editor remains accessible in both themes after an offline account lock', async ({
   page,
   context,
 }) => {
@@ -499,7 +499,11 @@ test('editor remains accessible in both themes and can process saved images offl
       )
   })
   await context.setOffline(true)
+  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(page.getByTestId('page-card')).toHaveCount(0)
+  await context.setOffline(false)
   await page.reload()
+  await page.goto('/#/scan')
   await expect(page.getByTestId('page-card')).toHaveCount(1)
   let dialog = await openEditor(page)
   for (const dark of [false, true]) {

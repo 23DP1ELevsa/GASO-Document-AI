@@ -1,6 +1,6 @@
 # MongoDB glabāšana Windows un VS Code
 
-MongoDB glabā dokumentu datus un attēlus. Pārlūka IndexedDB glabā darba kopiju bezsaistes režīmam. Servera glabāšanu ieslēdz Laravel konfigurācijā un lietotnes iestatījumos.
+MongoDB glabā lietotāju kontus, sesiju autorizāciju, dokumentus un attēlus. IndexedDB glabā darba kopiju katram kontam. Lietotne atver šo kopiju pēc sesijas pārbaudes. Servera sinhronizāciju ieslēdz Laravel konfigurācijā un lietotnes iestatījumos.
 
 ## 1. Pārbaudi PHP un aktīvo konfigurāciju
 
@@ -38,7 +38,7 @@ if (!(Test-Path .env)) {
 }
 ```
 
-Esošajā `.env` failā paturi jau iestatīto `APP_KEY`. Ja tā ir tukša, izpildi `php artisan key:generate`. Tīri lokālam režīmam bez PHP paplašinājuma vari izmantot `composer install --ignore-platform-req=ext-mongodb` un `DOCUMENT_STORAGE_ENABLED=false`.
+Esošajā `.env` failā paturi jau iestatīto `APP_KEY`. Ja tā ir tukša, izpildi `php artisan key:generate`. MongoDB paplašinājums un savienojums ir vajadzīgs arī tad, ja dokumentu sinhronizācija ir izslēgta.
 
 ## 4. Palaid vietējo MongoDB vai izveido Atlas savienojumu
 
@@ -60,6 +60,8 @@ Pievieno šos iestatījumus esošajam `backend/.env` failam. Atlas gadījumā no
 
 ```dotenv
 APP_ENV=local
+SESSION_DRIVER=file
+SESSION_SECURE_COOKIE=false
 DOCUMENT_STORAGE_ENABLED=true
 DOCUMENT_STORAGE_DRIVER=mongodb
 MONGODB_URI=mongodb://127.0.0.1:27017
@@ -101,20 +103,22 @@ Atver **http://127.0.0.1:5173**. Ja esošie dokumenti saglabāti, piemēram, **h
 
 ## 6. Saglabā un atjauno dokumentu
 
-1. Atver **Iestatījumi → Datu glabāšana** un pārbaudi statusu **Savienots ar MongoDB**.
+1. Pieslēdzies savam kontam. Atver **Iestatījumi → Datu glabāšana** un pārbaudi statusu **Savienots ar MongoDB**.
 2. Ieslēdz **Sinhronizēt turpmākās izmaiņas ar MongoDB** un apstiprini. Iepriekš saglabātajiem dokumentiem vari lejupielādēt lokālo rezerves kopiju, pēc tam izvēlies **Migrēt lokālos dokumentus** un apstiprini.
 3. Nofotografē vai importē testa dokumentu. Ievadi rekvizītus manuāli vai ar piekrišanu izmanto konfigurēto AI analīzi. Apstiprini dokumentu, saglabā un pēc vajadzības pievieno komplektam.
 4. Dokumenta kartītē pārbaudi **Saglabāts serverī**. Savienojuma pārtraukuma laikā ieraksti paliek ierīcē. Rindu atkārto pēc savienojuma atjaunošanas vai ar **Sinhronizēt tagad**.
 5. MongoDB Compass izmanto to pašu URI. Datubāzē `gaso_document_ai` atver sesiju `scan_sessions` un pārbaudi `pageKeys` saites uz `document_pages`. Lapas `original.gridId` sakrīt ar faila `_id` kolekcijā `document_images.files`. Kontrolsummas ir arī `image_assets`, bet baiti atrodas `document_images.chunks`. [MongoDB Compass savienojums](https://www.mongodb.com/docs/compass/connect/)
-6. Atjaunošanas pārbaudei atver lietotni jaunā pārlūka profilā un nospied **Atjaunot no MongoDB**. Atver dokumentu vai komplektu un izveido PDF. Attēli pirms ierakstīšanas IndexedDB tiek pārbaudīti, tāpēc pēc atjaunošanas PDF var veidot arī bez servera.
+6. Atjaunošanas pārbaudei atver lietotni jaunā pārlūka profilā, pieslēdzies tam pašam kontam un nospied **Atjaunot no MongoDB**. Atver dokumentu vai komplektu un izveido PDF. Attēli pirms ierakstīšanas IndexedDB tiek pārbaudīti. PDF tiek izveidots pārlūkā ar aktīvu sesiju.
 
 Atjaunošana pievieno trūkstošās sesijas un komplektus. Atšķirīgas esošo ierakstu revīzijas parādās sadaļā **Datu konflikti**. Izvēlies ierīces vai servera versiju. Pirms aizstāšanas vari izveidot rezerves kopiju. Dzēšana ar izslēgtu sinhronizāciju attiecas uz ierīces kopiju.
+
+Jauna komplekta momentuzņēmuma publicēšanai vajag vismaz vienu serverī publicētu avota dokumenta versiju tajā pašā kontā. Ja avotu izdzēsa ierīcē pirms tā pirmās sinhronizācijas, momentuzņēmums paliek lokālajā komplektā un ir pieejams PDF eksportam.
 
 Sinhronizācijas josla skaita apstiprinātos attēlus un publicētās revīzijas. Baitu skaitītājs rāda servera apstiprināto augšupielādēto attēlu apjomu. **Apturēt sinhronizāciju** saglabā pauzi arī pēc lapas pārlādēšanas. Ar **Turpināt sinhronizāciju** lietotne pārbauda, kuri attēli jau ir serverī, un apstrādā atlikušos ierakstus. Dokumentus var rediģēt arī pārsūtīšanas laikā.
 
 ## 7. Rezerves kopijas
 
-**Ierīces kopija.** Iestatījumos lejupielādē `.gaso-backup` un saglabā to privātā mapē. Kopijā ir IndexedDB metadati, atsauces un lokālie attēlu baiti. Importam atver lietotni tukšā pārlūka profilā un izvēlies **Atvērt lokālo rezerves kopiju**.
+**Ierīces kopija.** Iestatījumos lejupielādē `.gaso-backup` un saglabā to privātā mapē. Kopijā ir konta ID, IndexedDB metadati, atsauces un lokālie attēlu baiti. Importam pieslēdzies tam pašam kontam tukšā pārlūka profilā un izvēlies **Atvērt lokālo rezerves kopiju**. Lietotne pārbauda īpašnieka ID. Fails ir nešifrēts. Sinhronizācijas rinda paliek ierīcē, kurā tā izveidota.
 
 **MongoDB kopija.** Instalē MongoDB Database Tools. Uz kopijas laiku apturi Laravel, lai arhīvā būtu vienots datu stāvoklis. Arhivē pilnu datubāzi kopā ar GridFS iegultajiem failiem. Piemērs lokālajam serverim.
 
@@ -130,14 +134,32 @@ Atjaunošanas komanda pārbauda kopiju atsevišķā datubāzē. Pielāgo datubā
 
 | MongoDB kolekcija | Saturs |
 | --- | --- |
+| `users` | MongoDB `_id`, `firstName`, `lastName`, normalizēts `email`, Argon2id `password`, `email_verified_at`, `role`, `isActive`, `created_at`, `updated_at`, `lastLoginAt` un `sessionVersion` sesiju atsaukšanai. |
+| `account_sessions` | Autorizācijas ieraksts ar sesijas ID SHA-256, `ownerId`, konta sesiju versiju un absolūto derīguma termiņu `expiresAt`. Laravel sesijas saturs atrodas šifrētā failā serverī. |
+| `personal_access_tokens` | Sanctum ierīču tokena jaucējvērtība, lietotāja atsauce, darbības joma, konta sesiju versija un `expires_at`. Tokenus var atsaukt, dzēšot ierakstu. |
 | `scan_sessions` | Sesijas ID, datumi, shēma, servera revīzija, kā arī sakārtotas `pageKeys` un `documentKeys` saites uz publicētajām lapām un dokumentiem. |
 | `documents` | Sesijas un dokumenta ID, revīzija un `data` ar lapu secību, rekvizītiem, manuālajiem labojumiem, AI metadatiem un apstiprinājumu. |
 | `document_pages` | Sesijas vai momentuzņēmuma ID, dokumenta ID, pozīcija, lapas metadati un oriģināla, apstrādātā attēla un sīktēla deskriptori. |
 | `document_collections` | Komplekta ID, nosaukums, sakārtoti momentuzņēmumu ID un saites, datumi un revīzija. |
 | `saved_documents` | Neatkarīgi momentuzņēmumi ar sākotnējā dokumenta ID, fiksētu apstiprinājumu, datumu un lapu saitēm. |
-| `image_assets`, `document_images.files`, `document_images.chunks` | SHA-256 katalogs, GridFS failu metadati un fotoattēlu baiti. Vienāda satura attēli koplieto failu. |
+| `image_assets`, `document_images.files`, `document_images.chunks` | SHA-256 katalogs, GridFS failu metadati ar `metadata.ownerId` un fotoattēlu baiti. Vienāda satura augšupielādes koplieto failu viena konta ietvaros. Bloki ir sasaistīti ar failu, izmantojot `files_id`. |
 
-API prefikss ir `/api/storage/v1`. Pieprasījumiem vajag `X-GASO-Storage: 1`, rakstīšanai arī atļautu lokālo `Origin`. Vite pārsūta API pieprasījumus no localhost. Kļūdas atgriež ar strukturētu `error.code`.
+Jaunajiem dokumentu sakņu un attēlu kataloga ierakstiem MongoDB `_id` ietver konta ID un loģisko ID vai SHA-256. API turpina lietot loģisko dokumenta ID. Lapu un dokumentu nemainīgo versiju atslēgas ietver īpašnieku jaucējvērtībā. Katrā vaicājumā backend pievieno `ownerId`. Revīzijas un mutācijas paliek katras saknes ietvaros.
+
+Ar `php artisan document-storage:check --indexes` idempotenti pievieno šādus indeksus.
+
+| Kolekcija | Indeksi |
+| --- | --- |
+| `users` | Unikāls `email`. |
+| `account_sessions` | TTL uz `expiresAt`. |
+| `personal_access_tokens` | Unikāls `token`, `tokenable_type + tokenable_id`, TTL uz `expires_at`. |
+| `scan_sessions`, `document_collections` | `ownerId + _id` un `ownerId + deleted + _id`. |
+| `documents` | `ownerId + sessionId + id`. |
+| `document_pages` | `ownerId + scopeId + id` un katra attēla veida `gridId`. |
+| `saved_documents` | `ownerId + collectionId + id`. |
+| `image_assets` | Unikāls `gridId` un daļējs unikālais `ownerId + sha256` ierakstiem ar īpašnieku. |
+
+API prefikss ir `/api/storage/v1`. Pārlūka pieprasījumiem vajag aktīvu Sanctum sesiju, `X-GASO-Account` un `X-GASO-Storage: 1`. Rakstīšanas pieprasījumam vajag atļautu lokālo `Origin` un CSRF. Vite pārsūta API pieprasījumus no loopback. Kļūdas atgriež ar `error.code`. Bez sesijas piekļuve tiek noraidīta ar HTTP 401. Svešas saknes un attēli dod tādu pašu HTTP 404 kā neesoši ieraksti. Svešas SHA-256 kontrolsummas pakešatbildē ir izlaistas.
 
 | Metode un ceļš | Darbība |
 | --- | --- |
@@ -157,15 +179,49 @@ Rakstot norāda `expectedRevision` (jaunam ierakstam 0), `mutationId` un objektu
 
 Attēlu formāti ir JPEG, PNG un WebP. Limits ir 25 MiB failam, 40 miljoni pikseļu un 16 000 pikseļu vienā malā. Metadatu pieprasījuma limits ir 8 MiB.
 
-Dzēšana maina aktīvo sarakstu, un attēli ar esošām saitēm paliek glabāšanā. Ar `php artisan document-storage:inspect-uploads` vari pārbaudīt vismaz dienu vecas nepabeigtas GridFS augšupielādes. Karogs `--include-unlinked` ietver arī attēlus, kuru augšupielāde pabeigta, bet kuriem trūkst lapas sasaistes. Lai tīrītu, vispirms izveido kopiju, apturi visus rakstītājus un ieslēdz uzturēšanas režīmu ar `php artisan down`. Pārbaudes komandai pievieno `--apply` un pēc tīrīšanas izpildi `php artisan up`. Komanda pārbauda attēlu katalogu un visu lapu versiju saites. Glabāšanas vietu plāno arī iepriekšējām lapu un dokumentu versijām.
+Dzēšana publicē atzīmi, kas izņem sesiju vai komplektu no aktīvā saraksta. Ar `php artisan document-storage:inspect-uploads` vari pārbaudīt vismaz dienu vecas nepabeigtas GridFS augšupielādes. Karogs `--include-unlinked` ietver arī attēlus bez lapas saitēm. Pirms tīrīšanas izveido kopiju, apturi visus rakstītājus un ieslēdz uzturēšanas režīmu ar `php artisan down`. Tīrīšanai izmanto `--owner=<konta ID> --apply`, pēc tam `php artisan up`. Attēls tiek paturēts, ja jebkura lapas versija uz to atsaucas. Ieraksti ar nenoteiktu vai pretrunīgu īpašnieku paliek aizsargāti no tīrīšanas.
 
-## 9. Integrācijas testi
+## 9. Veco dokumentu piešķiršana
+
+Lietotāju kontos redzami tikai ieraksti ar īpašnieku. Pirms piešķiršanas pārbaudi, ka izvēlētajam kontam ir tiesības uz visu veco datu kopu, un izveido attiecīgās datubāzes rezerves kopiju.
+
+**MongoDB.** Norādi iepriekš reģistrēta aktīva konta darba e-pastu. Šī komanda pārbauda saites un parāda ierakstu skaitu.
+
+```bash
+php artisan document-storage:assign-legacy vards.uzvards@gaso.lv --dry-run
+```
+
+Pēc īpašnieka apstiprināšanas apturi API rakstītājus un ieslēdz uzturēšanas režīmu. Piešķiršanai vajadzīgs MongoDB replica set, piemēram, Atlas.
+
+```bash
+php artisan down
+php artisan document-storage:assign-legacy vards.uzvards@gaso.lv --apply
+php artisan up
+```
+
+Piešķiršana vienā transakcijā publicē konta saknes, saglabā sakņu revīzijas un atzīmē vecās saknes. Saistītie dokumenti, lapas, momentuzņēmumi un attēlu atsauces saglabā esošos ID. Atkārtota palaišana apstrādā tikai vēl nepiešķirtas saknes. Saknes ID vai attēla kontrolsummas sadursme ar mērķa konta datiem un bojātas saites atceļ visu darbību. Nepiesaistītie vecie ieraksti un GridFS bloki paliek glabāšanā. Pēc piešķiršanas lietotnē izvēlies **Atjaunot no MongoDB**.
+
+**IndexedDB.** Izmanto veco pārlūka profilu un identisku loopback adresi. Aizver pārējās lietotnes cilnes, pieslēdzies apstiprinātajam mērķa kontam ar tukšu lokālo glabātuvi un atver pārlūka DevTools → **Sources** → **Snippets**. Ievieto un palaid repozitorija [piešķiršanas rīku](../tools/assign-legacy-indexeddb.js). Konsolē pārbaudi dry-run rezultātu.
+
+```js
+await assignGasoLegacyIndexedDb('vards.uzvards@gaso.lv')
+```
+
+Kad pārbaudīts mērķa e-pasts un ierakstu skaits, atkārto ar tiešu apstiprinājumu.
+
+```js
+await assignGasoLegacyIndexedDb('vards.uzvards@gaso.lv', { apply: true })
+```
+
+Rīks pārbauda sesiju serverī, rezervē avotu izvēlētajam kontam un atomāri kopē IndexedDB ierakstus ar attēlu baitiem un esošo rindu. Avota ieraksti paliek neskarti. Pārlādē lapu, lai skatītu piešķirtos dokumentus. Ja vecajā rindā jau bija servera revīzijas vai attēlu atsauces, MongoDB piešķiršanai izmanto to pašu kontu. Ieslēdz konta sinhronizāciju, kad abas datu kopas ir pārbaudītas.
+
+## 10. Integrācijas testi
 
 Izmanto testa MongoDB izvietojumu. Katrs Laravel scenārijs izveido nejauši nosauktu `gaso_storage_test_…` datubāzi, glabā sintētiskus datus un beigās dzēš savu testa datubāzi.
 
 ```powershell
-$env:DOCUMENT_STORAGE_TEST_URI = 'mongodb://127.0.0.1:27017'
-php artisan test --filter=MongoDocumentStorageTest
+$env:DOCUMENT_STORAGE_TEST_URI = 'mongodb://127.0.0.1:27017/?replicaSet=gasoTest'
+php artisan test
 Remove-Item Env:DOCUMENT_STORAGE_TEST_URI
 ```
 

@@ -20,8 +20,10 @@ class DocumentAnalysisTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->asEmployee();
         config(['document_ai.enabled' => true, 'document_ai.provider' => 'openai',
-            'document_ai.key' => 'synthetic-test-key', 'document_ai.requests_per_minute' => 100]);
+            'document_ai.key' => 'synthetic-test-key', 'document_ai.requests_per_minute' => 100,
+            'document_ai.user_requests_per_minute' => 100]);
         Cache::flush();
         Http::preventStrayRequests();
     }
@@ -202,7 +204,7 @@ class DocumentAnalysisTest extends TestCase
         Http::fake(['api.openai.com/*' => Http::response($this->envelope())]);
         $this->withServerVariables(['CONTENT_LENGTH' => $requestBytes])
             ->postJson('/api/document-analysis', $data)->assertOk();
-        $fingerprint = hash_hmac('sha256', json_encode([$image, $image], JSON_THROW_ON_ERROR), config('app.key'));
+        $fingerprint = hash_hmac('sha256', '000000000000000000000001:'.json_encode([$image, $image], JSON_THROW_ON_ERROR), config('app.key'));
         $this->assertTrue(Cache::has('document-ai-duplicate:'.$fingerprint));
         Http::assertSent(fn ($request) => ! $request->hasHeader('Expect')
             && $request->toPsrRequest()->getProtocolVersion() === '1.1'
@@ -344,9 +346,24 @@ class DocumentAnalysisTest extends TestCase
 
     public function test_missing_application_key_prevents_unprotected_fingerprints(): void
     {
+        // Resolve the test client's cookie infrastructure before simulating a missing app key.
+        app('encrypter');
         config(['app.key' => '']);
         $this->postJson('/api/document-analysis', $this->payload())->assertStatus(503)
             ->assertJsonPath('error.code', 'not_configured');
         Http::assertNothingSent();
+    }
+
+    public function test_identical_images_from_other_accounts_do_not_share_the_duplicate_limit(): void
+    {
+        config(['document_ai.user_requests_per_minute' => 1, 'document_ai.requests_per_minute' => 3]);
+        Http::fake(['api.openai.com/*' => Http::response($this->envelope())]);
+        $this->postJson('/api/document-analysis', $this->payload())->assertOk();
+        $this->postJson('/api/document-analysis', $this->payload())->assertTooManyRequests();
+        $this->asEmployee('000000000000000000000002');
+        $this->postJson('/api/document-analysis', $this->payload())->assertOk();
+        $this->asEmployee('000000000000000000000003');
+        $this->postJson('/api/document-analysis', $this->payload())->assertTooManyRequests();
+        Http::assertSentCount(2);
     }
 }

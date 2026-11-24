@@ -6,22 +6,23 @@ GASO Document AI ir dokumentu fotografēšanas, AI analīzes un PDF izveides lie
 - `frontend/` — Vue 3 + Vuetify 3 saskarni, PWA un Capacitor Android projektu.
 - `docs/` — datu shēmām, testiem un MongoDB iestatīšanas instrukciju.
 
-Lietotājs pievieno dokumenta fotogrāfijas, pārskata un labo AI atrastos datus un apstiprina dokumentu ar vienu pogu. Saglabātos dokumentus var apskatīt, apvienot komplektos un eksportēt PDF. IndexedDB glabā darba kopiju bezsaistes režīmam. Ieslēdzot servera glabāšanu, dokumentus un komplektus saglabā MongoDB, bet fotoattēlus — MongoDB GridFS. Dokumenta apskate neveic AI pieprasījumus. Lokālais OCR lietotnes saskarnē ir atslēgts.
+Pēc pieslēgšanās lietotājs pievieno dokumenta fotogrāfijas, pārskata AI atrastos datus un apstiprina dokumentu. Savus dokumentus var apvienot komplektos un eksportēt PDF. Katram kontam ir sava darba kopija IndexedDB. Ieslēdzot sinhronizāciju, dokumenti un komplekti saglabājas MongoDB un fotoattēli MongoDB GridFS. Dokumenta apskate neveic AI pieprasījumus.
 
 ## Prasības
 
-- PHP 8.2+ un Composer 2+.
+- PHP 8.2+ ar Argon2id un MongoDB paplašinājumu, Composer 2+.
 - Node.js 22.13+ un npm.
+- Pieejama MongoDB datubāze lietotāju kontiem un sesiju pārbaudei. Dokumentu sinhronizāciju var ieslēgt katram kontam.
 - OpenAI API atslēga AI analīzei; manuāla ievade un PDF darbojas arī bez tās.
 
-MongoDB glabāšana ir izvēles funkcija. Tai vajag MongoDB PHP paplašinājumu un pieejamu MongoDB serveri. [MongoDB iestatīšana Windows un VS Code](docs/mongodb-windows.md).
+[MongoDB iestatīšana Windows un VS Code](docs/mongodb-windows.md)
 
 ## Palaišana no VS Code
 
 Atver projekta sakni Windows VS Code logā. Uzdevums izmanto WSL2 distribūciju `Ubuntu` ar PHP un Composer, kā arī Windows Node.js un npm. Pirmajai palaišanai sagatavo atkarības un `backend/.env`, izmantojot zemāk norādītās komandas.
 
 1. Atver komandu paleti ar `Ctrl+Shift+P` un izvēlies **Tasks: Run Task** → **Start GASO Document AI**.
-2. Laravel un Vue startē paralēli atsevišķos integrētajos termināļos. Kad abi serveri ir gatavi, atver **http://127.0.0.1:5173** vai turpini lietot līdzšinējo lokālo adresi, lai piekļūtu tajā pašā pārlūkā saglabātajiem dokumentiem.
+2. Kad Laravel un Vue ir gatavi, atver **http://127.0.0.1:5173** un reģistrējies ar `vards.uzvards@gaso.lv`. Ja vēlāk migrēsi veco IndexedDB glabātuvi, izmanto sākotnējo adresi un pārlūka profilu.
 3. Serveru apturēšanai izmanto **Tasks: Terminate Task** → **All running tasks** vai apturi katru serveri tā terminālī ar `Ctrl+C`.
 
 Ja portu `8000` vai `5173` jau izmanto iepriekš palaists GASO serveris, apturi to pirms kopīgā uzdevuma palaišanas. Laravel izmanto esošo `backend/.env`, tostarp MongoDB un OpenAI iestatījumus.
@@ -39,7 +40,7 @@ if [ ! -f .env ]; then
 fi
 ```
 
-Ja vēlies darbināt Laravel bez MongoDB PHP paplašinājuma, lieto `composer install --ignore-platform-req=ext-mongodb` un atstāj servera glabāšanu izslēgtu. Esošai konfigurācijai ģenerē lietotnes atslēgu tikai tad, ja `APP_KEY` ir tukša.
+Esošai konfigurācijai ģenerē lietotnes atslēgu tikai tad, ja `APP_KEY` ir tukša. Norādi `MONGODB_URI` un `MONGODB_DATABASE=gaso_document_ai`. Ieslēdz `DOCUMENT_STORAGE_ENABLED=true`, lai būtu pieejama dokumentu sinhronizācija, un izpildi `php artisan document-storage:check --indexes`, kas izveido kontu, sesiju un dokumentu indeksus.
 
 Failā `backend/.env` norādi:
 
@@ -67,7 +68,7 @@ npm.cmd ci
 
 Manuālai palaišanai tajā pašā Windows terminālī izpildi `npm.cmd run dev`.
 
-Atver **http://127.0.0.1:5173**. API darbojas **http://127.0.0.1:8000**; Vite pārsūta `/api` pieprasījumus uz backend. Lokālajai AI analīzei lietotni atver tajā pašā datorā ar šo adresi.
+Atver **http://127.0.0.1:5173**. Vite pārsūta `/api` pieprasījumus uz Laravel **http://127.0.0.1:8000**. Kontiem, sinhronizācijai un AI izmanto lokālo adresi tajā pašā datorā.
 
 Ja AI neatbild, pārbaudi API serveri, atslēgu un OpenAI projekta kredītus. Pēc `.env` izmaiņām izpildi `php artisan config:clear` un pārstartē API serveri.
 
@@ -82,15 +83,38 @@ npm.cmd run test:unit   # Vienību testi
 npm.cmd run test:e2e    # Playwright testi, pirms tiem izveido būvējumu
 ```
 
-Playwright testiem nepieciešams Google Chrome; `npm run test:e2e` pats palaiž priekšskatījuma serveri, tāpēc portam 4173 jābūt brīvam. PWA instalēšanu un bezsaistes režīmu pārbaudi produkcijas priekšskatījumā.
+Playwright testiem nepieciešams Google Chrome un brīvs ports 4173. Testi imitē kontu, glabāšanas un AI API un pārbauda īsto pārlūka IndexedDB un PDF ģenerēšanu. Sīkdatņu un CSRF pārbaudi pret īstu Laravel ieslēdz ar `GASO_E2E_REAL_AUTH=1` tikai tad, kad portā 8000 darbojas atsevišķs testa backend ar sintētisku MongoDB datubāzi un izslēgtu OpenAI.
 
-Mapē `backend/`:
+Mapē `backend/` WSL terminālī:
 
-```powershell
-php artisan test
+```bash
+DOCUMENT_STORAGE_TEST_URI='mongodb://127.0.0.1:27017/?replicaSet=gasoTest' php artisan test
 ```
 
-Automatizētajos AI testos izmanto imitētas atbildes, neveicot maksas API pieprasījumus.
+Pielāgo URI savam atsevišķajam lokālajam MongoDB. Testi veido nejauši nosauktas īslaicīgas datubāzes un pieņem tikai loopback testa URI. Replica set nepieciešams mantojuma piešķiršanas transakcijas pārbaudei. AI atbildes testos ir imitētas.
+
+## Lietotāju konti
+
+Reģistrācija paredzēta tikai prototipa testēšanai un nepārbauda faktisko piederību GASO. Backend normalizē e-pastu un piemēro `AUTH_EMAIL_DOMAIN` un `AUTH_EMAIL_LOCAL_PATTERN`. Parolē vajag vismaz 12 rakstzīmes, un MongoDB glabā Argon2id jaucējvērtību. `email_verified_at` paliek `null`.
+
+Pēc reģistrācijas vai pieslēgšanās Sanctum izmanto Laravel HttpOnly sesijas sīkdatni un CSRF aizsardzību. Sesijas sīkdatne darbojas pārlūka sesijas laikā, servera pieprasījumu neaktivitātes limits pēc noklusējuma ir 120 minūtes un absolūtais limits ir astoņas stundas. Izrakstīšanās atsauc pašreizējo sesiju. Paroles maiņa un darbība **Atsaukt pārējās sesijas** saglabā šo pārlūka sesiju un atsauc iepriekšējās. Deaktivizēti konti saņem HTTP 401.
+
+Sanctum 4.5 un MongoDB Laravel 5.12 saderība pārbaudīta WSL2 ar PHP 8.5. Ierīču tokeni izmanto MongoDB pielāgoto Sanctum modeli. [Laravel Sanctum](https://laravel.com/docs/12.x/sanctum) · [MongoDB Laravel autentifikācija](https://www.mongodb.com/docs/drivers/php/laravel-mongodb/current/integrations/user-authentication/)
+
+| Metode un ceļš | Darbība |
+| --- | --- |
+| `GET /api/auth/csrf-cookie` | Iegūt CSRF sīkdatni. |
+| `POST /api/auth/register` | Izveidot kontu un sesiju. |
+| `POST /api/auth/login` | Pieslēgties ar darba e-pastu un paroli. |
+| `GET /api/auth/me` | Pārbaudīt sesiju un iegūt profilu. |
+| `GET /api/auth/stats` | Iegūt konta serverī publicēto dokumentu un komplektu skaitu. |
+| `PUT /api/auth/password` | Mainīt paroli, norādot pašreizējo paroli. |
+| `POST /api/auth/sessions/revoke` | Atsaukt pārējās sesijas un ierīču tokenus. |
+| `POST /api/auth/logout` | Atsaukt pašreizējo pārlūka sesiju. |
+
+Lietotnes API klienti sūta `X-GASO-Account` ar pašreizējā konta ID un rakstīšanas pieprasījumos izmanto `X-XSRF-TOKEN`. Serveris pārbauda, ka konta ID atbilst sesijai, un nosaka īpašnieku no autentificētā lietotāja.
+
+[Datu modelis, īpašumtiesību indeksi un migrācijas instrukcija](docs/mongodb-windows.md#8-datu-modelis-un-api)
 
 ## Darbība un datu modelis
 
@@ -99,7 +123,8 @@ Automatizētajos AI testos izmanto imitētas atbildes, neveicot maksas API piepr
 - Atribūtu tabulā rediģē tikai vajadzīgos laukus; var pievienot, pārdēvēt un dzēst pielāgotus atribūtus. Datumi glabājas `YYYY-MM-DD`, summas — decimālvirknēs, valūta — trīs burtu kodā. Nenoteiktas vērtības ir `null`.
 - Viena poga **Apstiprināt dokumentu** pārbauda visus aktīvos atribūtus un saglabā momentuzņēmumu. Nederīgi dati netiek apstiprināti. Vēlāki datu vai lapu labojumi padara apstiprinājumu neaktuālu.
 - Dokumentu kartītes atver tikai lasāmu apskati ar visām lapām un atribūtiem. **Uz sākumu** vispirms saglabā izmaiņas; saglabāšanas kļūdas gadījumā darbs paliek atvērts.
-- IndexedDB v3 pievieno `storageSync` rindu esošajām `drafts`, `pages`, `images`, `collections` un `savedDocuments` glabātuvēm. Komplektā ir neatkarīgs dokumenta momentuzņēmums, kas paliek pieejams arī pēc avota labošanas vai dzēšanas.
+- IndexedDB v4 atver glabātuvi `gaso-document-ai:account:<id>` tikai pēc sesijas pārbaudes. Melnraksti, attēli, komplekti, rezerves kopiju atjaunošana, sinhronizācijas rinda, pauze un iestatījumi ir piesaistīti šim kontam. Konta maiņa atceļ aktīvos pieprasījumus un pārlādē lietotni.
+- Komplektā ir neatkarīgs dokumenta momentuzņēmums. Publicējot jaunu momentuzņēmumu, serveris pārbauda, vai avota dokuments un attēli pieder pašreizējam kontam. Iepriekš publicētie momentuzņēmumi saglabājas pēc avota labošanas vai dzēšanas.
 - PDF ģenerē lokāli ar pdf-lib Worker un iegultu Noto Sans fontu. Neapstiprinātiem dokumentiem eksportē tikai skenējumu. PDF izveide ir atsevišķa darbība pēc apstiprināšanas, un failu var ģenerēt vēlāk.
 
 Attēlu analīzes līgums: `POST /api/document-analysis` ar `consent=true` un sakārtotām `pages=[{id,number,image}]`, kur `image` ir JPEG/PNG/WebP base64 data URL. [Aktuālā attēlu analīzes shēma](docs/requirements/document-vision.schema.json); [atsevišķā OCR prototipa shēma](docs/requirements/document-analysis.schema.json).
@@ -117,13 +142,14 @@ Noklusējumi ir konfigurējami `backend/.env`:
 | `DOCUMENT_AI_MAX_IMAGE_TOTAL_BYTES` | 16 000 000 baiti |
 | `DOCUMENT_AI_MAX_BODY_BYTES` | 22 000 000 baiti |
 | `DOCUMENT_AI_REQUESTS_PER_MINUTE` | 3 |
+| `DOCUMENT_AI_USER_REQUESTS_PER_MINUTE` | 3 vienam kontam |
 | `DOCUMENT_AI_TEST_REQUEST_LIMIT` | 20 |
 
 Klients sagatavo AI attēla kopiju līdz 2800 px / 8 MP, nemainot oriģinālu. PDF eksporta robežas: 20 skenētas lapas, 128 PDF lapas un 80 MiB gala fails.
 
-Serveris attēlus pastāvīgi neglabā. Izmanto tikai dokumentus, kuru nosūtīšana OpenAI ir atļauta. Mēģinājumu limiti negarantē konkrētu naudas slieksni; tēriņus kontrolē arī OpenAI projektā. Klienta atcelšana negarantē serverī jau sāktas analīzes apturēšanu. Produkcijas AI piekļuve ir bloķēta līdz autentifikācijas un lietotāju kvotu ieviešanai; korporatīvais GASO API nav pieslēgts.
+AI analīzei vajag aktīvu kontu un lietotāja piekrišanu. Piemēro gan konta, gan kopējo minūtes limitu un kopējo prototipa budžetu. Jau nosūtīts pieprasījums var pabeigties arī pēc klienta atcelšanas.
 
-Pārlūka datu dzēšana izdzēš lokālos dokumentus un komplektus. Svarīgos PDF lejupielādē; lietotne neglabā lejupielādētā PDF arhīvu.
+Lietotne ar zaudētu savienojumu aizver piekļuvi dokumentiem līdz atkārtotai sesijas pārbaudei. IndexedDB, lokālie rezerves faili un lejupielādētie PDF satur nešifrētus datus. Pārlūka profila vai ierīces failu līmeņa piekļuve var atklāt šo saturu. Android tokeniem sagatavots Sanctum modelis ar darbības jomu, atsaukšanu un derīguma termiņu. Android pieslēgšanās un Keystore, lokālā dokumentu šifrēšana, darba e-pasta pārbaude un GASO SSO paliek nākamajiem posmiem.
 
 ## Atsevišķais OCR eksperiments
 
@@ -150,6 +176,8 @@ Saskarne izmanto lokālu Manrope, PDF — Noto Sans; fontu CDN nav nepieciešams
 
 ## Pārbaudes un pašreizējais statuss
 
-Pēdējā mobilās UX pārbaudē (2026-11-17) izturēti **68/68 frontend vienību testi** un **234/234 Playwright pārbaudes**; produkcijas būvējums veiksmīgs. Pārbaudīti 360 px, 390 px un darbvirsmas ekrāni, abas tēmas, bezsaistes režīms, validācija, vecie melnraksti, komplekti un PDF. AI atbildes testos ir imitētas.
+Kontu pārbaudes aptver reģistrāciju, sesiju, paroles maiņu un atsaukšanu, divu kontu MongoDB un GridFS izolāciju, IndexedDB un rindas izolāciju pārlūkā un mantojuma migrācijas dry-run. PDF un AI regresijas pārbauda esošās darba plūsmas.
+
+2026-11-24 pārbaudē izturēti 60 Laravel testi ar atsevišķu lokālo MongoDB replica set, 72 frontend vienību testi un 99 Playwright pārbaudes. Playwright rezultātā ietilpst 94 darbvirsmas un adaptīvā izkārtojuma pārbaudes, četras kontu pārbaudes 360 un 390 pikseļu skatā un viena atsevišķa Laravel sīkdatņu un CSRF pārbaude. Vite būvējums ir veiksmīgs. AI atbildes testos imitētas.
 
 Android atpakaļpogas notikumu loģika pārbaudīta pārlūkā. Fiziskas ierīces pārbaude, APK būvēšana un korporatīvās API integrācija paredzēta nākamajiem posmiem.

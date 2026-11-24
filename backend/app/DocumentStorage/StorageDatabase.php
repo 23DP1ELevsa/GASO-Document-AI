@@ -51,17 +51,23 @@ final class StorageDatabase
     public function indexes(): void
     {
         foreach (['scan_sessions', 'document_collections'] as $name) {
-            $this->collection($name)->createIndex(['deleted' => 1, 'updatedAt' => -1]);
+            $this->collection($name)->createIndex(['ownerId' => 1, '_id' => 1]);
+            $this->collection($name)->createIndex(['ownerId' => 1, 'deleted' => 1, '_id' => 1]);
         }
-        $this->collection('documents')->createIndex(['sessionId' => 1, 'id' => 1, 'updatedAt' => -1]);
-        $this->collection('document_pages')->createIndex(['scopeId' => 1, 'id' => 1]);
-        $this->collection('document_pages')->createIndex(['original.sha256' => 1]);
-        $this->collection('document_pages')->createIndex(['processed.sha256' => 1]);
-        $this->collection('document_pages')->createIndex(['thumbnail.sha256' => 1]);
+        $this->collection('documents')->createIndex(['ownerId' => 1, 'sessionId' => 1, 'id' => 1]);
+        $this->collection('document_pages')->createIndex(['ownerId' => 1, 'scopeId' => 1, 'id' => 1]);
         $this->collection('document_pages')->createIndex(['original.gridId' => 1]);
         $this->collection('document_pages')->createIndex(['processed.gridId' => 1]);
         $this->collection('document_pages')->createIndex(['thumbnail.gridId' => 1]);
-        $this->collection('saved_documents')->createIndex(['collectionId' => 1, 'id' => 1, 'savedAt' => -1]);
+        $this->collection('saved_documents')->createIndex(['ownerId' => 1, 'collectionId' => 1, 'id' => 1]);
         $this->collection('image_assets')->createIndex(['gridId' => 1], ['unique' => true]);
+        $this->collection('image_assets')->createIndex(['ownerId' => 1, 'sha256' => 1], [
+            'unique' => true, 'partialFilterExpression' => ['ownerId' => ['$type' => 'string']],
+        ]);
+        $this->collection('users')->createIndex(['email' => 1], ['unique' => true]);
+        $this->collection('account_sessions')->createIndex(['expiresAt' => 1], ['expireAfterSeconds' => 0]);
+        $this->collection('personal_access_tokens')->createIndex(['token' => 1], ['unique' => true]);
+        $this->collection('personal_access_tokens')->createIndex(['tokenable_type' => 1, 'tokenable_id' => 1]);
+        $this->collection('personal_access_tokens')->createIndex(['expires_at' => 1], ['expireAfterSeconds' => 0]);
     }
 }

@@ -14,8 +14,6 @@ use stdClass;
 
 final class DocumentStorageController extends Controller
 {
-    public function __construct(private readonly DocumentStorage $storage, private readonly GridImages $images) {}
-
     public function status(StorageDatabase $database)
     {
         $database->database()->command(['ping' => 1])->toArray();
@@ -23,34 +21,34 @@ final class DocumentStorageController extends Controller
         return response()->json(['driver' => 'mongodb', 'status' => 'connected']);
     }
 
-    public function index(Request $request, string $kind)
+    public function index(Request $request, DocumentStorage $storage, string $kind)
     {
         $after = $request->query('after');
         if ($after !== null && ! StoragePayload::id($after)) {
             throw new StorageFailure('invalid_input', 422);
         }
 
-        return response()->json($this->storage->list($kind, $after, $request->boolean('includeDeleted')));
+        return response()->json($storage->list($kind, $after, $request->boolean('includeDeleted')));
     }
 
-    public function show(Request $request, string $kind, string $id)
+    public function show(Request $request, DocumentStorage $storage, string $kind, string $id)
     {
-        return response()->json($this->storage->get($kind, $id, $request->boolean('summary')));
+        return response()->json($storage->get($kind, $id, $request->boolean('summary')));
     }
 
-    public function write(StorageWriteRequest $request, string $kind, string $id)
+    public function write(StorageWriteRequest $request, DocumentStorage $storage, string $kind, string $id)
     {
-        return $this->commit($request, $kind, $id, $request->payload());
+        return $this->commit($request, $storage, $kind, $id, $request->payload());
     }
 
-    public function documents(string $id)
+    public function documents(DocumentStorage $storage, string $id)
     {
-        return response()->json(['items' => $this->readPayload('sessions', $id)->documents]);
+        return response()->json(['items' => $this->readPayload($storage, 'sessions', $id)->documents]);
     }
 
-    public function document(string $id, string $documentId)
+    public function document(DocumentStorage $storage, string $id, string $documentId)
     {
-        foreach ($this->readPayload('sessions', $id)->documents as $document) {
+        foreach ($this->readPayload($storage, 'sessions', $id)->documents as $document) {
             if ($document->id === $documentId) {
                 return response()->json($document);
             }
@@ -59,13 +57,13 @@ final class DocumentStorageController extends Controller
         throw new StorageFailure('not_found', 404);
     }
 
-    public function saveDocument(StorageWriteRequest $request, string $id, string $documentId)
+    public function saveDocument(StorageWriteRequest $request, DocumentStorage $storage, string $id, string $documentId)
     {
         $document = $request->payload();
         if (($document->id ?? null) !== $documentId) {
             throw new StorageFailure('invalid_payload', 422);
         }
-        $payload = $this->readPayload('sessions', $id);
+        $payload = $this->readPayload($storage, 'sessions', $id);
         $index = array_search($documentId, array_column($payload->documents, 'id'), true);
         if ($index === false) {
             $payload->documents[] = $document;
@@ -73,12 +71,12 @@ final class DocumentStorageController extends Controller
             $payload->documents[$index] = $document;
         }
 
-        return $this->commit($request, 'sessions', $id, $payload, ['document', $documentId, $document]);
+        return $this->commit($request, $storage, 'sessions', $id, $payload, ['document', $documentId, $document]);
     }
 
-    public function collectionMember(StorageWriteRequest $request, string $id, string $documentId)
+    public function collectionMember(StorageWriteRequest $request, DocumentStorage $storage, string $id, string $documentId)
     {
-        $payload = $this->readPayload('collections', $id);
+        $payload = $this->readPayload($storage, 'collections', $id);
         $index = array_search($documentId, $payload->metadata->documentIds, true);
         if ($request->isMethod('DELETE')) {
             if ($index !== false) {
@@ -98,47 +96,47 @@ final class DocumentStorageController extends Controller
             }
         }
 
-        return $this->commit($request, 'collections', $id, $payload, ['member', $documentId, $request->payload()]);
+        return $this->commit($request, $storage, 'collections', $id, $payload, ['member', $documentId, $request->payload()]);
     }
 
-    private function readPayload(string $kind, string $id): stdClass
+    private function readPayload(DocumentStorage $storage, string $kind, string $id): stdClass
     {
-        $payload = $this->storage->get($kind, $id)['payload'] ?? null;
+        $payload = $storage->get($kind, $id)['payload'] ?? null;
 
         return $payload ? (object) $payload : throw new StorageFailure('not_found', 404);
     }
 
-    private function commit(StorageWriteRequest $request, string $kind, string $id, ?stdClass $payload, ?array $command = null)
+    private function commit(StorageWriteRequest $request, DocumentStorage $storage, string $kind, string $id, ?stdClass $payload, ?array $command = null)
     {
         $mutation = $request->mutation($payload);
-        $result = $this->storage->write($kind, $id, $mutation, $command);
+        $result = $storage->write($kind, $id, $mutation, $command);
 
         return response()->json($result, $mutation->expectedRevision === 0 ? 201 : 200);
     }
 
-    public function upload(StorageUploadRequest $request, string $sha)
+    public function upload(StorageUploadRequest $request, GridImages $images, string $sha)
     {
-        return response()->json($this->images->save($request->file('image'), $sha));
+        return response()->json($images->save($request->file('image'), $sha));
     }
 
-    public function asset(string $sha)
+    public function asset(GridImages $images, string $sha)
     {
-        return response()->json($this->images->verify($sha));
+        return response()->json($images->verify($sha));
     }
 
-    public function checkAssets(Request $request)
+    public function checkAssets(Request $request, GridImages $images)
     {
         $values = $request->validate([
             'hashes' => ['required', 'array', 'list', 'max:'.StorageDatabase::BATCH_SIZE],
             'hashes.*' => ['required', 'string', 'distinct', 'regex:/^[a-f0-9]{64}$/D'],
         ]);
-        $result = $this->images->lookup($values['hashes']);
+        $result = $images->lookup($values['hashes']);
 
         return response()->json(['assets' => array_values($result['assets']), 'invalid' => array_keys($result['invalid'])]);
     }
 
-    public function image(string $sha)
+    public function image(GridImages $images, string $sha)
     {
-        return $this->images->download($sha);
+        return $images->download($sha);
     }
 }

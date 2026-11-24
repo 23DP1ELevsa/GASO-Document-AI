@@ -21,6 +21,9 @@ export default {
       'Pārlūks neļauj saglabāt iestatījumus. Izvēlētais režīms darbosies līdz lapas aizvēršanai.',
   },
   nav: {
+    login: 'Pieslēgties',
+    register: 'Reģistrēties',
+    profile: 'Mans profils',
     back: 'Atpakaļ',
     document: 'Dokuments',
     collections: 'Komplekti',

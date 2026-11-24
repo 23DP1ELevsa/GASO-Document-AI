@@ -9,8 +9,8 @@ import './styles/mobile.css'
 
 const app = createApp(App)
 app.use(router).use(vuetify)
+app.mount('#app')
 router.isReady().then(async () => {
-  app.mount('#app')
   await setupPwa()
   await setupAndroid(router)
 })

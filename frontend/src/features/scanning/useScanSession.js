@@ -9,6 +9,7 @@ import { analyzePages } from '../documents/analysis.js'
 import { analysisPayload, requestAiAnalysis, attachAiAnalysis } from '../documents/openai.js'
 import { navigationState, asSingleDocument, groupAtBoundaries } from '../documents/workflow.js'
 import { storageEvents } from '../storage/queue.js'
+import { accountEvents, accountKey } from '../auth/scope.js'
 
 const active = shallowRef(null)
 const dirty = ref(false)
@@ -16,6 +17,12 @@ const busy = ref(false)
 const saving = ref(false)
 export const draftsChanged = ref(0)
 const POINTER_KEY = 'gaso-document-ai:active-draft'
+accountEvents.addEventListener('locked', () => {
+  active.value = null
+  dirty.value = false
+  busy.value = false
+  saving.value = false
+})
 storageEvents.addEventListener('restored', ({ detail }) => {
   if (detail?.kind !== 'sessions' || active.value?.id !== detail.id || busy.value || dirty.value)
     return
@@ -27,7 +34,9 @@ function announce() {
   draftsChanged.value++
   try {
     if (typeof BroadcastChannel === 'function') {
-      const channel = new BroadcastChannel('gaso-drafts')
+      const key = accountKey('gaso-drafts')
+      if (!key) return
+      const channel = new BroadcastChannel(key)
       channel.postMessage('changed')
       channel.close()
     }
@@ -37,15 +46,18 @@ function announce() {
 }
 function remember(id) {
   try {
-    if (id) sessionStorage.setItem(POINTER_KEY, id)
-    else sessionStorage.removeItem(POINTER_KEY)
+    const key = accountKey(POINTER_KEY)
+    if (!key) return
+    if (id) sessionStorage.setItem(key, id)
+    else sessionStorage.removeItem(key)
   } catch {
     /* The URL also identifies an opened draft. */
   }
 }
 function remembered() {
   try {
-    return sessionStorage.getItem(POINTER_KEY)
+    const key = accountKey(POINTER_KEY)
+    return key && sessionStorage.getItem(key)
   } catch {
     return null
   }

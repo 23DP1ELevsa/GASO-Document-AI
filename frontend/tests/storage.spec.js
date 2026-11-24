@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { allowEmployee, expect, test } from '../test-support/authFixture.js'
 import { createHash } from 'node:crypto'
 import { emptyValues } from '../src/features/documents/catalog.js'
 import { confirmDocument } from '../src/features/documents/model.js'
@@ -64,7 +64,7 @@ async function fixture(page) {
   await page.evaluate(
     ({ draft, pages, collection, files }) =>
       new Promise((resolve, reject) => {
-        const request = indexedDB.open('gaso-document-ai', 2)
+        const request = indexedDB.open('gaso-document-ai:account:000000000000000000000001', 2)
         request.onupgradeneeded = () => {
           const db = request.result
           for (const name of ['drafts', 'pages', 'images', 'collections', 'savedDocuments'])
@@ -252,6 +252,7 @@ test('v2 migration retries a lost commit, preserves originals and restores PDF i
     baseURL,
     serviceWorkers: 'block',
   })
+  await allowEmployee(fresh)
   await fresh.route('**/api/storage/v1/**', (route) =>
     route.fulfill({
       json: { status: 'connected', driver: 'mongodb' },
@@ -285,7 +286,7 @@ test('v2 migration retries a lost commit, preserves originals and restores PDF i
     await restored.evaluate(
       () =>
         new Promise((resolve, reject) => {
-          const request = indexedDB.open('gaso-document-ai')
+          const request = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
           request.onerror = () => reject(request.error)
           request.onsuccess = () => {
             const db = request.result
@@ -341,13 +342,12 @@ test('storage outage leaves the local data intact and remote revisions require a
   page.on('dialog', (dialog) => dialog.accept())
   storage.calls.offline = true
   await page.goto(settings)
-  await context.setOffline(true)
   await page.getByRole('checkbox', { name: 'Sinhronizēt turpmākās izmaiņas ar MongoDB' }).check()
   await page.getByRole('button', { name: 'Migrēt lokālos dokumentus' }).click()
   await expect(page.getByText('Rindā 2 ieraksti.')).toBeVisible()
   expect((await records(page, 'images')).length).toBe(4)
   storage.calls.offline = false
-  await context.setOffline(false)
+  await page.getByRole('button', { name: 'Sinhronizēt tagad' }).click()
   await ensureSynced(page, 2)
 
   const current = storage.roots.get(collectionPath)

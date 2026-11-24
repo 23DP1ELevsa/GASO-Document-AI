@@ -1,11 +1,26 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { nextTick } from 'vue'
 import { t } from '../locales'
+import { account } from '../features/auth/scope.js'
+import { restoreSession } from '../features/auth/session.js'
 
 const router = createRouter({
   // Hash navigation works in Capacitor and on static hosting without rewrites.
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/login',
+      name: 'login',
+      meta: { guest: true },
+      component: () => import('../views/AuthView.vue'),
+    },
+    {
+      path: '/register',
+      name: 'register',
+      meta: { guest: true },
+      component: () => import('../views/AuthView.vue'),
+    },
+    { path: '/profile', name: 'profile', component: () => import('../views/ProfileView.vue') },
     { path: '/', name: 'home', component: () => import('../views/HomeView.vue') },
     {
       path: '/document/:id',
@@ -26,6 +41,11 @@ const router = createRouter({
     { path: '/settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
+})
+router.beforeEach(async (to) => {
+  await restoreSession()
+  if (!account.value && !to.meta.guest) return { name: 'login' }
+  if (account.value && to.meta.guest) return { name: 'home' }
 })
 router.afterEach(async (to, from) => {
   document.title = `${t(`nav.${to.name}`)} · ${t('app.name')}`

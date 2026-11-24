@@ -1,5 +1,5 @@
 import { toggleTheme } from '../test-support/workflowUi.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import { goStep, groupingTools, pdfSettings } from '../test-support/workflowUi.js'
 import AxeBuilder from '@axe-core/playwright'
 import { readFile } from 'node:fs/promises'
@@ -80,7 +80,7 @@ const dialog = (page) => page.getByRole('dialog', { name: 'PDF eksports', exact:
 async function storage(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai')
+      const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
       r.onsuccess = () => resolve(r.result)
     })
     try {
@@ -153,7 +153,7 @@ async function seed(
   await page.evaluate(
     async ({ documents, pages, processed, processedImage }) => {
       const db = await new Promise((resolve) => {
-        const r = indexedDB.open('gaso-document-ai')
+        const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         r.onsuccess = () => resolve(r.result)
       })
       try {
@@ -416,7 +416,7 @@ test('missing images fail visibly without partial download; restoration permits 
   const id = stored.draft.documents[0].pageIds[1]
   await page.evaluate(async (id) => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai')
+      const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
       r.onsuccess = () => resolve(r.result)
     })
     await new Promise((resolve) => {
@@ -438,7 +438,7 @@ test('missing images fail visibly without partial download; restoration permits 
   expect(await page.evaluate(() => pdfWorkers.size)).toBe(0)
   await page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai')
+      const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
       r.onsuccess = () => resolve(r.result)
     })
     await new Promise((resolve) => {
@@ -452,14 +452,19 @@ test('missing images fail visibly without partial download; restoration permits 
   await close(page)
 })
 
-test('PDF generation works offline after reload and neither generated PDFs nor document images enter the PWA cache', async ({
+test('PDF generation requires a verified account and PDFs and document images stay out of the PWA cache', async ({
   page,
   context,
 }) => {
   await seed(page, { offlineReady: true })
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
+  const scan = page.url()
   await context.setOffline(true)
+  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(groups(page)).toHaveCount(0)
+  await context.setOffline(false)
   await page.reload()
+  await page.goto(scan)
   await expect(groups(page)).toHaveCount(2)
   await open(page)
   await preview(page)
@@ -473,6 +478,7 @@ test('PDF generation works offline after reload and neither generated PDFs nor d
   expect(paths.some((url) => url.includes('NotoSans-Regular'))).toBe(true)
   expect(paths.every((url) => !url.startsWith('blob:') && !/\.pdf(?:$|\?)/i.test(url))).toBe(true)
   expect((await storage(page)).stores.sort()).toEqual([
+    'accountMeta',
     'collections',
     'drafts',
     'images',

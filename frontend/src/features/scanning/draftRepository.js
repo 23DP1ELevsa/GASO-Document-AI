@@ -4,12 +4,13 @@ import { migrateGrouping, validateDocuments } from '../documents/model.js'
 import { navigationState, currentExports } from '../documents/workflow.js'
 import { SYNC_STORE, queueChange } from '../storage/queue.js'
 import { readRemoteImage } from '../storage/client.js'
+import { accountScope } from '../auth/scope.js'
 
 export const DATABASE_NAME = 'gaso-document-ai'
 export const DATA_STORES = ['drafts', 'pages', 'images', 'collections', 'savedDocuments']
 const STORES = [...DATA_STORES, SYNC_STORE]
 
-function openDatabase() {
+function openDatabase(name) {
   return new Promise((resolve, reject) => {
     let request,
       finished = false
@@ -22,11 +23,12 @@ function openDatabase() {
     }
     const timer = setTimeout(() => fail(new ScanError('storageBlocked')), 7000)
     try {
-      request = indexedDB.open(DATABASE_NAME, 3)
+      request = indexedDB.open(name, 4)
       request.onupgradeneeded = () => {
         const db = request.result
         for (const name of STORES)
           if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: 'id' })
+        if (!db.objectStoreNames.contains('accountMeta')) db.createObjectStore('accountMeta')
       }
       request.onerror = () => fail(request.error)
       request.onblocked = () => fail(new ScanError('storageBlocked'))
@@ -47,7 +49,13 @@ function openDatabase() {
 }
 
 export async function transaction(stores, mode, work) {
-  const db = await openDatabase()
+  const { id, signal } = accountScope()
+  if (!id) throw new ScanError('storage')
+  const db = await openDatabase(DATABASE_NAME + ':account:' + id)
+  if (signal.aborted) {
+    db.close()
+    signal.throwIfAborted()
+  }
   return new Promise((resolve, reject) => {
     let result, failure, tx
     const fail = (error) => {
@@ -62,11 +70,15 @@ export async function transaction(stores, mode, work) {
     }
     try {
       tx = db.transaction(stores, mode)
+      const abort = () => fail(signal.reason)
+      signal.addEventListener('abort', abort, { once: true })
       tx.oncomplete = () => {
+        signal.removeEventListener('abort', abort)
         db.close()
         resolve(result)
       }
       tx.onabort = () => {
+        signal.removeEventListener('abort', abort)
         db.close()
         reject(failure || tx.error || new ScanError('storage'))
       }

@@ -1,5 +1,5 @@
 import { navigate } from '../test-support/workflowUi.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import AxeBuilder from '@axe-core/playwright'
 
 const headings = {
@@ -132,13 +132,10 @@ test('installed shell and unvisited routes open offline; cache holds only app as
   for (const icon of manifest.icons)
     expect((await page.request.get(`/${icon.src}`)).ok()).toBe(true)
   await context.setOffline(true)
-  await page.reload()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Dokuments gatavsdažos soļos')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pieslēgties')
   for (const route of ['/scan', '/documents', '/settings']) {
     await page.goto(`/#${route}`)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      route === '/' ? 'Dokuments gatavsdažos soļos' : headings[route],
-    )
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pieslēgties')
   }
   const cacheUrls = await page.evaluate(async () => {
     const urls = []

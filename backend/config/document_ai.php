@@ -13,6 +13,7 @@ return [
     'max_text_characters' => 60000,
     'max_pages' => (int) env('DOCUMENT_AI_MAX_PAGES', 20),
     'requests_per_minute' => (int) env('DOCUMENT_AI_REQUESTS_PER_MINUTE', 3),
+    'user_requests_per_minute' => (int) env('DOCUMENT_AI_USER_REQUESTS_PER_MINUTE', 3),
     'test_request_limit' => (int) env('DOCUMENT_AI_TEST_REQUEST_LIMIT', 20),
     'duplicate_seconds' => 120,
     'origins' => ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'http://127.0.0.1:4173'],

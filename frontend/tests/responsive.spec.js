@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test } from '../test-support/authFixture.js'
 import { addToSet, confirm, mockAi } from '../test-support/uxFixtures.js'
 import { continuePages, goStep, groupingTools } from '../test-support/workflowUi.js'
 import {

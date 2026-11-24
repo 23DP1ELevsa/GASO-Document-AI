@@ -2,14 +2,15 @@
 
 use App\Http\Controllers\DocumentAnalysisController;
 use App\Http\Controllers\DocumentStorageController;
+use App\Http\Middleware\ActiveAccount;
 use App\Http\Middleware\DocumentAiAccess;
 use App\Http\Middleware\DocumentStorageAccess;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/document-analysis', DocumentAnalysisController::class)
-    ->middleware([DocumentAiAccess::class, 'throttle:document-analysis']);
+    ->middleware(['auth:sanctum', ActiveAccount::class, DocumentAiAccess::class, 'throttle:document-analysis']);
 
-Route::prefix('storage/v1')->middleware(DocumentStorageAccess::class)
+Route::prefix('storage/v1')->middleware(['auth:sanctum', ActiveAccount::class, DocumentStorageAccess::class])
     ->controller(DocumentStorageController::class)->group(function () {
         Route::get('status', 'status');
         Route::post('assets/check', 'checkAssets');

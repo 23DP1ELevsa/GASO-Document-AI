@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import {
   aiResult,
   review,
@@ -148,7 +148,7 @@ test('collection snapshots open read-only, survive loss of the original and retu
   await page.evaluate(
     (id) =>
       new Promise((resolve) => {
-        const req = indexedDB.open('gaso-document-ai')
+        const req = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         req.onsuccess = () => {
           const db = req.result
           const tx = db.transaction(['drafts', 'pages', 'images'], 'readwrite')
@@ -229,7 +229,7 @@ test('a session with two documents offers two distinct read-only cards after rel
   await page.evaluate(
     (data) =>
       new Promise((resolve) => {
-        const req = indexedDB.open('gaso-document-ai')
+        const req = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         req.onsuccess = () => {
           const db = req.result
           const tx = db.transaction('drafts', 'readwrite')

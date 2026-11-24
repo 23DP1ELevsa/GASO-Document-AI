@@ -1,5 +1,5 @@
 import { editField } from '../test-support/uxFixtures.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import sharp from 'sharp'
 import { ALL_FIELDS } from '../src/features/documents/catalog.js'
 import { processingKey } from '../src/features/processing/geometry.js'
@@ -22,7 +22,7 @@ async function seed(page) {
   await page.evaluate(
     async ({ text, key }) => {
       const db = await new Promise((resolve) => {
-        const request = indexedDB.open('gaso-document-ai')
+        const request = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         request.onsuccess = () => resolve(request.result)
       })
       await new Promise((resolve, reject) => {
@@ -119,10 +119,7 @@ test('AI consent, suggestions, manual edits, IndexedDB reload, confirmation and 
   await expect(dialog.locator('.pdf-progress')).toHaveCount(0, { timeout: 30000 })
   await expect(dialog.locator('.pdf-error')).toHaveCount(0)
 })
-test('offline AI allows manual entry and scan-only export without local OCR or network requests', async ({
-  page,
-  context,
-}) => {
+test('an offline account lock prevents document analysis requests', async ({ page, context }) => {
   let calls = 0
   await page.route('**/api/document-analysis', (route) => {
     calls++
@@ -130,19 +127,10 @@ test('offline AI allows manual entry and scan-only export without local OCR or n
   })
   await seed(page)
   await page.getByRole('checkbox', { name: /Piekrītu šī dokumenta/ }).check()
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   await context.setOffline(true)
-  await page.getByRole('button', { name: 'Analizēt dokumentu', exact: true }).click()
-  await expect(
-    page.getByText(
-      'Nav interneta savienojuma. Varat aizpildīt datus manuāli vai eksportēt skenējumu.',
-      { exact: true },
-    ),
-  ).toBeVisible()
-  await expect(
-    page.getByRole('button', { name: 'Turpināt ar lokālo analīzi', exact: true }),
-  ).toHaveCount(0)
-  await editField(page, 'Nosūtītājs', 'Manuāls ieraksts bezsaistē')
+  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Analizēt dokumentu', exact: true })).toHaveCount(0)
   expect(calls).toBe(0)
-  await page.getByRole('button', { name: 'Izlaist — saglabāt tikai skenējumu' }).click()
-  await expect(page.getByRole('dialog', { name: 'PDF eksports', exact: true })).toBeVisible()
 })

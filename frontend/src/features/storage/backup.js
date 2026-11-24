@@ -1,12 +1,14 @@
 import { DATA_STORES, transaction } from '../scanning/draftRepository.js'
 import { SYNC_STORE, storageEvents } from './queue.js'
 import { StorageError } from './client.js'
+import { accountScope } from '../auth/scope.js'
 
 const signature = 'GASOBK1\n'
 
 export async function createBackup() {
+  const { id, signal } = accountScope()
   const data = await transaction(DATA_STORES, 'readonly', (tx, result) => {
-    const records = {}
+    const records = { ownerId: id }
     result(records)
     for (const store of DATA_STORES)
       tx.objectStore(store).getAll().onsuccess = ({ target }) => {
@@ -21,12 +23,14 @@ export async function createBackup() {
     }),
   )
   const header = new Uint8Array(12)
+  signal.throwIfAborted()
   header.set(new TextEncoder().encode(signature))
   new DataView(header.buffer).setUint32(8, metadata.length)
   return new Blob([header, metadata, ...images], { type: 'application/octet-stream' })
 }
 
 export async function restoreBackup(file) {
+  const { id, signal } = accountScope()
   const header = await file.slice(0, 12).arrayBuffer()
   const invalid = () => new StorageError('invalid_backup')
   if (header.byteLength !== 12 || new TextDecoder().decode(header.slice(0, 8)) !== signature)
@@ -64,7 +68,9 @@ export async function restoreBackup(file) {
     )
   )
     throw invalid()
+  if (!id || data.ownerId !== id) throw new StorageError('backup_account_mismatch')
 
+  signal.throwIfAborted()
   await transaction([...DATA_STORES, SYNC_STORE], 'readwrite', (tx, _result, fail) => {
     let remaining = DATA_STORES.length + 1
     for (const store of [...DATA_STORES, SYNC_STORE]) {

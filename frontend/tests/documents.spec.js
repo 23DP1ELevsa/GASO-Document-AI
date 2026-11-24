@@ -1,7 +1,7 @@
 import { editField } from '../test-support/uxFixtures.js'
 import { acceptSuggestions } from '../test-support/workflowUi.js'
 import { toggleTheme } from '../test-support/workflowUi.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import {
   groupingTools,
   reviewDocument,
@@ -44,7 +44,7 @@ async function save(page) {
 async function database(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai')
+      const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
       r.onsuccess = () => resolve(r.result)
     })
     try {
@@ -72,7 +72,7 @@ async function seed(page, texts = ['', '', ''], legacy = false) {
   await page.evaluate(
     async ({ texts, legacy, key }) => {
       const db = await new Promise((resolve) => {
-        const r = indexedDB.open('gaso-document-ai')
+        const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         r.onsuccess = () => resolve(r.result)
       })
       try {
@@ -261,7 +261,7 @@ test('OCR text changes and page replacement mark analysis stale while retaining 
   await page.evaluate(
     (text) =>
       new Promise((resolve) => {
-        const req = indexedDB.open('gaso-document-ai')
+        const req = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         req.onsuccess = () => {
           const db = req.result
           const tx = db.transaction('pages', 'readwrite')

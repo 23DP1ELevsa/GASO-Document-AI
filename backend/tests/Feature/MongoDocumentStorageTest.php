@@ -2,15 +2,15 @@
 
 namespace Tests\Feature;
 
-use App\DocumentStorage\StorageDatabase;
+use App\DocumentStorage\DocumentStorage;
+use App\DocumentStorage\LegacyAssignment;
+use App\Models\User;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
-use MongoDB\Database;
-use Tests\TestCase;
+use Tests\IsolatedMongoTestCase;
 
-class MongoDocumentStorageTest extends TestCase
+class MongoDocumentStorageTest extends IsolatedMongoTestCase
 {
-    private ?Database $mongo = null;
+    private const OTHER = '000000000000000000000002';
 
     private const PREFIX = '/api/storage/v1';
 
@@ -21,29 +21,7 @@ class MongoDocumentStorageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $uri = getenv('DOCUMENT_STORAGE_TEST_URI');
-        if (! extension_loaded('mongodb') || ! $uri) {
-            $this->markTestSkipped('Requires ext-mongodb and an explicit DOCUMENT_STORAGE_TEST_URI.');
-        }
-        config([
-            'document_storage.enabled' => true,
-            'document_storage.driver' => 'mongodb',
-            'database.connections.mongodb.dsn' => $uri,
-            'database.connections.mongodb.database' => 'gaso_storage_test_'.bin2hex(random_bytes(8)),
-        ]);
-        DB::purge('mongodb');
-        $storage = app(StorageDatabase::class);
-        $this->mongo = $storage->database();
-        $storage->indexes();
-    }
-
-    protected function tearDown(): void
-    {
-        try {
-            $this->mongo?->drop();
-        } finally {
-            parent::tearDown();
-        }
+        $this->asEmployee();
     }
 
     private function upload(string $data, ?string $sha = null, string $type = 'image/png')
@@ -62,6 +40,107 @@ class MongoDocumentStorageTest extends TestCase
         return $this->putJson(self::PREFIX."/$kind/$id", [
             'expectedRevision' => $base, 'mutationId' => $mutation, 'payload' => $payload,
         ], self::HEADERS);
+    }
+
+    public function test_account_namespaces_isolate_documents_collections_and_identical_image_hashes(): void
+    {
+        $png = base64_decode(self::PNG);
+        $asset = $this->upload($png)->assertOk()->json();
+        $sha = $asset['sha256'];
+        $now = 1795512000000;
+        $document = ['id' => 'doc-a', 'sessionId' => 'private', 'pageIds' => ['page-a'], 'values' => (object) ['document_title' => 'Tikai Annai']];
+        $page = ['metadata' => ['id' => 'page-a'], 'imageRecordId' => 'page-a', 'original' => $asset];
+        $root = ['metadata' => [
+            'id' => 'private', 'revision' => 1, 'schemaVersion' => 2, 'createdAt' => $now, 'updatedAt' => $now, 'pageIds' => ['page-a'],
+        ], 'pages' => [$page], 'documents' => [$document], 'ownerId' => self::OTHER];
+        $this->commit('sessions', 'private', 0, 'same-mutation', $root)->assertCreated();
+        $this->asEmployee(self::OTHER);
+        $url = self::PREFIX.'/sessions/private';
+        $this->getJson(self::PREFIX.'/sessions?includeDeleted=1', self::HEADERS)->assertExactJson(['items' => [], 'next' => null]);
+        $this->getJson($url, self::HEADERS)->assertNotFound();
+        $this->getJson($url.'/documents/doc-a', self::HEADERS)->assertNotFound();
+        $this->putJson($url.'/documents/doc-a', ['expectedRevision' => 1, 'mutationId' => 'edit', 'payload' => $document], self::HEADERS)
+            ->assertNotFound();
+        $this->commit('sessions', 'private', 1, 'edit', $root)->assertNotFound();
+        $this->deleteJson($url, ['expectedRevision' => 1, 'mutationId' => 'delete'], self::HEADERS)->assertNotFound();
+        $this->getJson(self::PREFIX.'/images/'.$sha, self::HEADERS)->assertNotFound();
+        $this->getJson(self::PREFIX.'/assets/'.$sha, self::HEADERS)->assertNotFound();
+        $this->getJson(self::PREFIX.'/images/'.$asset['gridId'], self::HEADERS)->assertNotFound();
+        $this->postJson(self::PREFIX.'/assets/check', ['hashes' => [$sha]], self::HEADERS)
+            ->assertExactJson(['assets' => [], 'invalid' => []]);
+
+        $otherAsset = $this->upload($png)->assertOk()->json();
+        $this->assertNotSame($asset['gridId'], $otherAsset['gridId']);
+        $this->upload($png)->assertExactJson($otherAsset);
+        $snapshot = ['metadata' => array_replace($document, [
+            'id' => 'my-set:doc-a', 'originalDocumentId' => 'doc-a', 'savedAt' => $now, 'confirmed' => false,
+        ]), 'pages' => [array_replace($page, ['imageRecordId' => 'page-a:saved:local', 'original' => $otherAsset])]];
+        $set = ['metadata' => [
+            'id' => 'my-set', 'name' => 'Mans komplekts', 'schemaVersion' => 1, 'revision' => 1,
+            'createdAt' => $now, 'updatedAt' => $now, 'documentIds' => ['my-set:doc-a'],
+        ], 'documents' => [$snapshot]];
+        $this->commit('collections', 'my-set', 0, 'set-a', $set)->assertNotFound();
+        $this->commit('sessions', 'private', 0, 'same-mutation', $root)->assertNotFound();
+        $root['pages'][0]['original'] = $otherAsset;
+        $root['documents'][0]['values']->document_title = 'Tikai Jānim';
+        $this->commit('sessions', 'private', 0, 'same-mutation', $root)->assertCreated();
+        $this->commit('collections', 'my-set', 0, 'set-a', $set)->assertCreated();
+        $this->getJson($url, self::HEADERS)->assertOk()->assertJsonPath('payload.documents.0.values.document_title', 'Tikai Jānim');
+        $this->assertSame(['documents' => 1, 'collections' => 1], app(DocumentStorage::class)->counts());
+        $this->asEmployee();
+        $this->getJson($url, self::HEADERS)->assertOk()->assertJsonPath('payload.documents.0.values.document_title', 'Tikai Annai');
+        $this->getJson(self::PREFIX.'/collections/my-set', self::HEADERS)->assertNotFound();
+        $this->assertSame(['documents' => 1, 'collections' => 0], app(DocumentStorage::class)->counts());
+        $this->assertSame(2, $this->mongo->selectCollection('document_images.files')->countDocuments());
+    }
+
+    public function test_legacy_dry_run_does_not_publish_data_and_assignment_preserves_links(): void
+    {
+        $owner = User::create(['firstName' => 'Anna', 'lastName' => 'Testiņa', 'email' => 'anna.testina@gaso.lv']);
+        $owner->forceFill(['isActive' => true])->save();
+        $this->asEmployee((string) $owner->getKey());
+        $png = base64_decode(self::PNG);
+        $asset = $this->upload($png)->assertOk()->json();
+        $now = 1795512000000;
+        $payload = [
+            'metadata' => ['id' => 'legacy-id', 'revision' => 1, 'schemaVersion' => 2, 'createdAt' => $now, 'updatedAt' => $now, 'pageIds' => ['page-a']],
+            'pages' => [['metadata' => ['id' => 'page-a'], 'imageRecordId' => 'page-a', 'original' => $asset]],
+            'documents' => [['id' => 'old-doc', 'sessionId' => 'legacy-id', 'pageIds' => ['page-a'], 'values' => (object) ['document_title' => 'Vecais arhīvs']]],
+        ];
+        $this->commit('sessions', 'legacy-id', 0, 'legacy-1', $payload)->assertCreated();
+        // Recreate the pre-account document format in an isolated test database.
+        foreach (['scan_sessions', 'image_assets'] as $name) {
+            $table = $this->mongo->selectCollection($name);
+            $row = $table->findOne();
+            $id = $row['_id'];
+            $table->deleteOne(['_id' => $id]);
+            $row['_id'] = $name === 'scan_sessions' ? 'legacy-id' : $asset['sha256'];
+            unset($row['id'], $row['ownerId']);
+            $table->insertOne($row);
+        }
+        foreach (['documents', 'document_pages'] as $name) {
+            $this->mongo->selectCollection($name)->updateMany([], ['$unset' => ['ownerId' => '']]);
+        }
+        $this->mongo->selectCollection('document_images.files')->updateMany([], ['$unset' => ['metadata.ownerId' => '']]);
+        $url = self::PREFIX.'/sessions/legacy-id';
+        $this->getJson($url, self::HEADERS)->assertNotFound();
+        $this->artisan('document-storage:assign-legacy', ['email' => $owner->email, '--dry-run' => true])->assertSuccessful();
+        $this->getJson($url, self::HEADERS)->assertNotFound();
+        $this->assertSame(0, $this->mongo->selectCollection('image_assets')->countDocuments(['ownerId' => ['$exists' => true]]));
+
+        $hello = $this->mongo->command(['hello' => 1])->toArray()[0];
+        if (! isset($hello['setName'])) {
+            return;
+        }
+        $assignment = app(LegacyAssignment::class);
+        $this->assertSame(1, $assignment->run($owner->email, true)['scan_sessions']);
+        $this->assertSame(0, $assignment->run($owner->email, true)['scan_sessions']);
+        $this->getJson($url, self::HEADERS)->assertOk()
+            ->assertJsonPath('payload.pages.0.original.gridId', $asset['gridId'])
+            ->assertJsonPath('payload.documents.0.values.document_title', 'Vecais arhīvs');
+        $this->getJson(self::PREFIX.'/images/'.$asset['sha256'], self::HEADERS)->assertOk();
+        $this->asEmployee(self::OTHER);
+        $this->getJson($url, self::HEADERS)->assertNotFound();
     }
 
     public function test_gridfs_stores_exact_bytes_and_deduplicates_after_verification(): void
@@ -114,7 +193,8 @@ class MongoDocumentStorageTest extends TestCase
             'dynamicAttributes' => [['value' => 'Manuāls labojums', 'status' => 'edited']],
             'confirmation' => ['source' => 'synthetic', 'values' => ['document_title' => 'Sintētisks rēķins']],
         ];
-        $payload = ['metadata' => $metadata, 'pages' => $pages, 'documents' => [$document]];
+        $otherDocument = array_replace($document, ['id' => 'document-b', 'pageIds' => []]);
+        $payload = ['metadata' => $metadata, 'pages' => $pages, 'documents' => [$document, $otherDocument]];
         $this->commit('sessions', 'session-a', 0, 's1', $payload)->assertNotFound()->assertJsonPath('error.code', 'image_missing');
         $this->getJson(self::PREFIX.'/sessions/session-a', self::HEADERS)->assertNotFound();
         $this->upload($png)->assertOk();
@@ -163,6 +243,7 @@ class MongoDocumentStorageTest extends TestCase
             ->assertJsonPath('payload.documents.1.metadata.values.document_title', 'Sintētisks rēķins')
             ->assertJsonPath('payload.documents.1.metadata.confirmed', true)
             ->assertJsonPath('payload.documents.1.pages.0.original.sha256', $image['sha256']);
+        $this->assertSame(['documents' => 2, 'collections' => 1], app(DocumentStorage::class)->counts());
         $this->deleteJson(self::PREFIX.'/collections/set/documents/set:document-a', ['expectedRevision' => 3, 'mutationId' => 'c4'], self::HEADERS)->assertOk();
         $this->getJson(self::PREFIX.'/collections/set', self::HEADERS)->assertJsonPath('payload.metadata.documentIds', ['set:document-b']);
         $this->assertSame(1, $this->mongo->selectCollection('document_images.files')->countDocuments());

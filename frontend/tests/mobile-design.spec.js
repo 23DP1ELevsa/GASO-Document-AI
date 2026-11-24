@@ -1,5 +1,5 @@
 import { editField } from '../test-support/uxFixtures.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import sharp from 'sharp'
 import { continuePages, goStep, toggleTheme, navigate } from '../test-support/workflowUi.js'
 

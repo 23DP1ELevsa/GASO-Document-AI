@@ -1,6 +1,6 @@
 // Migrated from the former OCR UI scenarios: local OCR is deliberately inactive.
 // The isolated OCR engine/service tests remain in tests-unit/ocr.test.js.
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import sharp from 'sharp'
 import {
   aiResult,
@@ -150,10 +150,7 @@ test('AI cancellation terminates waiting, preserves photos and allows a fresh at
   await confirm(page)
 })
 
-test('offline manual scan export works after PWA preparation without OCR resources', async ({
-  page,
-  context,
-}) => {
+test('manual scan export works after PWA preparation without OCR resources', async ({ page }) => {
   const requested = []
   page.on('request', (request) => {
     if (/traineddata|tesseract|\.wasm/.test(request.url())) requested.push(request.url())
@@ -161,7 +158,6 @@ test('offline manual scan export works after PWA preparation without OCR resourc
   await review(page)
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
-  await context.setOffline(true)
   await page.getByRole('button', { name: 'Izlaist — saglabāt tikai skenējumu' }).click()
   await expect(page.getByRole('dialog', { name: 'PDF eksports', exact: true })).toBeVisible()
   await expect(page.locator('.pdf-progress')).toHaveCount(0, { timeout: 30000 })
@@ -175,7 +171,7 @@ test('legacy corrected OCR remains stored while the current UI offers only image
   await page.evaluate(
     () =>
       new Promise((resolve) => {
-        const req = indexedDB.open('gaso-document-ai')
+        const req = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         req.onsuccess = () => {
           const db = req.result
           const tx = db.transaction('pages', 'readwrite')
@@ -268,7 +264,7 @@ test('AI save quota failures retain values and retry commits the same photos and
 async function originalHashes(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const req = indexedDB.open('gaso-document-ai')
+      const req = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
       req.onsuccess = () => resolve(req.result)
     })
     const images = await new Promise((resolve) => {

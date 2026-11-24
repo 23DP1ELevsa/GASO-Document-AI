@@ -50,6 +50,7 @@ class DocumentAnalysisController extends Controller
         // Hash the same JSON array one image at a time to avoid a second full
         // copy of the payload in memory. Cache only the resulting fingerprint.
         $hash = hash_init('sha256', HASH_HMAC, config('app.key'));
+        hash_update($hash, $request->user()->getAuthIdentifier().':');
         hash_update($hash, '[');
         $separator = '';
         foreach ($pages as $page) {

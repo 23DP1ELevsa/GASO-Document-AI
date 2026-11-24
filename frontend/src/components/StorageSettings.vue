@@ -58,6 +58,9 @@ const remainingImages = computed(() => {
 })
 const formatBytes = new Intl.NumberFormat('lv-LV')
 const details = {
+  backup_account_mismatch:
+    'Rezerves kopija pieder citam kontam vai tai vēl nav piešķirts īpašnieks.',
+  unauthenticated: 'Sesija ir beigusies. Pieslēdzieties vēlreiz.',
   connected: 'Savienots ar MongoDB',
   unchecked: 'Pārbauda savienojumu…',
   storage_disabled: 'Servera glabāšana Laravel iestatījumos ir izslēgta.',

@@ -103,7 +103,7 @@ export async function records(page, store) {
   return page.evaluate(
     (store) =>
       new Promise((resolve, reject) => {
-        const req = indexedDB.open('gaso-document-ai')
+        const req = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         req.onerror = () => reject(req.error)
         req.onsuccess = () => {
           const db = req.result

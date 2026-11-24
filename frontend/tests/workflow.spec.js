@@ -1,7 +1,7 @@
 import { aiResult, mockAi, analyze, editField } from '../test-support/uxFixtures.js'
 import { continuePages, acceptSuggestions } from '../test-support/workflowUi.js'
 import { toggleTheme } from '../test-support/workflowUi.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import AxeBuilder from '@axe-core/playwright'
 import sharp from 'sharp'
 import { readFile } from 'node:fs/promises'
@@ -70,7 +70,7 @@ async function pdf(page, scansOnly = false) {
 async function stored(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve) => {
-      const r = indexedDB.open('gaso-document-ai')
+      const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
       r.onsuccess = () => resolve(r.result)
     })
     try {

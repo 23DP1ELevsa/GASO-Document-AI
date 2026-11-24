@@ -2,6 +2,7 @@ import { ALL_FIELDS, DOCUMENT_TYPES } from './catalog.js'
 import { documentPages, sourceVersion, updateDocument } from './model.js'
 import { prepareAiImage, AI_IMAGE_LIMITS, abortAnalysis } from './aiImages.js'
 import { newId } from '../scanning/id.js'
+import { accountHeaders, accountRequestSignal, checkAccountResponse } from '../auth/scope.js'
 
 export const AI_ERRORS = {
   cancelled: 'AI analīze atcelta. Dokumenta dati ir saglabāti.',
@@ -125,6 +126,7 @@ export async function requestAiAnalysis(
 ) {
   if (online === false) throw new AiError('offline')
   const controller = new AbortController()
+  const lifetime = accountRequestSignal()
   const cancel = () => controller.abort()
   signal?.addEventListener('abort', cancel, { once: true })
   if (signal?.aborted) controller.abort()
@@ -134,12 +136,17 @@ export async function requestAiAnalysis(
     onProgress({ phase: 'waiting' })
     const response = await fetcher('/api/document-analysis', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...accountHeaders(),
+      },
       body: JSON.stringify(payload),
-      signal: controller.signal,
+      signal: AbortSignal.any([controller.signal, lifetime]),
       cache: 'no-store',
-      credentials: 'omit',
+      credentials: 'same-origin',
     })
+    checkAccountResponse(response)
     let data
     try {
       data = await response.json()
@@ -148,6 +155,7 @@ export async function requestAiAnalysis(
     }
     if (!response.ok) throw new AiError(data?.error?.code || 'unavailable')
     abortAnalysis(controller.signal)
+    abortAnalysis(lifetime)
     onProgress({ phase: 'processing' })
     return validateAiResult(data.result)
   } catch (error) {

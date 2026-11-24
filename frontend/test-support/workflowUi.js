@@ -79,7 +79,7 @@ export async function analyzeDocument(page, index = 0) {
   const pages = await page.evaluate(
     () =>
       new Promise((resolve) => {
-        const req = indexedDB.open('gaso-document-ai')
+        const req = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
         req.onsuccess = () => {
           const db = req.result
           const tx = db.transaction(['drafts', 'pages'])

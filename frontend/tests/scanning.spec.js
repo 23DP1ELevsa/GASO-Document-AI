@@ -1,6 +1,6 @@
 import { navigate } from '../test-support/workflowUi.js'
 import { toggleTheme } from '../test-support/workflowUi.js'
-import { test, expect } from '@playwright/test'
+import { test, expect } from '../test-support/authFixture.js'
 import AxeBuilder from '@axe-core/playwright'
 import sharp from 'sharp'
 import { sessionTools } from '../test-support/workflowUi.js'
@@ -55,7 +55,7 @@ async function pageMenu(page, index, action) {
 async function storage(page) {
   return page.evaluate(async () => {
     const db = await new Promise((resolve, reject) => {
-      const r = indexedDB.open('gaso-document-ai')
+      const r = indexedDB.open('gaso-document-ai:account:000000000000000000000001')
       r.onsuccess = () => resolve(r.result)
       r.onerror = () => reject(r.error)
     })
@@ -484,7 +484,7 @@ test('a stale tab cannot overwrite a newer draft revision', async ({ page, conte
   await other.close()
 })
 
-test('saved image sessions reopen and accept changes offline without entering service-worker cache', async ({
+test('saved images stay private offline and reopen without entering service-worker cache', async ({
   page,
   context,
 }) => {
@@ -500,7 +500,11 @@ test('saved image sessions reopen and accept changes offline without entering se
       )
   })
   await context.setOffline(true)
+  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await count(page, 0)
+  await context.setOffline(false)
   await page.reload()
+  await page.goto('/#/scan')
   await count(page, 1)
   await page.getByRole('button', { name: 'Atvērt 1. lapas priekšskatījumu' }).click()
   await expect(page.getByRole('img', { name: 'Oriģinālā attēla priekšskatījums' })).toBeVisible()
