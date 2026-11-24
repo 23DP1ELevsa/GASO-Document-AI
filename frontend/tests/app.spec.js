@@ -132,10 +132,10 @@ test('installed shell and unvisited routes open offline; cache holds only app as
   for (const icon of manifest.icons)
     expect((await page.request.get(`/${icon.src}`)).ok()).toBe(true)
   await context.setOffline(true)
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pieslēgties')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Laipni lūdzam!')
   for (const route of ['/scan', '/documents', '/settings']) {
     await page.goto(`/#${route}`)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Pieslēgties')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Laipni lūdzam!')
   }
   const cacheUrls = await page.evaluate(async () => {
     const urls = []

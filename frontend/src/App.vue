@@ -71,7 +71,7 @@ function goBack() {
 <template>
   <v-app>
     <a href="#main-content" class="skip-link" @click.prevent="focusMain">{{ t('app.skip') }}</a>
-    <div class="workspace" :class="{ 'scan-shell': isScanning }">
+    <div class="workspace" :class="{ 'scan-shell': isScanning, 'auth-shell': route.meta.guest }">
       <AppHeader
         :back="showBack"
         :back-disabled="activeView?.backDisabled"
@@ -145,5 +145,49 @@ function goBack() {
   justify-content: center;
   gap: 0.75rem;
   padding-block: 3rem;
+}
+
+.auth-shell {
+  --gutter: clamp(16px, 5.2vw, 24px);
+  --shell-width: 430px;
+  --touch-size: 48px;
+  height: auto;
+  min-height: 100dvh;
+}
+.auth-shell > .main-content {
+  flex: 1 0 auto;
+  overflow: visible;
+  padding-top: 0;
+  padding-bottom: calc(var(--space-24) + var(--safe-bottom));
+}
+.auth-shell :deep(.app-header) {
+  position: static;
+  min-height: calc(76px + var(--safe-top));
+  gap: var(--space-12);
+  background: rgb(var(--v-theme-background));
+}
+.auth-shell :deep(.app-header-leading) {
+  display: none;
+}
+.auth-shell :deep(.app-header-brand) {
+  gap: var(--space-12);
+  font-size: 1rem;
+}
+.auth-shell :deep(.brand-mark) {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+}
+.auth-shell :deep(.app-header-actions) {
+  margin-right: 0;
+}
+.auth-shell .theme-toggle {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgb(var(--v-theme-surface));
+  color: var(--accent-text);
+}
+.auth-shell .theme-toggle:hover {
+  background: var(--blue-soft);
 }
 </style>

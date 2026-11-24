@@ -38,9 +38,9 @@ async function mockSessions(context, initial = null) {
   )
 }
 
-async function login(page, user) {
+async function login(page, user, password = 'sintetiska-parole-123') {
   await page.getByRole('textbox', { name: 'Darba e-pasts' }).fill(user.email)
-  await page.getByLabel('Parole', { exact: true }).fill('sintetiska-parole-123')
+  await page.getByLabel('Parole', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Pieslēgties' }).click()
   await expect(page.getByRole('link', { name: 'Mans profils' })).toBeVisible({ timeout: 20_000 })
 }
@@ -48,7 +48,7 @@ async function login(page, user) {
 async function logout(page) {
   await page.goto('/#/profile')
   await page.getByRole('button', { name: 'Izrakstīties' }).click()
-  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible({ timeout: 20_000 })
 }
 
 test('account changes isolate drafts, queue and preferences and abort active sync', async ({
@@ -57,7 +57,7 @@ test('account changes isolate drafts, queue and preferences and abort active syn
 }) => {
   await mockSessions(context)
   await page.goto('/#/documents')
-  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible()
   await login(page, employee)
   await page.goto('/#/profile')
   await expect(page.getByRole('heading', { name: 'Anna Testiņa' })).toBeVisible()
@@ -96,7 +96,7 @@ test('account changes isolate drafts, queue and preferences and abort active syn
   await logout(page)
   await aborted
   release()
-  await expect(secondTab.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(secondTab.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible()
   await secondTab.close()
   await login(page, other)
   await page.goto('/#/documents')
@@ -134,7 +134,7 @@ test('real Laravel cookies restore the session and protect writes with CSRF', as
   )
   test.setTimeout(120_000)
   await page.goto('/#/profile')
-  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible({ timeout: 20_000 })
   const missing = await page.evaluate(async () => {
     const response = await fetch('/api/auth/register', {
       method: 'POST',
@@ -145,7 +145,7 @@ test('real Laravel cookies restore the session and protect writes with CSRF', as
   })
   expect(missing).toBe(419)
 
-  await page.getByRole('link', { name: 'Izveidot kontu' }).click()
+  await page.getByRole('link', { name: 'Reģistrēties' }).click()
   await page.getByRole('textbox', { name: 'Vārds', exact: true }).fill('Austra')
   await page.getByRole('textbox', { name: 'Uzvārds', exact: true }).fill('Sintētiska')
   const email =
@@ -155,9 +155,10 @@ test('real Laravel cookies restore the session and protect writes with CSRF', as
     ).join('') +
     '@gaso.lv'
   await page.getByRole('textbox', { name: 'Darba e-pasts' }).fill(email)
-  await page.getByLabel('Parole', { exact: true }).fill('sintetiska-parole-123')
-  await page.getByLabel('Paroles apstiprinājums', { exact: true }).fill('sintetiska-parole-123')
-  await page.getByRole('button', { name: 'Reģistrēties' }).click()
+  const password = '🔐'.repeat(12)
+  await page.getByLabel('Parole', { exact: true }).fill(password)
+  await page.getByLabel('Paroles apstiprinājums', { exact: true }).fill(password)
+  await page.getByRole('button', { name: 'Izveidot kontu' }).click()
   await expect(page.getByRole('link', { name: 'Mans profils' })).toBeVisible({ timeout: 30_000 })
   expect(
     (await context.cookies()).some((cookie) => cookie.httpOnly && cookie.name.endsWith('_session')),
@@ -184,8 +185,8 @@ test('real Laravel cookies restore the session and protect writes with CSRF', as
   expect(denied).toBe(419)
   await logout(page)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible({ timeout: 20_000 })
-  await login(page, { email })
+  await expect(page.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible({ timeout: 20_000 })
+  await login(page, { email }, password)
 })
 
 test('legacy IndexedDB stays hidden until an explicit idempotent assignment', async ({

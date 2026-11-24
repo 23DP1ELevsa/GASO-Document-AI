@@ -499,7 +499,7 @@ test('editor remains accessible in both themes after an offline account lock', a
       )
   })
   await context.setOffline(true)
-  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible()
   await expect(page.getByTestId('page-card')).toHaveCount(0)
   await context.setOffline(false)
   await page.reload()

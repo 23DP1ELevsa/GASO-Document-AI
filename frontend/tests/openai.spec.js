@@ -130,7 +130,7 @@ test('an offline account lock prevents document analysis requests', async ({ pag
   await page.evaluate(() => navigator.serviceWorker.ready)
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   await context.setOffline(true)
-  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Analizēt dokumentu', exact: true })).toHaveCount(0)
   expect(calls).toBe(0)
 })

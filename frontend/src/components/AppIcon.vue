@@ -36,6 +36,11 @@ import {
   X,
   Pencil,
   UserRound,
+  Mail,
+  Eye,
+  EyeOff,
+  Circle,
+  CircleCheck,
 } from '@lucide/vue'
 defineProps({
   name: { type: String, required: true },
@@ -78,6 +83,11 @@ const icons = {
   close: X,
   edit: Pencil,
   profile: UserRound,
+  mail: Mail,
+  eye: Eye,
+  eyeOff: EyeOff,
+  circle: Circle,
+  circleCheck: CircleCheck,
 }
 </script>
 

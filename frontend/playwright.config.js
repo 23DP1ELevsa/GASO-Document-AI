@@ -15,22 +15,22 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile-360',
-      testIgnore: '**/responsive.spec.js',
+      testIgnore: ['**/responsive.spec.js', '**/auth-mobile.spec.js'],
       use: { viewport: { width: 360, height: 800 }, isMobile: true, hasTouch: true },
     },
     {
       name: 'mobile-390',
-      testIgnore: '**/responsive.spec.js',
+      testIgnore: ['**/responsive.spec.js', '**/auth-mobile.spec.js'],
       use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
     },
     {
       name: 'desktop',
-      testIgnore: '**/responsive.spec.js',
+      testIgnore: ['**/responsive.spec.js', '**/auth-mobile.spec.js'],
       use: { viewport: { width: 1440, height: 1000 } },
     },
     {
       name: 'responsive',
-      testMatch: '**/responsive.spec.js',
+      testMatch: ['**/responsive.spec.js', '**/auth-mobile.spec.js'],
       use: { isMobile: true, hasTouch: true, reducedMotion: 'reduce', serviceWorkers: 'block' },
     },
   ],

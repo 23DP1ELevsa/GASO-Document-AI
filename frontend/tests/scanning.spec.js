@@ -500,7 +500,7 @@ test('saved images stay private offline and reopen without entering service-work
       )
   })
   await context.setOffline(true)
-  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible()
   await count(page, 0)
   await context.setOffline(false)
   await page.reload()

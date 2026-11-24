@@ -52,6 +52,7 @@ router.afterEach(async (to, from) => {
   if (!from.name || (from.name === 'scan' && to.name === 'scan')) return
   await nextTick()
   const content = document.getElementById('main-content')
+  if (to.meta.guest || from.meta.guest) window.scrollTo(0, 0)
   content?.scrollTo(0, 0)
   if (from.name !== to.name || from.path !== to.path)
     content?.querySelector('.page-heading h1')?.focus({ preventScroll: true })

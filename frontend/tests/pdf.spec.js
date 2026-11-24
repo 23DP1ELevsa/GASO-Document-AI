@@ -460,7 +460,7 @@ test('PDF generation requires a verified account and PDFs and document images st
   await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller))
   const scan = page.url()
   await context.setOffline(true)
-  await expect(page.getByRole('heading', { name: 'Pieslēgties' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Laipni lūdzam!' })).toBeVisible()
   await expect(groups(page)).toHaveCount(0)
   await context.setOffline(false)
   await page.reload()
