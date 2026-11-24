@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\DocumentAi\OpenAiAnalyzer;
+use GuzzleHttp\Psr7\Response as PsrResponse;
+use GuzzleHttp\TransferStats;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -19,6 +23,7 @@ class DocumentAnalysisTest extends TestCase
         config(['document_ai.enabled' => true, 'document_ai.provider' => 'openai',
             'document_ai.key' => 'synthetic-test-key', 'document_ai.requests_per_minute' => 100]);
         Cache::flush();
+        Http::preventStrayRequests();
     }
 
     private function payload(): array
@@ -119,34 +124,94 @@ class DocumentAnalysisTest extends TestCase
         $response->assertStatus($expected)->assertExactJson(['error' => ['code' => $code]]);
         Http::assertSentCount(1);
         Log::shouldNotHaveReceived('error');
-        Log::shouldNotHaveReceived('warning');
+        Log::shouldHaveReceived('warning')->once()->with('document_ai.upstream_http_failure', [
+            'page_count' => 1, 'request_body_bytes' => strlen(Http::recorded()->first()[0]->body()),
+            'requested_http_version' => '1.1', 'expect_continue' => false,
+            'timeout_seconds' => max(1, min(120, config('document_ai.timeout'))), 'connect_timeout_seconds' => 10,
+            'windows_native_ca' => PHP_OS_FAMILY === 'Windows' && defined('CURLOPT_SSL_OPTIONS') && defined('CURLSSLOPT_NATIVE_CA'),
+            'code' => $code, 'http_status' => $status,
+        ]);
     }
 
     public function test_timeout_is_safe_and_never_retried(): void
     {
-        Http::fake(fn () => throw new ConnectionException('cURL error 28: synthetic-test-key PRIVATE OCR'));
+        Log::spy();
+        $calls = 0;
+        Http::fake(function () use (&$calls) {
+            $calls++;
+            throw new ConnectionException('cURL error 28: synthetic-test-key PRIVATE OCR');
+        });
         $this->postJson('/api/document-analysis', $this->payload())->assertStatus(504)->assertJsonPath('error.code', 'timeout');
+        $this->assertSame(1, $calls);
+        Log::shouldHaveReceived('warning')->once()->with('document_ai.transport_failure', \Mockery::on(
+            fn (array $context) => $context['curl_errno'] === 28 && $context['category'] === 'timeout'
+        ));
     }
 
     public static function connectionFailures(): array
     {
-        return [[60, 'upstream_tls'], [7, 'upstream_connection']];
+        return [[60, 'upstream_tls', 'tls_certificate'], [7, 'upstream_connection', 'connect'],
+            [52, 'upstream_connection', 'empty_response'], [56, 'upstream_connection', 'receive']];
     }
 
     #[DataProvider('connectionFailures')]
-    public function test_tls_and_connection_errors_are_not_misreported_as_timeouts(int $errno, string $expected): void
+    public function test_tls_and_connection_errors_are_logged_safely(int $errno, string $expected, string $category): void
     {
         Log::spy();
         $calls = 0;
-        Http::fake(function () use (&$calls, $errno) {
+        $requestBytes = null;
+        Http::fake(function ($request, $options) use (&$calls, &$requestBytes, $errno) {
             $calls++;
-            throw new ConnectionException('cURL error '.$errno.': synthetic-test-key PRIVATE OCR');
+            $psrRequest = $request->toPsrRequest();
+            $requestBytes = $psrRequest->getBody()->getSize();
+            $response = $errno === 56 ? new PsrResponse(502, [], 'PRIVATE OCR') : null;
+            $options['on_stats'](new TransferStats($psrRequest, $response, 0.14, $errno, [
+                'total_time' => 0.14, 'size_upload' => 0, 'http_version' => 2,
+                'url' => 'PRIVATE URL', 'error' => 'PRIVATE exception text',
+            ]));
+            throw $response ? new RequestException(new Response($response))
+                : new ConnectionException('PRIVATE OCR synthetic-test-key '.$request['input'][0]['content'][1]['image_url']);
         });
         $this->postJson('/api/document-analysis', $this->payload())->assertStatus(502)
             ->assertExactJson(['error' => ['code' => $expected]]);
         $this->assertSame(1, $calls);
         Log::shouldNotHaveReceived('error');
-        Log::shouldNotHaveReceived('warning');
+        Log::shouldHaveReceived('warning')->once()->with('document_ai.transport_failure', [
+            'page_count' => 1, 'request_body_bytes' => $requestBytes, 'requested_http_version' => '1.1',
+            'expect_continue' => false, 'timeout_seconds' => max(1, min(120, config('document_ai.timeout'))),
+            'connect_timeout_seconds' => 10,
+            'windows_native_ca' => PHP_OS_FAMILY === 'Windows' && defined('CURLOPT_SSL_OPTIONS') && defined('CURLSSLOPT_NATIVE_CA'),
+            'total_ms' => 140, 'uploaded_bytes' => 0, 'negotiated_http_version' => '1.1',
+            'code' => $expected, 'category' => $category, 'curl_errno' => $errno,
+        ]);
+    }
+
+    public function test_large_image_json_reaches_openai_without_expect_continue(): void
+    {
+        $data = $this->payload();
+        $prefix = 'data:image/png;base64,';
+        $png = base64_decode(substr($data['pages'][0]['image'], strlen($prefix)), true);
+        $chunk = "tEXtSynthetic\0".str_repeat('a', 3_200_000);
+        $png = substr($png, 0, -12).pack('N', strlen($chunk) - 4).$chunk.pack('N', crc32($chunk)).substr($png, -12);
+        $image = $prefix.base64_encode($png);
+        $data['pages'][0]['image'] = $image;
+        $data['pages'][] = ['id' => 'page-b', 'number' => 2, 'image' => $image];
+        $requestBytes = strlen(json_encode($data, JSON_THROW_ON_ERROR));
+        $this->assertGreaterThan(8 * 1024 * 1024, $requestBytes);
+
+        Http::fake(['api.openai.com/*' => Http::response($this->envelope())]);
+        $this->withServerVariables(['CONTENT_LENGTH' => $requestBytes])
+            ->postJson('/api/document-analysis', $data)->assertOk();
+        $fingerprint = hash_hmac('sha256', json_encode([$image, $image], JSON_THROW_ON_ERROR), config('app.key'));
+        $this->assertTrue(Cache::has('document-ai-duplicate:'.$fingerprint));
+        Http::assertSent(fn ($request) => ! $request->hasHeader('Expect')
+            && $request->toPsrRequest()->getProtocolVersion() === '1.1'
+            && $request->hasHeader('Content-Type', 'application/json')
+            && (int) $request->header('Content-Length')[0] === strlen($request->body())
+            && str_contains($request->body(), '"image_url":"'.$prefix)
+            && $request['input'][0]['content'][1] === ['type' => 'input_image', 'image_url' => $image, 'detail' => 'high']
+            && $request['input'][0]['content'][3]['image_url'] === $image);
+        Http::assertSentCount(1);
     }
 
     public static function invalidResponses(): array

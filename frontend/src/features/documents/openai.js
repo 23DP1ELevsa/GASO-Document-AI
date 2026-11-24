@@ -19,9 +19,9 @@ export const AI_ERRORS = {
   busy: 'Analīze jau notiek. Uzgaidiet.',
   timeout: 'AI analīzes gaidīšanas laiks beidzās.',
   upstream_tls:
-    'Serverim neizdodas pārbaudīt OpenAI SSL sertifikātu. Pārbaudiet servera sertifikātu konfigurāciju.',
+    'Neizdevās izveidot drošu savienojumu ar OpenAI. Sīkāka informācija ir servera žurnālā.',
   upstream_connection:
-    'Serverim neizdodas savienoties ar OpenAI. Pārbaudiet servera interneta savienojumu.',
+    'Savienojums ar OpenAI neizdevās vai tika pārtraukts. Sīkāka informācija ir servera žurnālā.',
   invalid_input: 'Dokumentam nav derīgu fotoattēlu.',
   input_too_large: 'Dokuments pārsniedz AI analīzes apjoma ierobežojumu.',
   source_changed: 'Dokuments analīzes laikā mainījās. Rezultāts nav piemērots.',

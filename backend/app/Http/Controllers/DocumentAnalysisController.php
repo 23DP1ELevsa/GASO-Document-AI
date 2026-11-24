@@ -43,11 +43,22 @@ class DocumentAnalysisController extends Controller
             }
             $totalBytes += strlen($bytes);
         }
+        unset($bytes, $match);
         if ($totalBytes > config('document_ai.max_image_total_bytes')) {
             return $this->error('input_too_large', 413);
         }
-        // Cache contains counters and HMAC fingerprints only; no images or output.
-        $fingerprint = hash_hmac('sha256', json_encode(array_column($pages, 'image')), config('app.key'));
+        // Hash the same JSON array one image at a time to avoid a second full
+        // copy of the payload in memory. Cache only the resulting fingerprint.
+        $hash = hash_init('sha256', HASH_HMAC, config('app.key'));
+        hash_update($hash, '[');
+        $separator = '';
+        foreach ($pages as $page) {
+            hash_update($hash, $separator);
+            hash_update($hash, json_encode($page['image'], JSON_THROW_ON_ERROR));
+            $separator = ',';
+        }
+        hash_update($hash, ']');
+        $fingerprint = hash_final($hash);
         $cache = Cache::store(config('cache.default'));
         $lock = $cache->lock('document-ai-budget-lock', 5);
         if (! $lock->get()) {

@@ -5,6 +5,7 @@ use App\Http\Middleware\DocumentAiBodyLimit;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\ValidatePostSize;
 use Illuminate\Validation\ValidationException;
 use MongoDB\Driver\Exception\CommandException;
 use MongoDB\Exception\Exception;
@@ -18,7 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->prepend(DocumentAiBodyLimit::class);
+        $middleware->replace(ValidatePostSize::class, DocumentAiBodyLimit::class);
         $middleware->trimStrings(except: [fn ($request) => $request->is('api/*')]);
         $middleware->convertEmptyStringsToNull(except: [fn ($request) => $request->is('api/*')]);
     })
